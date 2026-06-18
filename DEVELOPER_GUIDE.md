@@ -246,7 +246,40 @@ Khi thêm tính năng mới:
 6. Viết unit test cho service và mapper.
 7. Chạy build và kiểm tra Docker nếu liên quan runtime.
 
-## 11. Checklist nhanh cho dev mới
+## 11. Event-Driven Async Logging
+
+Hệ thống sử dụng kiến trúc **Event-Driven Asynchronous Logging** để đảm bảo hiệu năng và tuân thủ **Clean Architecture** (Single Responsibility Principle). Các Business Service tuyệt đối **không** gọi trực tiếp các logging service (như `ActivityLogService` hay `AuditLogService`). Thay vào đó, chúng chỉ cần phát ra các **Domain Event**.
+
+Quy trình tích hợp logging vào module/API mới:
+
+1. **Định nghĩa Domain Event:**
+   - Tạo một `record` implements interface `LoggableEvent` (nằm trong `com.roomrental.common.event`).
+   - Khai báo các field cần thiết và implement các phương thức bắt buộc: `tenantId`, `actorId`, `actorRole`, `action`, `entityType`, `entityId`.
+   - Ghi đè (override) các phương thức mặc định nếu cần lưu thêm thông tin: `oldValue()`, `newValue()`, `metadata()`.
+   - Ví dụ:
+     ```java
+     public record ContractActivatedEvent(
+             UUID tenantId, UUID actorId, String actorRole, Long contractId
+     ) implements LoggableEvent {
+         @Override public String action() { return "ACTIVATE_CONTRACT"; }
+         @Override public String entityType() { return "Contract"; }
+         @Override public String entityId() { return contractId.toString(); }
+     }
+     ```
+
+2. **Phát Event trong Business Service:**
+   - Inject `ApplicationEventPublisher`.
+   - Sử dụng `eventPublisher.publishEvent(new YourEvent(...))` vào cuối luồng xử lý nghiệp vụ thành công.
+   - Hệ thống sẽ đảm bảo không làm gián đoạn transaction chính.
+
+3. **Cơ chế hoạt động ngầm (Developer không cần viết thêm):**
+   - `DomainEventPublisher` (chạy đồng bộ trên thread chính) sẽ lắng nghe `LoggableEvent`, tự động trích xuất `IP Address` và `User-Agent` từ HTTP Request hiện tại, bọc thành `EnrichedLogEvent` và phát đi.
+   - Các Listener bất đồng bộ (`ActivityLogListener`, `SecurityAuditLogListener`) chạy trên thread pool tối ưu hóa (`log-async-`) sẽ bắt lấy `EnrichedLogEvent` và ghi xuống DB (`activity_logs`, `audit_logs`).
+
+**Lưu ý quan trọng cho Security Audit Log:**
+Nếu sự kiện của bạn mang tính nhạy cảm về bảo mật (ví dụ: `USER_LOGIN`, `PASSWORD_RESET`, `LOCK_USER`), bạn phải thêm giá trị `action` của event đó vào hằng số `SECURITY_ACTIONS` nằm trong lớp `SecurityAuditLogListener`. Nếu không, hệ thống sẽ chỉ ghi dưới dạng Activity Log thông thường.
+
+## 12. Checklist nhanh cho dev mới
 - Hiểu module mình cần sửa thuộc `core`, `finance`, `contract`, hay `property`.
 - Không import chéo entity/repository giữa module.
 - Luôn lọc theo `tenant_id`.
