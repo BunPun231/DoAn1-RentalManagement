@@ -54,3 +54,5 @@ docker/grafana-binary
 docker/prometheus-binary
 
 
+frontend/pnpm-lock.yaml
+frontend/pnpm-workspace.yaml
