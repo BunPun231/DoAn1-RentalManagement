@@ -96,6 +96,20 @@ public class RentalServiceService {
         return PageResponse.from(serviceRepository.findByMotelId(motelId, pageable), this::toResult);
     }
 
+    /**
+     * UC37+: List services assigned to a specific room.
+     */
+    @Transactional(readOnly = true)
+    public List<ServiceResult> listByRoom(Long motelId, Long roomId) {
+        requireMotel(motelId);
+        List<ServiceUsage> usages = serviceUsageRepository.findActiveByRoomId(roomId);
+        return usages.stream()
+                .map(usage -> serviceRepository.findByIdAndMotelId(usage.getServiceId(), motelId))
+                .filter(java.util.Optional::isPresent)
+                .map(opt -> toResult(opt.get()))
+                .toList();
+    }
+
     @Transactional(readOnly = true)
     public ServiceResult get(Long motelId, Long serviceId) {
         return toResult(findService(motelId, serviceId));

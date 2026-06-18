@@ -7,6 +7,7 @@ import com.roomrental.modules.auth.infrastructure.entity.UserEntity;
 import com.roomrental.modules.auth.infrastructure.repository.UserJpaRepository;
 import com.roomrental.modules.resident.application.dto.ResidentCreateCommand;
 import com.roomrental.modules.resident.application.dto.ResidentResult;
+import com.roomrental.modules.resident.application.dto.ResidentUpdateCommand;
 import com.roomrental.modules.resident.application.event.ResidentCreatedEvent;
 import com.roomrental.modules.resident.application.event.ResidentDeactivatedEvent;
 import com.roomrental.modules.resident.application.event.ResidentReactivatedEvent;
@@ -138,6 +139,32 @@ public class ResidentService {
                 .filter(u -> tenantId.equals(u.getTenantId()) && "RESIDENT".equals(u.getRole()))
                 .orElseThrow(() -> BaseException.notFound("Resident", residentId));
         ResidentProfileEntity profile = profileRepository.findById(residentId).orElse(null);
+        return toResult(user, profile);
+    }
+
+    /**
+     * UC53: Update resident profile.
+     * Phone cannot be changed as it is the login credential.
+     */
+    @Transactional
+    public ResidentResult update(ResidentUpdateCommand command) {
+        UUID tenantId = SecurityUtils.requireTenantId();
+        UserEntity user = userJpaRepository.findById(command.residentId())
+                .filter(u -> tenantId.equals(u.getTenantId()) && "RESIDENT".equals(u.getRole()))
+                .orElseThrow(() -> BaseException.notFound("Resident", command.residentId()));
+
+        if (command.fullName() != null) user.setFullName(command.fullName());
+        if (command.email() != null) user.setEmail(command.email());
+        user = userJpaRepository.save(user);
+
+        ResidentProfileEntity profile = profileRepository.findById(command.residentId())
+                .orElse(new ResidentProfileEntity());
+        profile.setUserId(user.getId());
+        if (command.idCardNumber() != null) profile.setIdCardNumber(command.idCardNumber());
+        if (command.idCardFrontUrl() != null) profile.setIdCardFrontUrl(command.idCardFrontUrl());
+        if (command.idCardBackUrl() != null) profile.setIdCardBackUrl(command.idCardBackUrl());
+        profileRepository.save(profile);
+
         return toResult(user, profile);
     }
 

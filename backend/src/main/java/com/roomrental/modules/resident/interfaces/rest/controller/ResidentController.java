@@ -4,8 +4,10 @@ import com.roomrental.common.dto.ApiResponse;
 import com.roomrental.common.dto.PageResponse;
 import com.roomrental.modules.resident.application.dto.ResidentCreateCommand;
 import com.roomrental.modules.resident.application.dto.ResidentResult;
+import com.roomrental.modules.resident.application.dto.ResidentUpdateCommand;
 import com.roomrental.modules.resident.application.service.ResidentService;
 import com.roomrental.modules.resident.interfaces.rest.dto.ResidentCreateRequest;
+import com.roomrental.modules.resident.interfaces.rest.dto.ResidentUpdateRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -62,5 +64,17 @@ public class ResidentController {
     public ResponseEntity<ApiResponse<Void>> deactivate(@PathVariable UUID residentId) {
         residentService.deactivate(residentId);
         return ResponseEntity.ok(ApiResponse.ok("Resident deactivated"));
+    }
+
+    @PatchMapping("/{residentId}")
+    @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
+    @Operation(summary = "Update resident profile (UC53)")
+    public ResponseEntity<ApiResponse<ResidentResult>> update(
+            @PathVariable UUID residentId,
+            @RequestBody ResidentUpdateRequest body) {
+        ResidentResult result = residentService.update(new ResidentUpdateCommand(
+                residentId, body.email(), body.fullName(),
+                body.idCardNumber(), body.idCardFrontUrl(), body.idCardBackUrl()));
+        return ResponseEntity.ok(ApiResponse.ok(result, "Resident updated"));
     }
 }

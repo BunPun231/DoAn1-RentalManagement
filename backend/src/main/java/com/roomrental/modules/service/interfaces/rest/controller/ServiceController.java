@@ -22,6 +22,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/motels/{motelId}/services")
 @SecurityRequirement(name = "bearerAuth")
@@ -86,7 +88,7 @@ public class ServiceController {
 
     @PostMapping("/{serviceId}/assign-to-rooms")
     @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
-    @Operation(summary = "Assign service to multiple rooms")
+    @Operation(summary = "Assign service to multiple rooms (UC37)")
     public ResponseEntity<ApiResponse<Void>> assignToRooms(
             @PathVariable Long motelId, @PathVariable Long serviceId,
             @Valid @RequestBody ServiceAssignRequest body) {
@@ -94,5 +96,16 @@ public class ServiceController {
             body.roomIds().stream().map(id -> new ServiceAssignCommand.RoomAssignInput(id, 1, null)).toList()
         ));
         return ResponseEntity.ok(ApiResponse.ok("Service assigned to rooms"));
+    }
+
+    /**
+     * UC37+: Get services currently assigned to a specific room.
+     */
+    @GetMapping("/by-room/{roomId}")
+    @PreAuthorize("hasAnyRole('MANAGER','ADMIN','RESIDENT')")
+    @Operation(summary = "Get services assigned to a room (UC37+)")
+    public ResponseEntity<ApiResponse<List<ServiceResult>>> listByRoom(
+            @PathVariable Long motelId, @PathVariable Long roomId) {
+        return ResponseEntity.ok(ApiResponse.ok(svc.listByRoom(motelId, roomId)));
     }
 }

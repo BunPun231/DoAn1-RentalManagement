@@ -55,17 +55,16 @@ public class InvoiceController {
         return ResponseEntity.ok(service.getDetail(id));
     }
 
-    // @PostMapping("/{id}/adjust")
-    // @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
-    // @Operation(summary = "Adjust/Void an invoice (UC76)")
-    // public ResponseEntity<InvoiceResult> adjustInvoice(@PathVariable Long id,
-    // @RequestBody @Valid InvoiceAdjustRequest request) {
-    // InvoiceAdjustCommand cmd = new InvoiceAdjustCommand(
-    // id, request.reason(), request.correctedReadings(),
-    // request.customAdjustments()
-    // );
-    // return ResponseEntity.ok(service.adjustInvoice(cmd));
-    // }
+    @PostMapping("/{id}/adjust")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
+    @Operation(summary = "Adjust/Void an invoice (UC76)")
+    public ResponseEntity<InvoiceResult> adjustInvoice(@PathVariable Long id,
+            @RequestBody @Valid InvoiceAdjustRequest request) {
+        InvoiceAdjustCommand cmd = new InvoiceAdjustCommand(
+                id, request.reason(), request.correctedReadings(),
+                request.customAdjustments());
+        return ResponseEntity.ok(service.adjustInvoice(cmd));
+    }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
