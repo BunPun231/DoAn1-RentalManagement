@@ -1,0 +1,18 @@
+package com.roomrental.modules.service.domain.repository;
+
+import com.roomrental.modules.service.domain.model.RentalService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
+import java.util.Optional;
+
+public interface RentalServiceRepository {
+
+    RentalService save(RentalService service);
+
+    Optional<RentalService> findByIdAndMotelId(Long id, Long motelId);
+
+    Page<RentalService> findByMotelId(Long motelId, Pageable pageable);
+
+    boolean existsByMotelIdAndName(Long motelId, String name);
+}
