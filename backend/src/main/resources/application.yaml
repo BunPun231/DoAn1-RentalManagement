@@ -1,3 +1,21 @@
 spring:
   application:
     name: rental-management
+  profiles:
+    active: dev
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+
+app:
+  security:
+    jwt-secret: change-me-super-secret-key-change-me-super-secret-key
+    access-token-minutes: 60
+  tenant:
+    header-name: X-Tenant-Id
