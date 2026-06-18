@@ -56,6 +56,9 @@ public class UserEntity extends BaseEntity {
     @Column(name = "lock_reason")
     private String lockReason;
 
+    @Column(name = "session_version", nullable = false)
+    private Integer sessionVersion = 0;
+
     @PrePersist
     void prePersist() {
         if (id == null) {

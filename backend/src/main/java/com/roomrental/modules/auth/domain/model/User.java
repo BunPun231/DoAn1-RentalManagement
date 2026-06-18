@@ -23,6 +23,7 @@ public class User {
     private OffsetDateTime updatedAt;
     private OffsetDateTime lastLoginAt;
     private String lockReason;
+    private Integer sessionVersion = 0;
 
     // ── Getters & Setters ────────────────────────────────────────────
 
@@ -67,4 +68,7 @@ public class User {
 
     public String getLockReason() { return lockReason; }
     public void setLockReason(String lockReason) { this.lockReason = lockReason; }
+
+    public Integer getSessionVersion() { return sessionVersion; }
+    public void setSessionVersion(Integer sessionVersion) { this.sessionVersion = sessionVersion; }
 }
