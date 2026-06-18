@@ -13,6 +13,7 @@ import com.roomrental.modules.motel.infrastructure.persistence.MotelJpaRepositor
 import com.roomrental.modules.report.application.dto.*;
 import com.roomrental.modules.room.infrastructure.entity.RoomEntity;
 import com.roomrental.modules.room.infrastructure.repository.RoomJpaRepository;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -201,9 +202,13 @@ public class ReportService {
 
     /**
      * UC94: Dashboard summary for current tenant.
+     * Cached per-tenant in Redis (cache: "dashboardSummary", key: tenantId).
+     * Cache is invalidated whenever invoices, contracts, or rooms are modified.
      */
-    public DashboardSummaryResult getDashboardSummary() {
-        UUID tenantId = SecurityUtils.requireTenantId();
+    @Cacheable(value = "dashboardSummary", key = "#tenantId.toString()")
+    public DashboardSummaryResult getDashboardSummary(UUID tenantId) {
+        // tenantId được truyền từ controller (đã extract từ SecurityContext)
+        // → @Cacheable key evaluation không cần SecurityContext, tránh 500 error
 
         // All motels
         List<MotelEntity> motels = motelRepository.findByTenantId(tenantId, Pageable.unpaged()).getContent();

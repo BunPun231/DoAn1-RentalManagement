@@ -44,3 +44,13 @@ Thumbs.db
 .aiexclude
 # Google Cloud Service Account Key (OCR)
 **/gcp-credentials.json
+
+# Docker
+
+docker/grafana/data
+docker/prometheus/data
+docker/postgres/data
+docker/grafana-binary
+docker/prometheus-binary
+
+

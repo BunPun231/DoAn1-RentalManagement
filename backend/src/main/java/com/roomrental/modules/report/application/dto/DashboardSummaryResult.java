@@ -32,13 +32,13 @@ public record DashboardSummaryResult(
 
         // Recent invoices summary
         List<RecentInvoice> recentInvoices
-) {
+) implements java.io.Serializable {
     public record RecentActivity(
             String action,
             String entityType,
             String description,
             java.time.OffsetDateTime createdAt
-    ) {}
+    ) implements java.io.Serializable {}
 
     public record RecentInvoice(
             Long invoiceId,
@@ -47,5 +47,5 @@ public record DashboardSummaryResult(
             java.math.BigDecimal amount,
             String status,
             java.time.LocalDate billingMonth
-    ) {}
+    ) implements java.io.Serializable {}
 }

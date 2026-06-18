@@ -11,6 +11,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.util.UUID;
 
 /**
  * REST controller for Reports (UC90, UC91, UC92, UC94).
@@ -73,6 +74,8 @@ public class ReportController {
     @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
     @Operation(summary = "Dashboard summary — aggregated KPIs for current tenant (UC94)")
     public ResponseEntity<ApiResponse<DashboardSummaryResult>> getDashboardSummary() {
-        return ResponseEntity.ok(ApiResponse.ok(reportService.getDashboardSummary()));
+        // Lấy tenantId ở controller để @Cacheable key trong service có thể dùng #tenantId
+        UUID tenantId = com.roomrental.common.util.SecurityUtils.requireTenantId();
+        return ResponseEntity.ok(ApiResponse.ok(reportService.getDashboardSummary(tenantId)));
     }
 }
