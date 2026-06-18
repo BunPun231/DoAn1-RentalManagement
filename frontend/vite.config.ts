@@ -24,6 +24,15 @@ export default defineConfig({
     })
   ],
   server: {
-    port: 5173
+    port: 5173,
+    host: true, // Needed for docker
+    proxy: {
+      "/api": {
+        // Use VITE_BACKEND_URL from Docker compose or fallback to localhost if running natively
+        target: process.env.VITE_BACKEND_URL || "http://localhost:8080",
+        changeOrigin: true,
+        secure: false,
+      }
+    }
   }
 });

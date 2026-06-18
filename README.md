@@ -37,6 +37,7 @@ Each module is self-contained with its own domain, application, infrastructure, 
 
 ## 🛠 Tech Stack
 
+### Backend
 | Layer | Technology |
 |-------|-----------|
 | **Runtime** | Java 21, Spring Boot 3.3 |
@@ -49,36 +50,67 @@ Each module is self-contained with its own domain, application, infrastructure, 
 | **Testing** | JUnit 5, Mockito, H2 (in-memory), Testcontainers |
 | **Build** | Maven with Wrapper |
 
+### Frontend
+| Layer | Technology |
+|-------|-----------|
+| **Framework** | React 18, Vite |
+| **Styling** | Tailwind CSS (v3), clsx, tailwind-merge |
+| **State Management** | Zustand |
+| **Routing** | React Router DOM (v6) |
+| **Icons & Charts** | Lucide React, Recharts |
+| **Data Fetching** | Axios, React Query (TanStack) |
+
 ## 🚀 Quick Start
 
 ### Prerequisites
 
 - **Java 21** (Temurin recommended)
+- **Node.js 18+** (for frontend)
 - **Docker & Docker Compose** (for local infrastructure)
 
-### 1. Start Local Infrastructure
+## 🚀 Quick Start
 
+Dự án cung cấp 2 chế độ chạy môi trường Local tùy thuộc vào thói quen của bạn:
+
+### Option A: Fully Dockerized (Khuyến nghị)
+Bạn không cần cài đặt Java hay Node.js. Chỉ cần Docker:
+
+```bash
+docker compose -f docker-compose.local.yml up -d
+```
+Lệnh này sẽ khởi động toàn bộ: **Postgres (port 15432), Redis (port 16379), Backend (port 8080), Frontend (port 5173)**.
+- Khi bạn sửa code trong `frontend/` hoặc `backend/`, container sẽ tự động **Hot Reload**.
+- Bấm `Ctrl+C` hoặc `docker compose -f docker-compose.local.yml down` để dừng.
+
+### Option B: Hybrid (Infra on Docker, Apps Native)
+Nếu bạn muốn dùng Terminal trên IDE (IntelliJ, VSCode) để chạy App:
+
+**1. Khởi động Database & Redis:**
 ```bash
 docker compose -f docker-compose.dev.yml up -d
 ```
+*(Postgres chạy trên `localhost:15432`, Redis chạy trên `localhost:16379`)*
 
-This starts:
-- **PostgreSQL 16** on `localhost:5432`
-- **Redis 7** on `localhost:6379`
-
-### 2. Run the Backend
-
+**2. Chạy Backend (Cần cài đặt Java 21):**
 ```bash
 cd backend
 chmod +x mvnw
 ./mvnw spring-boot:run
 ```
+*(App backend sẽ chạy ở **http://localhost:8080**)*
 
-The application starts on **http://localhost:8080** with dev profile (auto-detected).
+**3. Chạy Frontend (Cần cài đặt Node 18+):**
+```bash
+cd frontend
+npm install
+npm run dev
+```
+*(App frontend sẽ chạy ở **http://localhost:5173**)*
 
-### 3. Access Swagger UI
-
-Open **http://localhost:8080/swagger-ui.html** for interactive API documentation.
+### Access APIs
+- **Frontend App**: http://localhost:5173
+- **Swagger UI**: http://localhost:8080/swagger-ui.html
+- **OpenAPI JSON**: http://localhost:8080/v3/api-docs
 
 ### 4. Default Admin Account
 

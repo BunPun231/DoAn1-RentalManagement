@@ -286,3 +286,33 @@ Nếu sự kiện của bạn mang tính nhạy cảm về bảo mật (ví dụ
 - Dùng `PATCH` cho update resource.
 - Thêm test mới cho logic mới.
 - Chạy `./mvnw -DskipTests clean package` trước khi push thay đổi lớn.
+
+## 13. Frontend Architecture & Conventions
+Frontend được xây dựng dựa trên **React 18 + Vite** theo kiến trúc **Feature-Sliced Design** (FSD) kết hợp với **Clean Architecture** (cấp độ UI).
+
+### Cấu trúc thư mục (`frontend/src/`)
+- `app/`: Các thiết lập toàn cục, routing (`routes.tsx`), context providers (`providers.tsx`), global CSS.
+- `components/`:
+  - `ui/`: Các UI primitives dùng chung (Button, Input, Modal, Table).
+  - `layout/`: Các thành phần layout (Sidebar, Header, MainLayout).
+- `features/`: Chia theo từng module nghiệp vụ (auth, motels, residents, contracts, invoices, meter, reports, settings).
+  - Bên trong mỗi feature có các thư mục: `pages/` (màn hình chính), `components/` (các UI/modal riêng biệt cho feature đó).
+- `store/`: Quản lý state toàn cục bằng Zustand (ví dụ: `authStore.ts`).
+- `data/`: Dữ liệu mock (`mock.ts`) để phục vụ quá trình phát triển UI MVP.
+- `lib/`: Các hàm tiện ích (utils, formatCurrency, cn).
+- `types/`: Định nghĩa Typescript cho toàn bộ Domain Model (User, Motel, Room, Invoice...).
+
+### Quy ước viết Code (Frontend)
+1. **Component Design**: 
+   - Sử dụng React Functional Components (RFC) + Hooks.
+   - Các components phức tạp phải được bóc tách từ các UI primitives cơ bản (`src/components/ui/`).
+   - Mọi class CSS nên được xử lý qua hàm `cn(...)` (`clsx` + `tailwind-merge`) để xử lý xung đột.
+2. **State Management**:
+   - Dữ liệu global (User Session, Tenant Info) dùng `Zustand`.
+   - Dữ liệu fetch từ server (sẽ tích hợp sau) dùng `React Query`.
+3. **Styling**:
+   - Tuân thủ Tailwind CSS. Hạn chế dùng inline styles (`style={{}}`).
+   - Sử dụng các token màu sắc từ config (`brand-deep`, `brand-warm`, `brand-ink`, `brand-sand`).
+4. **Mock Data**:
+   - Hiện tại sử dụng `src/data/mock.ts` cho MVP Demo.
+   - Khi nối API, hãy thay thế các import mock bằng hook của React Query gọi qua Axios/Fetch api client.
