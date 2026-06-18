@@ -64,4 +64,7 @@ public interface ContractJpaRepository extends JpaRepository<ContractEntity, Lon
              @Param("tenantId") UUID tenantId,
              @Param("residentUserId") UUID residentUserId
         );
+
+    @Query(value = "SELECT * FROM contracts WHERE status = 'ACTIVE'", nativeQuery = true)
+    List<ContractEntity> findAllActiveContractsNative();
 }

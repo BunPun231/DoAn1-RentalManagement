@@ -17,6 +17,8 @@ export interface ContractResult {
   depositStatus: "PENDING" | "UNPAID" | "HOLDING" | "PAID" | "REFUNDED" | "DEDUCTED";
   status: "ACTIVE" | "DRAFT" | "PENDING_LIQUIDATION" | "LIQUIDATED" | "CANCELLED" | "CANCELED";
   billingDate?: string;
+  billingCycleDay?: number;
+  paymentCycleMonths?: number;
   intendedMoveOutDate?: string;
   pdfUrl?: string;
   createdAt?: string;

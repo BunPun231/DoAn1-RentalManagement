@@ -512,7 +512,6 @@ export function MeterReadingPage() {
   const handleApproveAsync = async (readingId: number) => {
     try {
       await meterReadingService.approve(readingId);
-      await fetchData();
     } catch (err) {
       alert(extractError(err));
       throw err;
@@ -524,7 +523,6 @@ export function MeterReadingPage() {
     if (!reason) return;
     try {
       await meterReadingService.reject(readingId, reason);
-      await fetchData();
     } catch (err) {
       alert(extractError(err));
       throw err;
@@ -717,7 +715,10 @@ export function MeterReadingPage() {
 
       <TinderReviewModal
         isOpen={tinderOpen}
-        onClose={() => setTinderOpen(false)}
+        onClose={() => {
+          setTinderOpen(false);
+          fetchData();
+        }}
         pendingReadings={pendingReadings}
         onApprove={handleApproveAsync}
         onReject={handleRejectAsync}

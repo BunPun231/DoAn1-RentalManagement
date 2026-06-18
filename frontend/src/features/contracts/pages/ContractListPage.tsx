@@ -177,6 +177,8 @@ function ContractDetailModal({
     { label: "Tiền cọc", value: formatCurrency(contract.depositAmount) },
     { label: "Trạng thái cọc", value: DEPOSIT_BADGE[contract.depositStatus] },
     { label: "Ngày tính phí", value: contract.billingDate ?? "-" },
+    { label: "Ngày chốt kỳ đóng tiền", value: contract.billingCycleDay != null ? (contract.billingCycleDay === 31 ? "Ngày cuối tháng" : `Ngày ${contract.billingCycleDay} hàng tháng`) : "-" },
+    { label: "Kỳ đóng tiền", value: contract.paymentCycleMonths != null ? `${contract.paymentCycleMonths} tháng / lần` : "-" },
   ];
 
   const inputClass = "w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-deep/30 focus:border-brand-deep transition-all bg-white";

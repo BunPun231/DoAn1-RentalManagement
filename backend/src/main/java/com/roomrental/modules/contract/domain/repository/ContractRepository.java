@@ -40,4 +40,6 @@ public interface ContractRepository {
     boolean existsById(Long id);
 
     long countByTenantId(UUID tenantId);
+
+    List<Contract> findAllActiveContractsNative();
 }

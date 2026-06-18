@@ -97,136 +97,38 @@ public class InvoiceService {
     public CompletableFuture<Void> generateForMotel(InvoiceGenerateCommand command) {
         log.info("Starting async invoice generation for motelId={}, billingMonth={}", command.motelId(), command.billingMonth());
         try {
-            UUID tenantId = SecurityUtils.requireTenantId();
             List<InvoiceResult> results = new ArrayList<>();
-
             List<SkippedInvoiceRoomResult> skippedRooms = new ArrayList<>();
             List<Room> rooms = roomRepository.findByMotelId(command.motelId(), Pageable.unpaged()).getContent();
 
             for (Room room : rooms) {
-            List<Contract> contracts = contractRepository.findByRoomId(room.getId()).stream()
-                    .filter(Contract::isActive)
-                    .toList();
-            if (contracts.isEmpty()) {
-                continue;
-            }
-
-            Contract contract = contracts.get(0);
-
-            // Check duplicate
-            if (invoiceRepository.existsByContractIdAndBillingMonth(contract.getId(), command.billingMonth())) {
-                continue;
-            }
-
-            List<ServiceUsage> billableUsages = serviceUsageRepository.findBillableByRoomId(room.getId());
-            Map<Long, MeterReading> approvedReadings = meterReadingRepository.findByRoomIdAndBillingMonth(room.getId(), command.billingMonth())
-                    .stream()
-                    .filter(r -> r.getStatus() == MeterReading.MeterReadingStatus.APPROVED)
-                    .collect(Collectors.toMap(MeterReading::getServiceUsageId, reading -> reading, (left, right) -> left));
-
-            boolean missingIndexReading = billableUsages.stream().anyMatch(usage -> {
-                RentalService service = rentalServiceRepository.findByIdAndMotelId(usage.getServiceId(), room.getMotelId()).orElse(null);
-                return service != null && (
-                    service.getChargeType() == com.roomrental.modules.service.domain.model.ChargeType.PER_INDEX
-                    || service.getChargeType() == com.roomrental.modules.service.domain.model.ChargeType.METERED)
-                        && !approvedReadings.containsKey(usage.getId());
-            });
-            if (missingIndexReading) {
-                skippedRooms.add(new SkippedInvoiceRoomResult(
-                    room.getId(), room.getRoomNumber(), "Missing APPROVED meter reading for at least one meter-based service"));
-                continue;
-            }
-
-            Invoice invoice = new Invoice();
-            invoice.setTenantId(tenantId);
-            invoice.setContractId(contract.getId());
-            invoice.setRoomId(contract.getRoomId());
-            invoice.setBillingMonth(command.billingMonth());
-            invoice.setDueDate(LocalDate.now().plusDays(5)); // default 5 days
-            invoice.setCreatedAt(OffsetDateTime.now());
-            invoice.setUpdatedAt(OffsetDateTime.now());
-
-            List<Map<String, Object>> snapshotItems = new ArrayList<>();
-            
-            // 1. Calculate Rent
-            BillingStrategy rentStrategy = strategyFactory.getStrategy("FIXED", false);
-            BillingContext rentContext = new BillingContext(
-                null, "Tiền phòng", "FIXED", null, null, null, 1, contract.getRentPrice(), null
-            );
-            snapshotItems.add(buildSnapshotItem("FIXED", false, rentContext));
-            List<InvoiceDetail> details = new ArrayList<>(rentStrategy.calculate(rentContext));
-
-            // 2. Calculate services from real service usages
-            for (ServiceUsage usage : billableUsages) {
-                RentalService service = rentalServiceRepository.findByIdAndMotelId(usage.getServiceId(), room.getMotelId())
-                        .orElseThrow(() -> BaseException.notFound("Service", usage.getServiceId()));
-                LocalDate pricingDate = command.billingMonth().withDayOfMonth(command.billingMonth().lengthOfMonth());
-                ServicePricing pricing = servicePricingRepository.findCurrentByServiceId(service.getId(), pricingDate).orElse(null);
-                List<ServiceTierPricing> tiers = pricing != null ? pricing.getTierPrices() : List.of();
-                boolean hasTiers = tiers != null && !tiers.isEmpty();
-
-                MeterReading approvedReading = approvedReadings.get(usage.getId());
-                BillingStrategy strategy = strategyFactory.getStrategy(service.getChargeType().name(), hasTiers);
-                BillingContext context = buildBillingContext(service, usage, room, contract, pricing, tiers, approvedReading);
-                snapshotItems.add(buildSnapshotItem(service.getChargeType().name(), hasTiers, context));
-                details.addAll(strategy.calculate(context));
-            }
-
-            BigDecimal total = details.stream().map(InvoiceDetail::getLineTotal).reduce(BigDecimal.ZERO, BigDecimal::add);
-            invoice.setTotalAmount(total);
-            
-            // 3. Apply auto-pay from balance if any
-            UUID residentId = contract.getPrimaryResidentUserId();
-            com.roomrental.modules.finance.domain.model.ResidentBalance residentBalance = residentBalanceRepository.findById(residentId)
-                .orElseGet(() -> {
-                    com.roomrental.modules.finance.domain.model.ResidentBalance rb = new com.roomrental.modules.finance.domain.model.ResidentBalance();
-                    rb.setResidentUserId(residentId);
-                    return rb;
-                });
-            BigDecimal creditBalance = residentBalance.getBalance() != null ? residentBalance.getBalance() : BigDecimal.ZERO;
-            BigDecimal deduction = BigDecimal.ZERO;
-
-            if (creditBalance.compareTo(BigDecimal.ZERO) > 0) {
-                if (creditBalance.compareTo(total) >= 0) {
-                    deduction = total;
-                    residentBalance.deductBalance(total);
-                } else {
-                    deduction = creditBalance;
-                    residentBalance.setBalance(BigDecimal.ZERO);
+                List<Contract> contracts = contractRepository.findByRoomId(room.getId()).stream()
+                        .filter(Contract::isActive)
+                        .toList();
+                if (contracts.isEmpty()) {
+                    continue;
                 }
-                residentBalanceRepository.save(residentBalance);
-            }
 
-            invoice.setBalanceDeduction(deduction);
-            invoice.setPaidAmount(BigDecimal.ZERO);
-            if (invoice.getRemainingAmount().compareTo(BigDecimal.ZERO) <= 0) {
-                invoice.setStatus(InvoiceStatus.PAID);
-            }
+                Contract contract = contracts.get(0);
 
-            invoice.setCalculationSnapshot(buildCalculationSnapshot(command, contract, room, snapshotItems));
-            
-            Invoice saved = invoiceRepository.save(invoice);
-            
-            for (InvoiceDetail d : details) {
-                d.setInvoiceId(saved.getId());
-            }
-            invoiceDetailRepository.saveAll(details);
+                // Check duplicate
+                if (invoiceRepository.existsByContractIdAndBillingMonth(contract.getId(), command.billingMonth())) {
+                    continue;
+                }
 
-            List<ServiceUsage> toCancel = billableUsages.stream()
-                    .filter(usage -> usage.getStatus() == ServiceUsage.ServiceUsageStatus.PENDING_CANCELLATION)
-                    .peek(usage -> usage.setStatus(ServiceUsage.ServiceUsageStatus.CANCELLED))
-                    .peek(usage -> usage.setUpdatedAt(OffsetDateTime.now()))
-                    .collect(Collectors.toList());
-            if (!toCancel.isEmpty()) {
-                serviceUsageRepository.saveAll(toCancel);
-            }
-            
-            eventPublisher.publishEvent(new InvoiceCreatedEvent(
-                tenantId, SecurityUtils.getCurrentUserId(), SecurityUtils.getCurrentRole(),
-                saved.getId(), saved.getTotalAmount().toPlainString()
-            ));
-            
-            results.add(toResult(saved));
+                try {
+                    InvoiceResult res = generateForSingleContract(contract, command.billingMonth());
+                    if (res != null) {
+                        results.add(res);
+                    } else {
+                        skippedRooms.add(new SkippedInvoiceRoomResult(
+                            room.getId(), room.getRoomNumber(), "Missing APPROVED meter reading for at least one meter-based service"));
+                    }
+                } catch (Exception ex) {
+                    log.error("Failed to generate invoice in motel loop for contractId={}", contract.getId(), ex);
+                    skippedRooms.add(new SkippedInvoiceRoomResult(
+                        room.getId(), room.getRoomNumber(), "Error: " + ex.getMessage()));
+                }
             }
 
             log.info("Completed async invoice generation for motelId={}, billingMonth={}, created={}, skipped={}",
@@ -236,6 +138,130 @@ public class InvoiceService {
             log.error("Async invoice generation failed for motelId={}, billingMonth={}", command.motelId(), command.billingMonth(), ex);
             throw ex;
         }
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public InvoiceResult generateForSingleContract(Contract contract, LocalDate billingMonth) {
+        UUID tenantId = contract.getTenantId();
+        Room room = roomRepository.findById(contract.getRoomId())
+                .orElseThrow(() -> BaseException.notFound("Room", contract.getRoomId()));
+
+        List<ServiceUsage> billableUsages = serviceUsageRepository.findBillableByRoomId(room.getId());
+        Map<Long, MeterReading> approvedReadings = meterReadingRepository.findByRoomIdAndBillingMonth(room.getId(), billingMonth)
+                .stream()
+                .filter(r -> r.getStatus() == MeterReading.MeterReadingStatus.APPROVED)
+                .collect(Collectors.toMap(MeterReading::getServiceUsageId, reading -> reading, (left, right) -> left));
+
+        boolean missingIndexReading = billableUsages.stream().anyMatch(usage -> {
+            RentalService service = rentalServiceRepository.findByIdAndMotelId(usage.getServiceId(), room.getMotelId()).orElse(null);
+            return service != null && (
+                service.getChargeType() == com.roomrental.modules.service.domain.model.ChargeType.PER_INDEX
+                || service.getChargeType() == com.roomrental.modules.service.domain.model.ChargeType.METERED)
+                    && !approvedReadings.containsKey(usage.getId());
+        });
+
+        if (missingIndexReading) {
+            return null;
+        }
+
+        Invoice invoice = new Invoice();
+        invoice.setTenantId(tenantId);
+        invoice.setContractId(contract.getId());
+        invoice.setRoomId(contract.getRoomId());
+        invoice.setBillingMonth(billingMonth);
+        invoice.setDueDate(LocalDate.now().plusDays(5)); // default 5 days
+        invoice.setCreatedAt(OffsetDateTime.now());
+        invoice.setUpdatedAt(OffsetDateTime.now());
+
+        List<Map<String, Object>> snapshotItems = new ArrayList<>();
+        
+        // 1. Calculate Rent
+        BillingStrategy rentStrategy = strategyFactory.getStrategy("FIXED", false);
+        BillingContext rentContext = new BillingContext(
+            null, "Tiền phòng", "FIXED", null, null, null, 1, contract.getRentPrice(), null
+        );
+        snapshotItems.add(buildSnapshotItem("FIXED", false, rentContext));
+        List<InvoiceDetail> details = new ArrayList<>(rentStrategy.calculate(rentContext));
+
+        // 2. Calculate services from real service usages
+        for (ServiceUsage usage : billableUsages) {
+            RentalService service = rentalServiceRepository.findByIdAndMotelId(usage.getServiceId(), room.getMotelId())
+                    .orElseThrow(() -> BaseException.notFound("Service", usage.getServiceId()));
+            LocalDate pricingDate = billingMonth.withDayOfMonth(billingMonth.lengthOfMonth());
+            ServicePricing pricing = servicePricingRepository.findCurrentByServiceId(service.getId(), pricingDate).orElse(null);
+            List<ServiceTierPricing> tiers = pricing != null ? pricing.getTierPrices() : List.of();
+            boolean hasTiers = tiers != null && !tiers.isEmpty();
+
+            MeterReading approvedReading = approvedReadings.get(usage.getId());
+            BillingStrategy strategy = strategyFactory.getStrategy(service.getChargeType().name(), hasTiers);
+            BillingContext context = buildBillingContext(service, usage, room, contract, pricing, tiers, approvedReading);
+            snapshotItems.add(buildSnapshotItem(service.getChargeType().name(), hasTiers, context));
+            details.addAll(strategy.calculate(context));
+        }
+
+        BigDecimal total = details.stream().map(InvoiceDetail::getLineTotal).reduce(BigDecimal.ZERO, BigDecimal::add);
+        invoice.setTotalAmount(total);
+        
+        // 3. Apply auto-pay from balance if any
+        UUID residentId = contract.getPrimaryResidentUserId();
+        com.roomrental.modules.finance.domain.model.ResidentBalance residentBalance = residentBalanceRepository.findById(residentId)
+            .orElseGet(() -> {
+                com.roomrental.modules.finance.domain.model.ResidentBalance rb = new com.roomrental.modules.finance.domain.model.ResidentBalance();
+                rb.setResidentUserId(residentId);
+                return rb;
+            });
+        BigDecimal creditBalance = residentBalance.getBalance() != null ? residentBalance.getBalance() : BigDecimal.ZERO;
+        BigDecimal deduction = BigDecimal.ZERO;
+
+        if (creditBalance.compareTo(BigDecimal.ZERO) > 0) {
+            if (creditBalance.compareTo(total) >= 0) {
+                deduction = total;
+                residentBalance.deductBalance(total);
+            } else {
+                deduction = creditBalance;
+                residentBalance.setBalance(BigDecimal.ZERO);
+            }
+            residentBalanceRepository.save(residentBalance);
+        }
+
+        invoice.setBalanceDeduction(deduction);
+        invoice.setPaidAmount(BigDecimal.ZERO);
+        if (invoice.getRemainingAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            invoice.setStatus(InvoiceStatus.PAID);
+        }
+
+        InvoiceGenerateCommand fakeCommand = new InvoiceGenerateCommand(room.getMotelId(), billingMonth);
+        invoice.setCalculationSnapshot(buildCalculationSnapshot(fakeCommand, contract, room, snapshotItems));
+        
+        Invoice saved = invoiceRepository.save(invoice);
+        
+        for (InvoiceDetail d : details) {
+            d.setInvoiceId(saved.getId());
+        }
+        invoiceDetailRepository.saveAll(details);
+
+        List<ServiceUsage> toCancel = billableUsages.stream()
+                .filter(usage -> usage.getStatus() == ServiceUsage.ServiceUsageStatus.PENDING_CANCELLATION)
+                .peek(usage -> usage.setStatus(ServiceUsage.ServiceUsageStatus.CANCELLED))
+                .peek(usage -> usage.setUpdatedAt(OffsetDateTime.now()))
+                .collect(Collectors.toList());
+        if (!toCancel.isEmpty()) {
+            serviceUsageRepository.saveAll(toCancel);
+        }
+        
+        UUID actorId = null;
+        String actorRole = null;
+        try {
+            actorId = SecurityUtils.getCurrentUserId();
+            actorRole = SecurityUtils.getCurrentRole();
+        } catch (Exception ignored) {}
+
+        eventPublisher.publishEvent(new InvoiceCreatedEvent(
+            tenantId, actorId, actorRole,
+            saved.getId(), saved.getTotalAmount().toPlainString()
+        ));
+        
+        return toResult(saved);
     }
 
     @Transactional(readOnly = true)

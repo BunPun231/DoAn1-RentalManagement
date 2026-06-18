@@ -110,4 +110,11 @@ public class ContractRepositoryAdapter implements ContractRepository {
     public long countByTenantId(UUID tenantId) {
         return jpaRepository.findByTenantId(tenantId).size();
     }
+
+    @Override
+    public List<Contract> findAllActiveContractsNative() {
+        return jpaRepository.findAllActiveContractsNative().stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
 }

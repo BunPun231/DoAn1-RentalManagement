@@ -328,7 +328,7 @@ export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContra
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5 w-full">
               <label className="text-sm font-medium text-slate-700">Ngày bắt đầu *</label>
               <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required className={inputClass} />
@@ -337,6 +337,9 @@ export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContra
               <label className="text-sm font-medium text-slate-700">Ngày kết thúc *</label>
               <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} required className={inputClass} />
             </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5 w-full">
               <label className="text-sm font-medium text-slate-700">Ngày chốt kỳ đóng tiền *</label>
               <select
