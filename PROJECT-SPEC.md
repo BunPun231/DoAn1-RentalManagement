@@ -43,13 +43,6 @@ It targets middle-aged landlords (Managers) with a **minimalist, step-by-step UI
 | Testing                | JUnit + Testcontainers + Mockito              | QA23 (>80% coverage)                       |
 | Deployment             | Docker + Docker Compose                         | QA21, QA26                                 |
 | CI/CD                  | GitHub Actions                                  | Build time < 5 min                         |
-You can also implement more tech stack as u wish to reduce implement time and effor like these tech: 
-Spring Data JPA
-Swagger / OpenAPI
-MapStruct
-Flyway
-Lombok
-or more, but you have to tell the user prior installing.
 
 
 
@@ -193,14 +186,17 @@ frontend/
 │   │   ├── common/                   # Reusable (DataTable, StepWizard, OfflineIndicator...)
 │   │   └── features/                 # Feature-specific (MeterReader, InvoicePreview...)
 │   │
-│   ├── features/                     # Theo domain (tương tự backend)
-│   │   ├── auth/
-│   │   ├── tenant/
-│   │   ├── motel/
-│   │   ├── billing/
-│   │   ├── contract/
-│   │   ├── maintenance/
-│   │   └── notification/
+│   ├── features/                     # Feature-Sliced Design (FSD) approach
+│   │   ├── auth/                     # Login, Registration, Password Recovery
+│   │   ├── contracts/                # Contract Management, Appendices, Deposits
+│   │   ├── dashboard/                # Main Overview Dashboard
+│   │   ├── invoices/                 # Billing, Invoice Generation, Payments
+│   │   ├── meter/                    # Electric & Water Meter Readings
+│   │   ├── motels/                   # Boarding Houses & Rooms
+│   │   ├── reports/                  # Revenue, Occupancy, Debt Analytics
+│   │   ├── residents/                # Tenant Management
+│   │   ├── services/                 # Rental Services (Electric, Water, etc.)
+│   │   └── settings/                 # System & Profile Settings
 │   │
 │   ├── hooks/                        # Custom hooks
 │   │   ├── useAuth.ts
@@ -214,13 +210,8 @@ frontend/
 │   │   ├── validators.ts
 │   │   └── offlineStorage.ts         # IndexedDB queue
 │   │
-│   ├── pages/                        # Page components
-│   │   ├── dashboard/
+│   ├── pages/                        # Legacy / Shared page components (most pages are inside features)
 │   │   ├── onboarding/               # Step-by-step wizard
-│   │   ├── rooms/
-│   │   ├── contracts/
-│   │   ├── billing/
-│   │   └── maintenance/
 │   │
 │   ├── store/                        # Zustand stores
 │   │   ├── tenantStore.ts

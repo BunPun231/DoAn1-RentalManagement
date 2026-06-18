@@ -8,7 +8,16 @@ This document provides a comprehensive guide for testing and using the Finance m
 
 Because the `meter_readings` table has a foreign key referencing `service_usages(id)`, you must seed prerequisite data before submitting a meter reading. 
 
-Copy and run the following script in your database client (DBeaver, pgAdmin, etc.).
+> [!TIP]
+> **Automated Seeding (Recommended)**: You can easily seed a complete demo environment (including Motels, Rooms, Services, Contracts, Residents, Meter Readings, and Invoices) by running the automated script from the project root:
+> ```bash
+> node frontend/scripts/seed.js
+> ```
+> This script will create a manager account with `0911222333` / `Demo@123456` and automatically link all prerequisite data.
+
+### Manual SQL Seeding (Alternative)
+
+If you prefer to manually seed the database, copy and run the following script in your database client (DBeaver, pgAdmin, etc.).
 
 > [!IMPORTANT]
 > Replace `'YOUR_TENANT_ID_HERE'` and `'YOUR_USER_ID_HERE'` with the actual UUIDs of the Tenant and User you created during registration / login.

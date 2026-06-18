@@ -110,14 +110,14 @@ npm run dev
 - **Swagger UI**: http://localhost:8080/swagger-ui.html
 - **OpenAPI JSON**: http://localhost:8080/v3/api-docs
 
-### 4. Default Admin Account
+### 4. Default Demo Account
 
-On first startup, an admin account is seeded automatically:
+On first startup or after running the seed script, a demo account is available:
 
 | Field | Value |
 |-------|-------|
-| Phone | `0900000000` |
-| Password | `Admin@1234` |
+| Phone | `0911222333` |
+| Password | `Demo@123456` |
 
 Login via `POST /api/public/auth/login` to get a JWT token.
 
@@ -206,13 +206,18 @@ backend/src/main/java/com/roomrental/
 
 | Module | API Prefix | Use Cases | Description |
 |--------|-----------|-----------|-------------|
-| **Auth** | `/api/public/auth` | UC01-02 | Registration, login (phone/email) |
+| **Auth** | `/api/public/auth` | UC01-06 | Registration, login, password recovery |
 | **Motel** | `/api/motels` | UC20-25 | CRUD boarding houses |
 | **Room** | `/api/motels/{id}/rooms` | UC26-31 | CRUD rooms, status management |
-| **Service** | `/api/motels/{id}/services` | UC32-36 | Manage rental services (Electric, Water, Internet) |
+| **Service** | `/api/motels/{id}/services` | UC32-37 | Manage rental services (Electric, Water, Internet) |
 | **Device** | `/api/motels/{id}/devices` | UC40-45 | Equipment inventory tracking |
 | **Resident** | `/api/residents` | UC49-54 | Resident account management |
 | **Technician** | `/api/technicians` | UC56-62 | Technician management, lock/reset |
+| **Contract** | `/api/contracts` | UC63-69 | Contract creation, appendices, deposits, cancellation |
+| **MeterReading**| `/api/v1/meter-readings` | UC70-72 | Monthly electricity/water meter reading logging |
+| **Invoice** | `/api/v1/invoices` | UC73-77 | Invoice generation, void, adjustment, and listing |
+| **Report** | `/api/v1/reports` | UC90-94 | Revenue, occupancy, debt reporting, and dashboard |
+| **Audit** | `/api/v1/audit-logs` | UC13 | System-wide audit trail logging |
 
 ## 🧪 Testing
 
