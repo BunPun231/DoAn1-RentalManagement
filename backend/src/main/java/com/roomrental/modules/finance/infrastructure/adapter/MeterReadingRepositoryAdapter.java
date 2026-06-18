@@ -5,6 +5,7 @@ import com.roomrental.modules.finance.domain.repository.MeterReadingRepository;
 import com.roomrental.modules.finance.infrastructure.mapper.MeterReadingMapper;
 import com.roomrental.modules.finance.infrastructure.persistence.MeterReadingEntity;
 import com.roomrental.modules.finance.infrastructure.persistence.MeterReadingJpaRepository;
+import com.roomrental.modules.finance.domain.model.MeterReading.MeterReadingStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
@@ -56,18 +57,18 @@ public class MeterReadingRepositoryAdapter implements MeterReadingRepository {
 
     @Override
     public Page<MeterReading> findPendingByTenantId(UUID tenantId, Pageable pageable) {
-        return jpaRepository.findByTenantIdAndStatus(tenantId, "PENDING", pageable)
+        return jpaRepository.findByTenantIdAndStatus(tenantId, MeterReadingStatus.PENDING, pageable)
                 .map(mapper::toDomain);
     }
 
     @Override
     public List<MeterReading> findApprovedByRoomIdAndBillingMonth(Long roomId, LocalDate billingMonth) {
-        return jpaRepository.findByRoomIdAndBillingMonthAndStatus(roomId, billingMonth, "APPROVED").stream()
+        return jpaRepository.findByRoomIdAndBillingMonthAndStatus(roomId, billingMonth, MeterReadingStatus.APPROVED).stream()
                 .map(mapper::toDomain).collect(Collectors.toList());
     }
 
     @Override
     public boolean existsByServiceUsageIdAndBillingMonthAndStatus(Long serviceUsageId, LocalDate billingMonth, String status) {
-        return jpaRepository.existsByServiceUsageIdAndBillingMonthAndStatus(serviceUsageId, billingMonth, status);
+        return jpaRepository.existsByServiceUsageIdAndBillingMonthAndStatus(serviceUsageId, billingMonth, MeterReadingStatus.valueOf(status));
     }
 }

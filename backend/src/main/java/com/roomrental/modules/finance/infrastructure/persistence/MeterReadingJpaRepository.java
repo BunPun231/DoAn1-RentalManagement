@@ -1,5 +1,6 @@
 package com.roomrental.modules.finance.infrastructure.persistence;
 
+import com.roomrental.modules.finance.domain.model.MeterReading.MeterReadingStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -15,7 +16,7 @@ public interface MeterReadingJpaRepository extends JpaRepository<MeterReadingEnt
     Optional<MeterReadingEntity> findByIdAndTenantId(Long id, UUID tenantId);
     List<MeterReadingEntity> findByRoomIdAndTenantId(Long roomId, UUID tenantId);
     List<MeterReadingEntity> findByRoomIdAndBillingMonth(Long roomId, LocalDate billingMonth);
-    Page<MeterReadingEntity> findByTenantIdAndStatus(UUID tenantId, String status, Pageable pageable);
-    List<MeterReadingEntity> findByRoomIdAndBillingMonthAndStatus(Long roomId, LocalDate billingMonth, String status);
-    boolean existsByServiceUsageIdAndBillingMonthAndStatus(Long serviceUsageId, LocalDate billingMonth, String status);
+    Page<MeterReadingEntity> findByTenantIdAndStatus(UUID tenantId, MeterReadingStatus status, Pageable pageable);
+    List<MeterReadingEntity> findByRoomIdAndBillingMonthAndStatus(Long roomId, LocalDate billingMonth, MeterReadingStatus status);
+    boolean existsByServiceUsageIdAndBillingMonthAndStatus(Long serviceUsageId, LocalDate billingMonth, MeterReadingStatus status);
 }

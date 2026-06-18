@@ -49,7 +49,7 @@ public class InvoiceRepositoryAdapter implements InvoiceRepository {
 
     @Override
     public Page<Invoice> findByTenantIdAndStatus(UUID tenantId, String status, Pageable pageable) {
-        return jpaRepository.findByTenantIdAndStatusAndIsDeletedFalse(tenantId, status, pageable).map(mapper::toDomain);
+        return jpaRepository.findByTenantIdAndStatusAndIsDeletedFalse(tenantId, Invoice.InvoiceStatus.valueOf(status), pageable).map(mapper::toDomain);
     }
 
     @Override

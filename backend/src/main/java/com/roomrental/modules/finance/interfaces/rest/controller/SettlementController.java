@@ -6,12 +6,14 @@ import com.roomrental.modules.finance.interfaces.rest.dto.SettlementRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/settlements")
+@SecurityRequirement(name = "bearerAuth")
 @Tag(name = "Finance - Settlements", description = "UC80")
 public class SettlementController {
 

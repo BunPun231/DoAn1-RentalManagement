@@ -7,6 +7,7 @@ import com.roomrental.modules.finance.interfaces.rest.dto.InvoiceGenerateRequest
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +18,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/invoices")
+@SecurityRequirement(name = "bearerAuth")
 @Tag(name = "Finance - Invoices", description = "UC73, UC74, UC75, UC76, UC77")
 public class InvoiceController {
 
@@ -30,7 +32,8 @@ public class InvoiceController {
     @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     @Operation(summary = "Generate invoices for a motel (UC73)")
     public ResponseEntity<List<InvoiceResult>> generateForMotel(@RequestBody @Valid InvoiceGenerateRequest request) {
-        return ResponseEntity.ok(service.generateForMotel(new InvoiceGenerateCommand(request.motelId(), request.billingMonth())));
+        return ResponseEntity
+                .ok(service.generateForMotel(new InvoiceGenerateCommand(request.motelId(), request.billingMonth())));
     }
 
     @GetMapping
@@ -47,15 +50,17 @@ public class InvoiceController {
         return ResponseEntity.ok(service.getDetail(id));
     }
 
-    @PostMapping("/{id}/adjust")
-    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
-    @Operation(summary = "Adjust/Void an invoice (UC76)")
-    public ResponseEntity<InvoiceResult> adjustInvoice(@PathVariable Long id, @RequestBody @Valid InvoiceAdjustRequest request) {
-        InvoiceAdjustCommand cmd = new InvoiceAdjustCommand(
-            id, request.reason(), request.correctedReadings(), request.customAdjustments()
-        );
-        return ResponseEntity.ok(service.adjustInvoice(cmd));
-    }
+    // @PostMapping("/{id}/adjust")
+    // @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
+    // @Operation(summary = "Adjust/Void an invoice (UC76)")
+    // public ResponseEntity<InvoiceResult> adjustInvoice(@PathVariable Long id,
+    // @RequestBody @Valid InvoiceAdjustRequest request) {
+    // InvoiceAdjustCommand cmd = new InvoiceAdjustCommand(
+    // id, request.reason(), request.correctedReadings(),
+    // request.customAdjustments()
+    // );
+    // return ResponseEntity.ok(service.adjustInvoice(cmd));
+    // }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")

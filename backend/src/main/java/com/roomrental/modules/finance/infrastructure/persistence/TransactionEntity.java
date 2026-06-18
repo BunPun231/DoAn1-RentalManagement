@@ -1,11 +1,12 @@
 package com.roomrental.modules.finance.infrastructure.persistence;
 
-import com.roomrental.common.entity.BaseEntity;
 import com.roomrental.modules.finance.domain.model.Transaction.PaymentMethod;
 import com.roomrental.modules.finance.domain.model.Transaction.TransactionStatus;
 import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+import org.springframework.data.annotation.CreatedDate;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -15,7 +16,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "transactions")
-@EntityListeners(org.springframework.data.jpa.domain.support.AuditingEntityListener.class)
+@EntityListeners(AuditingEntityListener.class)
 @Getter
 @Setter
 public class TransactionEntity {
@@ -54,7 +55,7 @@ public class TransactionEntity {
     @Column(name = "raw_webhook_data", columnDefinition = "jsonb")
     private String rawWebhookData;
 
-    @org.springframework.data.annotation.CreatedDate
+    @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 }
