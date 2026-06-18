@@ -55,6 +55,12 @@ public class ContractEntity {
     @Column(name = "cancel_reason")
     private String cancelReason;
 
+    @Column(name = "move_out_reason")
+    private String moveOutReason;
+
+    @Column(name = "credit_balance", precision = 12, scale = 2)
+    private BigDecimal creditBalance;
+
     @Column(name = "created_by", nullable = false)
     private UUID createdBy;
 
@@ -179,6 +185,22 @@ public class ContractEntity {
 
     public void setCancelReason(String cancelReason) {
         this.cancelReason = cancelReason;
+    }
+
+    public String getMoveOutReason() {
+        return moveOutReason;
+    }
+
+    public void setMoveOutReason(String moveOutReason) {
+        this.moveOutReason = moveOutReason;
+    }
+
+    public BigDecimal getCreditBalance() {
+        return creditBalance;
+    }
+
+    public void setCreditBalance(BigDecimal creditBalance) {
+        this.creditBalance = creditBalance;
     }
 
     public UUID getCreatedBy() {

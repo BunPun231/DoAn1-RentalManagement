@@ -241,14 +241,56 @@ public class AuthService {
         claims.put("session_version", user.getSessionVersion() == null ? 0 : user.getSessionVersion());
 
         String token = jwtTokenService.generateToken(user.getId(), claims);
+        String refreshToken = jwtTokenService.generateRefreshToken(user.getId());
+
+        // Store refresh token in Redis
+        String redisKey = "refresh_token:" + user.getId().toString();
+        redisTemplate.opsForValue().set(redisKey, refreshToken, java.time.Duration.ofDays(jwtTokenService.getRefreshTokenDays()));
 
         return new AuthResult(
                 token,
+                refreshToken,
                 "Bearer",
                 user.getId(),
                 tenant != null ? tenant.getId() : null,
                 user.getRole().name(),
                 user.getFullName()
         );
+    }
+
+    @Transactional
+    public AuthResult refreshToken(String refreshToken) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw new BaseException(HttpStatus.UNAUTHORIZED, "INVALID_TOKEN", "Refresh token is required");
+        }
+
+        try {
+            var claims = jwtTokenService.parse(refreshToken);
+            java.util.UUID userId = java.util.UUID.fromString(claims.getSubject());
+
+            String redisKey = "refresh_token:" + userId.toString();
+            String savedToken = redisTemplate.opsForValue().get(redisKey);
+
+            if (savedToken == null || !savedToken.equals(refreshToken)) {
+                throw new BaseException(HttpStatus.UNAUTHORIZED, "INVALID_TOKEN", "Refresh token is invalid or expired");
+            }
+
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new BaseException(HttpStatus.UNAUTHORIZED, "USER_NOT_FOUND", "User not found"));
+
+            if (user.getStatus() != UserStatus.ACTIVE) {
+                throw new BaseException(HttpStatus.FORBIDDEN, "ACCOUNT_INACTIVE", "Account is not active");
+            }
+
+            Tenant tenant = null;
+            if (user.getTenantId() != null) {
+                tenant = tenantRepository.findById(user.getTenantId()).orElse(null);
+            }
+
+            return buildAuthResult(user, tenant);
+
+        } catch (Exception e) {
+            throw new BaseException(HttpStatus.UNAUTHORIZED, "INVALID_TOKEN", "Refresh token is invalid or expired");
+        }
     }
 }

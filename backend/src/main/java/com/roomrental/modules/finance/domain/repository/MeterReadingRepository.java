@@ -15,6 +15,10 @@ public interface MeterReadingRepository {
     Optional<MeterReading> findByIdAndTenantId(Long id, UUID tenantId);
     List<MeterReading> findByRoomIdAndTenantId(Long roomId, UUID tenantId);
     List<MeterReading> findByRoomIdAndBillingMonth(Long roomId, LocalDate billingMonth);
+    Page<MeterReading> findByTenantId(UUID tenantId, Pageable pageable);
+    Page<MeterReading> findByTenantIdAndStatus(UUID tenantId, String status, Pageable pageable);
+    Page<MeterReading> findByTenantIdAndRoomId(UUID tenantId, Long roomId, Pageable pageable);
+    Page<MeterReading> findByTenantIdAndRoomIdAndStatus(UUID tenantId, Long roomId, String status, Pageable pageable);
     Page<MeterReading> findPendingByTenantId(UUID tenantId, Pageable pageable);
     List<MeterReading> findApprovedByRoomIdAndBillingMonth(Long roomId, LocalDate billingMonth);
     boolean existsByServiceUsageIdAndBillingMonthAndStatus(Long serviceUsageId, LocalDate billingMonth, String status);

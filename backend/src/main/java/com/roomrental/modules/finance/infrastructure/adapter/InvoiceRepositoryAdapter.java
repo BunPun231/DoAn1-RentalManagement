@@ -58,6 +58,16 @@ public class InvoiceRepositoryAdapter implements InvoiceRepository {
     }
 
     @Override
+    public Page<Invoice> findByTenantIdAndContractIdIn(UUID tenantId, List<Long> contractIds, Pageable pageable) {
+        return jpaRepository.findByTenantIdAndContractIdInAndIsDeletedFalse(tenantId, contractIds, pageable).map(mapper::toDomain);
+    }
+
+    @Override
+    public Page<Invoice> findByTenantIdAndContractIdInAndStatus(UUID tenantId, List<Long> contractIds, String status, Pageable pageable) {
+        return jpaRepository.findByTenantIdAndContractIdInAndStatusAndIsDeletedFalse(tenantId, contractIds, Invoice.InvoiceStatus.valueOf(status), pageable).map(mapper::toDomain);
+    }
+
+    @Override
     public boolean existsByContractIdAndBillingMonth(Long contractId, LocalDate billingMonth) {
         return jpaRepository.existsByContractIdAndBillingMonthAndIsDeletedFalse(contractId, billingMonth);
     }

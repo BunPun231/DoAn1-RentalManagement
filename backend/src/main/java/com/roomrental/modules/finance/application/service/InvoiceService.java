@@ -97,9 +97,26 @@ public class InvoiceService {
             BigDecimal total = details.stream().map(InvoiceDetail::getLineTotal).reduce(BigDecimal.ZERO, BigDecimal::add);
             invoice.setTotalAmount(total);
             
-            // 3. Apply auto-pay from balance if any (Simulated balance = 0)
-            invoice.setBalanceDeduction(BigDecimal.ZERO);
+            // 3. Apply auto-pay from balance if any
+            BigDecimal creditBalance = contract.getCreditBalance() != null ? contract.getCreditBalance() : BigDecimal.ZERO;
+            BigDecimal deduction = BigDecimal.ZERO;
+
+            if (creditBalance.compareTo(BigDecimal.ZERO) > 0) {
+                if (creditBalance.compareTo(total) >= 0) {
+                    deduction = total;
+                    contract.setCreditBalance(creditBalance.subtract(total));
+                } else {
+                    deduction = creditBalance;
+                    contract.setCreditBalance(BigDecimal.ZERO);
+                }
+                contractRepository.save(contract);
+            }
+
+            invoice.setBalanceDeduction(deduction);
             invoice.setPaidAmount(BigDecimal.ZERO);
+            if (invoice.getRemainingAmount().compareTo(BigDecimal.ZERO) <= 0) {
+                invoice.setStatus(InvoiceStatus.PAID);
+            }
             
             Invoice saved = invoiceRepository.save(invoice);
             
@@ -126,6 +143,26 @@ public class InvoiceService {
             return invoiceRepository.findByTenantIdAndStatus(tenantId, status, pageable).map(this::toResult);
         }
         return invoiceRepository.findByTenantId(tenantId, pageable).map(this::toResult);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<InvoiceResult> listMyInvoices(String status, Pageable pageable) {
+        UUID tenantId = SecurityUtils.requireTenantId();
+        UUID userId = SecurityUtils.getCurrentUserId();
+        
+        List<Long> contractIds = contractRepository.findByTenantId(tenantId).stream()
+            .filter(c -> c.getPrimaryResidentUserId() != null && c.getPrimaryResidentUserId().equals(userId))
+            .map(Contract::getId)
+            .collect(Collectors.toList());
+            
+        if (contractIds.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        
+        if (status != null && !status.isEmpty()) {
+            return invoiceRepository.findByTenantIdAndContractIdInAndStatus(tenantId, contractIds, status, pageable).map(this::toResult);
+        }
+        return invoiceRepository.findByTenantIdAndContractIdIn(tenantId, contractIds, pageable).map(this::toResult);
     }
 
     @Transactional(readOnly = true)
@@ -191,6 +228,7 @@ public class InvoiceService {
             invoice.getRemainingAmount(),
             invoice.getStatus().name(),
             invoice.getInvoiceType().name(),
+            invoice.getCancelReason(),
             invoice.getDueDate(),
             invoice.getCreatedAt()
         );

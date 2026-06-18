@@ -58,18 +58,29 @@ public class Invoice {
                (this.paidAmount == null || this.paidAmount.compareTo(BigDecimal.ZERO) == 0);
     }
 
-    public void applyPayment(BigDecimal amount) {
-        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) return;
+    public BigDecimal applyPayment(BigDecimal amount) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) return BigDecimal.ZERO;
         
+        BigDecimal remainingBefore = getRemainingAmount();
+        BigDecimal actualApplied = amount;
+        BigDecimal overpaid = BigDecimal.ZERO;
+
+        if (amount.compareTo(remainingBefore) > 0) {
+            actualApplied = remainingBefore;
+            overpaid = amount.subtract(remainingBefore);
+        }
+
         if (this.paidAmount == null) this.paidAmount = BigDecimal.ZERO;
-        this.paidAmount = this.paidAmount.add(amount);
+        this.paidAmount = this.paidAmount.add(actualApplied);
         
-        BigDecimal remaining = getRemainingAmount();
-        if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
+        BigDecimal remainingAfter = getRemainingAmount();
+        if (remainingAfter.compareTo(BigDecimal.ZERO) <= 0) {
             this.status = InvoiceStatus.PAID;
         } else {
             this.status = InvoiceStatus.PARTIAL;
         }
+
+        return overpaid;
     }
 
     // Getters and Setters

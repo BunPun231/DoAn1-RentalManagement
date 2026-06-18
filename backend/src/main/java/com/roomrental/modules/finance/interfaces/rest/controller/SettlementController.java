@@ -23,12 +23,23 @@ public class SettlementController {
         this.service = service;
     }
 
+    @PostMapping("/schedule-moveout")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
+    @Operation(summary = "Schedule move out date (UC81)")
+    public ResponseEntity<Void> scheduleMoveOut(@RequestBody @Valid com.roomrental.modules.finance.interfaces.rest.dto.SettlementScheduleMoveOutRequest request) {
+        SettlementScheduleMoveOutCommand cmd = new SettlementScheduleMoveOutCommand(
+            request.contractId(), request.moveOutDate(), request.moveOutReason()
+        );
+        service.scheduleMoveOut(cmd);
+        return ResponseEntity.ok().build();
+    }
+
     @PostMapping("/calculate")
     @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     @Operation(summary = "Calculate settlement balance for a contract (UC80)")
     public ResponseEntity<SettlementResult> calculate(@RequestBody @Valid SettlementRequest request) {
         SettlementCommand cmd = new SettlementCommand(
-            request.contractId(), request.finalElectricReading(), request.finalWaterReading(),
+            request.contractId(), request.moveOutDate(), request.finalElectricReading(), request.finalWaterReading(),
             request.damageItems(), request.damageImageUrls()
         );
         return ResponseEntity.ok(service.calculate(cmd));

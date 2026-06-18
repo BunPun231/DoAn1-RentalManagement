@@ -37,6 +37,11 @@ public class TransactionRepositoryAdapter implements TransactionRepository {
     }
 
     @Override
+    public Optional<Transaction> findById(Long id) {
+        return jpaRepository.findById(id).map(mapper::toDomain);
+    }
+
+    @Override
     public List<Transaction> findByInvoiceId(Long invoiceId) {
         return jpaRepository.findByInvoiceId(invoiceId).stream()
                 .map(mapper::toDomain).collect(Collectors.toList());

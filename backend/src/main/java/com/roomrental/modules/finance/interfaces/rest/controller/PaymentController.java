@@ -46,6 +46,16 @@ public class PaymentController {
         return ResponseEntity.ok(service.processManualPayment(cmd));
     }
 
+    @PostMapping("/reconcile")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
+    @Operation(summary = "Manually reconcile a pending transaction (UC79)")
+    public ResponseEntity<TransactionResult> reconcileTransaction(@RequestBody @Valid com.roomrental.modules.finance.interfaces.rest.dto.PaymentReconcileRequest request) {
+        PaymentReconcileCommand cmd = new PaymentReconcileCommand(
+            request.transactionId(), request.invoiceId()
+        );
+        return ResponseEntity.ok(service.reconcileTransaction(cmd));
+    }
+
     @GetMapping("/transactions")
     @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN', 'RESIDENT')")
     @Operation(summary = "Get transaction history (UC79)")

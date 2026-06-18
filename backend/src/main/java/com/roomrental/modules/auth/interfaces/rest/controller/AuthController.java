@@ -54,4 +54,11 @@ public class AuthController {
         ));
         return ResponseEntity.ok(ApiResponse.ok(result, "Login successful"));
     }
+
+    @PostMapping("/refresh")
+    @Operation(summary = "Refresh access token")
+    public ResponseEntity<ApiResponse<AuthResult>> refresh(@Valid @RequestBody com.roomrental.modules.auth.interfaces.rest.dto.RefreshTokenRequest body) {
+        AuthResult result = authService.refreshToken(body.refreshToken());
+        return ResponseEntity.ok(ApiResponse.ok(result, "Token refreshed successfully"));
+    }
 }

@@ -15,6 +15,7 @@ public record InvoiceResult(
     BigDecimal remainingAmount,
     String status,
     String invoiceType,
+    String cancelReason,
     LocalDate dueDate,
     OffsetDateTime createdAt
 ) {}

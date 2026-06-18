@@ -28,14 +28,17 @@ public class MeterReadingService {
     private final MeterReadingRepository meterReadingRepository;
     private final OcrPort ocrPort;
     private final ApplicationEventPublisher eventPublisher;
+    private final CloudinaryService cloudinaryService;
 
     public MeterReadingService(
             MeterReadingRepository meterReadingRepository,
             OcrPort ocrPort,
-            ApplicationEventPublisher eventPublisher) {
+            ApplicationEventPublisher eventPublisher,
+            CloudinaryService cloudinaryService) {
         this.meterReadingRepository = meterReadingRepository;
         this.ocrPort = ocrPort;
         this.eventPublisher = eventPublisher;
+        this.cloudinaryService = cloudinaryService;
     }
 
     @Transactional
@@ -88,6 +91,13 @@ public class MeterReadingService {
 
     @Transactional(readOnly = true)
     public MeterReadingResult submitWithOcr(MeterReadingOcrCommand command) {
+        String imageUrl = null;
+        try {
+            imageUrl = cloudinaryService.uploadImage(command.imageBytes(), "meter_readings");
+        } catch (java.io.IOException e) {
+            throw BaseException.badRequest("Failed to upload image: " + e.getMessage());
+        }
+
         // UC71 - Just return suggested result, do not save
         OcrResult ocrResult = ocrPort.extractReading(command.imageBytes(), command.mimeType());
         
@@ -107,7 +117,7 @@ public class MeterReadingService {
             ocrResult.extractedValue(),
             consumption,
             MeterReadingStatus.PENDING.name(),
-            null,
+            imageUrl,
             ocrResult.confidence(),
             null,
             null
@@ -160,6 +170,24 @@ public class MeterReadingService {
         
         MeterReading saved = meterReadingRepository.save(reading);
         return toResult(saved, null);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<MeterReadingResult> list(Long roomId, String status, Pageable pageable) {
+        UUID tenantId = SecurityUtils.requireTenantId();
+        Page<MeterReading> page;
+        
+        if (roomId != null && status != null && !status.isEmpty()) {
+            page = meterReadingRepository.findByTenantIdAndRoomIdAndStatus(tenantId, roomId, status, pageable);
+        } else if (roomId != null) {
+            page = meterReadingRepository.findByTenantIdAndRoomId(tenantId, roomId, pageable);
+        } else if (status != null && !status.isEmpty()) {
+            page = meterReadingRepository.findByTenantIdAndStatus(tenantId, status, pageable);
+        } else {
+            page = meterReadingRepository.findByTenantId(tenantId, pageable);
+        }
+        
+        return page.map(r -> toResult(r, null));
     }
 
     @Transactional(readOnly = true)

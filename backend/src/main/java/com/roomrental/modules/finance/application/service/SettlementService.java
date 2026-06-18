@@ -39,14 +39,23 @@ public class SettlementService {
         Contract contract = contractRepository.findByIdAndTenantId(command.contractId(), tenantId)
             .orElseThrow(() -> BaseException.notFound("Contract", command.contractId()));
 
+        java.time.LocalDate effectiveMoveOutDate = command.moveOutDate() != null ? command.moveOutDate() : contract.getIntendedMoveOutDate();
+        if (effectiveMoveOutDate == null) {
+            throw BaseException.badRequest("Move out date must be scheduled before calculation");
+        }
+
         // Calculate debts
         List<Invoice> unpaidInvoices = invoiceRepository.findUnpaidByContractId(contract.getId());
         BigDecimal currentDebt = unpaidInvoices.stream()
             .map(Invoice::getRemainingAmount)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // Calculate pro-rated rent and final utilities based on final readings
-        BigDecimal proRatedRent = BigDecimal.ZERO; 
+        // Calculate pro-rated rent based on final month's days
+        long daysLived = effectiveMoveOutDate.getDayOfMonth();
+        BigDecimal proRatedRent = contract.getRentPrice()
+            .multiply(BigDecimal.valueOf(daysLived))
+            .divide(BigDecimal.valueOf(30), 2, java.math.RoundingMode.HALF_UP);
+        
         BigDecimal finalUtilities = BigDecimal.ZERO;
         
         // Calculate repair fees based on damage items
@@ -74,6 +83,15 @@ public class SettlementService {
         Contract contract = contractRepository.findByIdAndTenantId(contractId, tenantId)
             .orElseThrow(() -> BaseException.notFound("Contract", contractId));
 
+        if (contract.getIntendedMoveOutDate() == null) {
+            throw BaseException.badRequest("Move out date is not scheduled");
+        }
+
+        List<Invoice> unpaidInvoices = invoiceRepository.findUnpaidByContractId(contractId);
+        if (!unpaidInvoices.isEmpty()) {
+            throw BaseException.badRequest("All invoices must be paid before settlement");
+        }
+
         contract.liquidate();
         contract.setUpdatedAt(java.time.LocalDateTime.now());
         contractRepository.save(contract);
@@ -98,6 +116,24 @@ public class SettlementService {
             tenantId, SecurityUtils.getCurrentUserId(), SecurityUtils.getCurrentRole(),
             contract.getId(), "BAD_DEBT"
         ));
+    }
+
+    @Transactional
+    public void scheduleMoveOut(SettlementScheduleMoveOutCommand command) {
+        UUID tenantId = SecurityUtils.requireTenantId();
+        Contract contract = contractRepository.findByIdAndTenantId(command.contractId(), tenantId)
+            .orElseThrow(() -> BaseException.notFound("Contract", command.contractId()));
+
+        if (!contract.isActive()) {
+            throw BaseException.badRequest("Only active contracts can schedule move out");
+        }
+
+        contract.setIntendedMoveOutDate(command.moveOutDate());
+        contract.setMoveOutReason(command.moveOutReason());
+        contract.markForLiquidation();
+        contract.setUpdatedAt(java.time.LocalDateTime.now());
+        
+        contractRepository.save(contract);
     }
 }
 

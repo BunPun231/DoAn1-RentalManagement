@@ -16,7 +16,10 @@ public interface MeterReadingJpaRepository extends JpaRepository<MeterReadingEnt
     Optional<MeterReadingEntity> findByIdAndTenantId(Long id, UUID tenantId);
     List<MeterReadingEntity> findByRoomIdAndTenantId(Long roomId, UUID tenantId);
     List<MeterReadingEntity> findByRoomIdAndBillingMonth(Long roomId, LocalDate billingMonth);
+    Page<MeterReadingEntity> findByTenantId(UUID tenantId, Pageable pageable);
     Page<MeterReadingEntity> findByTenantIdAndStatus(UUID tenantId, MeterReadingStatus status, Pageable pageable);
+    Page<MeterReadingEntity> findByTenantIdAndRoomId(UUID tenantId, Long roomId, Pageable pageable);
+    Page<MeterReadingEntity> findByTenantIdAndRoomIdAndStatus(UUID tenantId, Long roomId, MeterReadingStatus status, Pageable pageable);
     List<MeterReadingEntity> findByRoomIdAndBillingMonthAndStatus(Long roomId, LocalDate billingMonth, MeterReadingStatus status);
     boolean existsByServiceUsageIdAndBillingMonthAndStatus(Long serviceUsageId, LocalDate billingMonth, MeterReadingStatus status);
 }

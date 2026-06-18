@@ -10,6 +10,8 @@ services:
       context: .
       dockerfile: docker/Dockerfile.backend
     container_name: room-rental-backend
+    env_file:
+      - .env
     environment:
       SPRING_PROFILES_ACTIVE: prod
       DB_URL: ${DB_URL}

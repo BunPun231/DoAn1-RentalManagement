@@ -7,6 +7,7 @@ import java.util.UUID;
  */
 public record AuthResult(
         String accessToken,
+        String refreshToken,
         String tokenType,
         UUID userId,
         UUID tenantId,

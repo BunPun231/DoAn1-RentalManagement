@@ -22,6 +22,12 @@ public interface InvoiceJpaRepository extends JpaRepository<InvoiceEntity, Long>
     Page<InvoiceEntity> findByTenantIdAndStatusAndIsDeletedFalse(@Param("tenantId") UUID tenantId, @Param("status") com.roomrental.modules.finance.domain.model.Invoice.InvoiceStatus status, Pageable pageable);
     
     Page<InvoiceEntity> findByContractIdAndIsDeletedFalse(Long contractId, Pageable pageable);
+    
+    Page<InvoiceEntity> findByTenantIdAndContractIdInAndIsDeletedFalse(UUID tenantId, List<Long> contractIds, Pageable pageable);
+    
+    @Query("SELECT i FROM FinanceInvoiceEntity i WHERE i.tenantId = :tenantId AND i.contractId IN :contractIds AND i.status = :status AND i.isDeleted = false")
+    Page<InvoiceEntity> findByTenantIdAndContractIdInAndStatusAndIsDeletedFalse(@Param("tenantId") UUID tenantId, @Param("contractIds") List<Long> contractIds, @Param("status") com.roomrental.modules.finance.domain.model.Invoice.InvoiceStatus status, Pageable pageable);
+    
     boolean existsByContractIdAndBillingMonthAndIsDeletedFalse(Long contractId, LocalDate billingMonth);
     boolean existsByContractIdAndStatusAndBillingMonthLessThanEqual(Long contractId, com.roomrental.modules.finance.domain.model.Invoice.InvoiceStatus status, LocalDate billingMonth);
 

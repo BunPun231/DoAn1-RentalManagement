@@ -8,6 +8,9 @@ import com.roomrental.modules.finance.domain.model.Invoice;
 import com.roomrental.modules.finance.domain.model.Transaction;
 import com.roomrental.modules.finance.domain.model.Transaction.PaymentMethod;
 import com.roomrental.modules.finance.domain.model.Transaction.TransactionStatus;
+import com.roomrental.modules.contract.domain.model.Contract;
+import com.roomrental.modules.contract.domain.repository.ContractRepository;
+import com.roomrental.modules.finance.domain.model.Invoice;
 import com.roomrental.modules.finance.domain.repository.InvoiceRepository;
 import com.roomrental.modules.finance.domain.repository.TransactionRepository;
 import org.springframework.context.ApplicationEventPublisher;
@@ -27,14 +30,17 @@ public class PaymentService {
 
     private final TransactionRepository transactionRepository;
     private final InvoiceRepository invoiceRepository;
+    private final ContractRepository contractRepository;
     private final ApplicationEventPublisher eventPublisher;
 
     public PaymentService(
             TransactionRepository transactionRepository,
             InvoiceRepository invoiceRepository,
+            ContractRepository contractRepository,
             ApplicationEventPublisher eventPublisher) {
         this.transactionRepository = transactionRepository;
         this.invoiceRepository = invoiceRepository;
+        this.contractRepository = contractRepository;
         this.eventPublisher = eventPublisher;
     }
 
@@ -62,12 +68,15 @@ public class PaymentService {
         
         if (invoiceId != null) {
             invoiceRepository.findById(invoiceId).ifPresentOrElse(invoice -> {
+                if (invoice.getStatus() == Invoice.InvoiceStatus.VOID) {
+                    throw BaseException.badRequest("Cannot pay a voided invoice");
+                }
+                
                 tx.setTenantId(invoice.getTenantId());
                 tx.setInvoiceId(invoiceId);
                 tx.setStatus(TransactionStatus.SUCCESS);
                 
-                invoice.applyPayment(command.amount());
-                invoiceRepository.save(invoice);
+                handleInvoicePayment(invoice, command.amount());
                 
                 // If overpaid, ideally add to resident balance.
             }, () -> {
@@ -95,6 +104,10 @@ public class PaymentService {
         Invoice invoice = invoiceRepository.findByIdAndTenantId(command.invoiceId(), tenantId)
             .orElseThrow(() -> BaseException.notFound("Invoice", command.invoiceId()));
 
+        if (invoice.getStatus() == Invoice.InvoiceStatus.VOID) {
+            throw BaseException.badRequest("Cannot pay a voided invoice");
+        }
+
         Transaction tx = new Transaction();
         tx.setTenantId(tenantId);
         tx.setInvoiceId(invoice.getId());
@@ -105,8 +118,7 @@ public class PaymentService {
         tx.setPaidAt(OffsetDateTime.now());
         tx.setCreatedAt(OffsetDateTime.now());
 
-        invoice.applyPayment(command.amount());
-        invoiceRepository.save(invoice);
+        handleInvoicePayment(invoice, command.amount());
 
         Transaction saved = transactionRepository.save(tx);
 
@@ -122,6 +134,38 @@ public class PaymentService {
     public Page<TransactionResult> getTransactions(Pageable pageable) {
         UUID tenantId = SecurityUtils.requireTenantId();
         return transactionRepository.findByTenantId(tenantId, pageable).map(this::toResult);
+    }
+
+    @Transactional
+    public TransactionResult reconcileTransaction(PaymentReconcileCommand command) {
+        UUID tenantId = SecurityUtils.requireTenantId();
+        Transaction tx = transactionRepository.findById(command.transactionId())
+            .orElseThrow(() -> BaseException.notFound("Transaction", command.transactionId()));
+
+        if (tx.getStatus() != TransactionStatus.PENDING_RECONCILE) {
+            throw BaseException.badRequest("Transaction is not pending reconciliation");
+        }
+
+        Invoice invoice = invoiceRepository.findByIdAndTenantId(command.invoiceId(), tenantId)
+            .orElseThrow(() -> BaseException.notFound("Invoice", command.invoiceId()));
+
+        if (invoice.getStatus() == Invoice.InvoiceStatus.VOID) {
+            throw BaseException.badRequest("Cannot pay a voided invoice");
+        }
+
+        tx.setTenantId(tenantId);
+        tx.setInvoiceId(invoice.getId());
+        tx.setStatus(TransactionStatus.SUCCESS);
+
+        handleInvoicePayment(invoice, tx.getAmount());
+        Transaction saved = transactionRepository.save(tx);
+
+        eventPublisher.publishEvent(new PaymentReceivedEvent(
+            tenantId, SecurityUtils.getCurrentUserId(), SecurityUtils.getCurrentRole(),
+            saved.getId(), saved.getInvoiceId(), saved.getAmount().toPlainString()
+        ));
+
+        return toResult(saved);
     }
 
     private Long parseInvoiceIdFromMemo(String memo) {
@@ -145,6 +189,20 @@ public class PaymentService {
             tx.getStatus() != null ? tx.getStatus().name() : null,
             tx.getPaidAt()
         );
+    }
+
+    private void handleInvoicePayment(Invoice invoice, BigDecimal amount) {
+        BigDecimal overpaid = invoice.applyPayment(amount);
+        invoiceRepository.save(invoice);
+        
+        if (overpaid.compareTo(BigDecimal.ZERO) > 0) {
+            contractRepository.findByIdAndTenantId(invoice.getContractId(), invoice.getTenantId())
+                .ifPresent(contract -> {
+                    BigDecimal currentCredit = contract.getCreditBalance() != null ? contract.getCreditBalance() : BigDecimal.ZERO;
+                    contract.setCreditBalance(currentCredit.add(overpaid));
+                    contractRepository.save(contract);
+                });
+        }
     }
 }
 

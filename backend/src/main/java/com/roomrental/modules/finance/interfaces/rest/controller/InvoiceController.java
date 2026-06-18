@@ -37,10 +37,17 @@ public class InvoiceController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN', 'RESIDENT')")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     @Operation(summary = "List invoices (UC74)")
     public ResponseEntity<Page<InvoiceResult>> list(@RequestParam(required = false) String status, Pageable pageable) {
         return ResponseEntity.ok(service.list(status, pageable));
+    }
+
+    @GetMapping("/me")
+    @PreAuthorize("hasAnyRole('RESIDENT')")
+    @Operation(summary = "List my invoices (UC74 - Tenant)")
+    public ResponseEntity<Page<InvoiceResult>> getMyInvoices(@RequestParam(required = false) String status, Pageable pageable) {
+        return ResponseEntity.ok(service.listMyInvoices(status, pageable));
     }
 
     @GetMapping("/{id}")

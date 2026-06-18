@@ -27,6 +27,16 @@ public class MeterReadingController {
         this.service = service;
     }
 
+    @GetMapping
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN', 'RESIDENT')")
+    @Operation(summary = "List meter readings (UC72)")
+    public ResponseEntity<org.springframework.data.domain.Page<MeterReadingResult>> list(
+            @RequestParam(required = false) Long roomId,
+            @RequestParam(required = false) String status,
+            org.springframework.data.domain.Pageable pageable) {
+        return ResponseEntity.ok(service.list(roomId, status, pageable));
+    }
+
     @PostMapping
     @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN', 'RESIDENT')")
     @Operation(summary = "Submit a meter reading manually (UC70)")

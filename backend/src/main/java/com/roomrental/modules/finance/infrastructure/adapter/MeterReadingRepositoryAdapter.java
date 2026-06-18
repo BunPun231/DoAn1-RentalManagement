@@ -62,6 +62,26 @@ public class MeterReadingRepositoryAdapter implements MeterReadingRepository {
     }
 
     @Override
+    public Page<MeterReading> findByTenantId(UUID tenantId, Pageable pageable) {
+        return jpaRepository.findByTenantId(tenantId, pageable).map(mapper::toDomain);
+    }
+
+    @Override
+    public Page<MeterReading> findByTenantIdAndStatus(UUID tenantId, String status, Pageable pageable) {
+        return jpaRepository.findByTenantIdAndStatus(tenantId, MeterReadingStatus.valueOf(status), pageable).map(mapper::toDomain);
+    }
+
+    @Override
+    public Page<MeterReading> findByTenantIdAndRoomId(UUID tenantId, Long roomId, Pageable pageable) {
+        return jpaRepository.findByTenantIdAndRoomId(tenantId, roomId, pageable).map(mapper::toDomain);
+    }
+
+    @Override
+    public Page<MeterReading> findByTenantIdAndRoomIdAndStatus(UUID tenantId, Long roomId, String status, Pageable pageable) {
+        return jpaRepository.findByTenantIdAndRoomIdAndStatus(tenantId, roomId, MeterReadingStatus.valueOf(status), pageable).map(mapper::toDomain);
+    }
+
+    @Override
     public List<MeterReading> findApprovedByRoomIdAndBillingMonth(Long roomId, LocalDate billingMonth) {
         return jpaRepository.findByRoomIdAndBillingMonthAndStatus(roomId, billingMonth, MeterReadingStatus.APPROVED).stream()
                 .map(mapper::toDomain).collect(Collectors.toList());

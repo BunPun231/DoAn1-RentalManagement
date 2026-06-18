@@ -19,10 +19,12 @@ public class JwtTokenService {
 
     private final SecretKey secretKey;
     private final long accessTokenMinutes;
+    private final long refreshTokenDays;
 
     public JwtTokenService(AppProperties appProperties) {
         this.secretKey = Keys.hmacShaKeyFor(deriveKeyBytes(appProperties.security().jwtSecret()));
         this.accessTokenMinutes = appProperties.security().accessTokenMinutes();
+        this.refreshTokenDays = appProperties.security().refreshTokenDays();
     }
 
     private byte[] deriveKeyBytes(String secret) {
@@ -48,6 +50,22 @@ public class JwtTokenService {
                 .expiration(Date.from(expiresAt))
                 .signWith(secretKey)
                 .compact();
+    }
+
+    public String generateRefreshToken(UUID subject) {
+        Instant now = Instant.now();
+        Instant expiresAt = now.plusSeconds(refreshTokenDays * 24 * 60 * 60);
+
+        return Jwts.builder()
+                .subject(subject.toString())
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(expiresAt))
+                .signWith(secretKey)
+                .compact();
+    }
+
+    public long getRefreshTokenDays() {
+        return refreshTokenDays;
     }
 
     public Claims parse(String token) {

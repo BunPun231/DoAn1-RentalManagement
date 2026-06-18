@@ -5,6 +5,7 @@ import java.util.List;
 
 public record SettlementCommand(
     Long contractId,
+    java.time.LocalDate moveOutDate,
     BigDecimal finalElectricReading,
     BigDecimal finalWaterReading,
     List<String> damageItems,
