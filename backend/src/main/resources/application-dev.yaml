@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: ${DB_URL:jdbc:postgresql://YOUR-NEON-HOST/YOUR_DATABASE?sslmode=require}
-    username: ${DB_USERNAME:YOUR_NEON_USERNAME}
-    password: ${DB_PASSWORD:YOUR_NEON_PASSWORD}
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/rental_management}
+    username: ${DB_USERNAME:rental_dev}
+    password: ${DB_PASSWORD:rental_dev_pass}
     hikari:
       maximum-pool-size: ${DB_POOL_SIZE:5}
       minimum-idle: ${DB_POOL_MIN_IDLE:1}
@@ -14,6 +14,7 @@ spring:
       hibernate:
         format_sql: true
     open-in-view: false
+    show-sql: true
   flyway:
     enabled: true
     locations: classpath:db/migration
@@ -26,3 +27,15 @@ logging:
   level:
     root: INFO
     com.roomrental: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+# Swagger enabled by default in dev
+springdoc:
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+  api-docs:
+    path: /v3/api-docs
