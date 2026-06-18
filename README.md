@@ -68,8 +68,6 @@ Each module is self-contained with its own domain, application, infrastructure, 
 - **Node.js 18+** (for frontend)
 - **Docker & Docker Compose** (for local infrastructure)
 
-## 🚀 Quick Start
-
 Dự án cung cấp 2 chế độ chạy môi trường Local tùy thuộc vào thói quen của bạn:
 
 ### Option A: Fully Dockerized (Khuyến nghị)
