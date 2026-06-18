@@ -8,11 +8,13 @@ import com.roomrental.modules.service.application.dto.ServiceCreateCommand;
 import com.roomrental.modules.service.application.dto.ServiceResult;
 import com.roomrental.modules.service.domain.model.RentalService;
 import com.roomrental.modules.service.domain.repository.RentalServiceRepository;
+import com.roomrental.modules.service.domain.repository.ServicePricingRepository;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -30,7 +32,9 @@ import static org.mockito.Mockito.*;
 class RentalServiceServiceTest {
 
     @Mock private RentalServiceRepository serviceRepository;
+    @Mock private ServicePricingRepository servicePricingRepository;
     @Mock private MotelRepository motelRepository;
+    @Mock private ApplicationEventPublisher eventPublisher;
     @InjectMocks private RentalServiceService serviceService;
 
     private UUID tenantId;
@@ -58,6 +62,8 @@ class RentalServiceServiceTest {
         motel.setTenantId(tenantId);
         when(motelRepository.findByIdAndTenantId(1L, tenantId)).thenReturn(Optional.of(motel));
         when(serviceRepository.existsByMotelIdAndName(1L, "Điện")).thenReturn(false);
+        doNothing().when(servicePricingRepository).closeCurrentPricing(anyLong(), any());
+        when(servicePricingRepository.findCurrentByServiceId(anyLong(), any())).thenReturn(Optional.empty());
         when(serviceRepository.save(any(RentalService.class))).thenAnswer(inv -> {
             RentalService s = inv.getArgument(0);
             s.setId(1L);
@@ -65,7 +71,7 @@ class RentalServiceServiceTest {
         });
 
         ServiceResult result = serviceService.create(1L,
-                new ServiceCreateCommand("Điện", "PER_INDEX", "kWh", true));
+            new ServiceCreateCommand("Điện", "PER_INDEX", "kWh", true, null, null));
 
         assertThat(result.name()).isEqualTo("Điện");
         assertThat(result.chargeType()).isEqualTo("PER_INDEX");
@@ -82,7 +88,7 @@ class RentalServiceServiceTest {
         when(serviceRepository.existsByMotelIdAndName(1L, "Điện")).thenReturn(true);
 
         assertThatThrownBy(() -> serviceService.create(1L,
-                new ServiceCreateCommand("Điện", "FIXED", null, false)))
+            new ServiceCreateCommand("Điện", "FIXED", null, false, null, null)))
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining("already exists");
     }
@@ -97,7 +103,7 @@ class RentalServiceServiceTest {
         when(serviceRepository.existsByMotelIdAndName(anyLong(), anyString())).thenReturn(false);
 
         assertThatThrownBy(() -> serviceService.create(1L,
-                new ServiceCreateCommand("Test", "INVALID_TYPE", null, false)))
+            new ServiceCreateCommand("Test", "INVALID_TYPE", null, false, null, null)))
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining("Invalid charge type");
     }

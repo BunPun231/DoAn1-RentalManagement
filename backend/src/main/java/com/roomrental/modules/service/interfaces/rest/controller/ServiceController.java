@@ -2,11 +2,13 @@ package com.roomrental.modules.service.interfaces.rest.controller;
 
 import com.roomrental.common.dto.ApiResponse;
 import com.roomrental.common.dto.PageResponse;
+import com.roomrental.modules.service.application.dto.ServiceAssignCommand;
 import com.roomrental.modules.service.application.dto.ServiceCreateCommand;
 import com.roomrental.modules.service.application.dto.ServiceResult;
 import com.roomrental.modules.service.application.dto.ServiceTierPricingCommand;
 import com.roomrental.modules.service.application.dto.ServiceUpdateCommand;
 import com.roomrental.modules.service.application.service.RentalServiceService;
+import com.roomrental.modules.service.interfaces.rest.dto.ServiceAssignRequest;
 import com.roomrental.modules.service.interfaces.rest.dto.ServiceCreateRequest;
 import com.roomrental.modules.service.interfaces.rest.dto.ServiceUpdateRequest;
 import io.swagger.v3.oas.annotations.Operation;
@@ -80,5 +82,15 @@ public class ServiceController {
             @PathVariable Long motelId, @PathVariable Long serviceId) {
         svc.delete(motelId, serviceId);
         return ResponseEntity.ok(ApiResponse.ok("Service deleted"));
+    }
+
+    @PostMapping("/{serviceId}/assign-to-rooms")
+    @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
+    @Operation(summary = "Assign service to multiple rooms")
+    public ResponseEntity<ApiResponse<Void>> assignToRooms(
+            @PathVariable Long motelId, @PathVariable Long serviceId,
+            @Valid @RequestBody ServiceAssignRequest body) {
+        svc.assignToRooms(motelId, serviceId, new ServiceAssignCommand(body.roomIds()));
+        return ResponseEntity.ok(ApiResponse.ok("Service assigned to rooms"));
     }
 }

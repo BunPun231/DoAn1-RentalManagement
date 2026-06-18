@@ -5,11 +5,12 @@ import com.roomrental.common.exception.BaseException;
 import com.roomrental.common.util.SecurityUtils;
 import com.roomrental.modules.motel.domain.model.Motel;
 import com.roomrental.modules.motel.domain.repository.MotelRepository;
-import com.roomrental.modules.service.application.dto.ServiceCreateCommand;
-import com.roomrental.modules.service.application.dto.ServiceResult;
-import com.roomrental.modules.service.application.dto.ServiceTierPricingCommand;
-import com.roomrental.modules.service.application.dto.ServiceTierPricingResult;
-import com.roomrental.modules.service.application.dto.ServiceUpdateCommand;
+import com.roomrental.modules.finance.domain.model.ServiceUsage;
+import com.roomrental.modules.finance.domain.repository.ServiceUsageRepository;
+import com.roomrental.modules.room.domain.model.Room;
+import com.roomrental.modules.room.domain.model.RoomStatus;
+import com.roomrental.modules.room.domain.repository.RoomRepository;
+import com.roomrental.modules.service.application.dto.*;
 import com.roomrental.modules.service.application.event.ServiceCreatedEvent;
 import com.roomrental.modules.service.application.event.ServiceDeletedEvent;
 import com.roomrental.modules.service.application.event.ServiceUpdatedEvent;
@@ -26,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -39,16 +41,22 @@ public class RentalServiceService {
     private final RentalServiceRepository serviceRepository;
     private final ServicePricingRepository servicePricingRepository;
     private final MotelRepository motelRepository;
+    private final RoomRepository roomRepository;
+    private final ServiceUsageRepository serviceUsageRepository;
     private final ApplicationEventPublisher eventPublisher;
 
     public RentalServiceService(
             RentalServiceRepository serviceRepository,
             ServicePricingRepository servicePricingRepository,
             MotelRepository motelRepository,
+            RoomRepository roomRepository,
+            ServiceUsageRepository serviceUsageRepository,
             ApplicationEventPublisher eventPublisher) {
         this.serviceRepository = serviceRepository;
         this.servicePricingRepository = servicePricingRepository;
         this.motelRepository = motelRepository;
+        this.roomRepository = roomRepository;
+        this.serviceUsageRepository = serviceUsageRepository;
         this.eventPublisher = eventPublisher;
     }
 
@@ -129,6 +137,40 @@ public class RentalServiceService {
         eventPublisher.publishEvent(new ServiceDeletedEvent(
                 tenantId, SecurityUtils.getCurrentUserId(), SecurityUtils.getCurrentRole(),
                 serviceId, svc.getName()));
+    }
+
+    @Transactional
+    public void assignToRooms(Long motelId, Long serviceId, ServiceAssignCommand command) {
+        requireMotel(motelId); // Validates tenantId owns motelId
+        RentalService svc = findService(motelId, serviceId);
+
+        for (Long roomId : command.roomIds()) {
+            Room room = roomRepository.findById(roomId)
+                    .orElseThrow(() -> BaseException.notFound("Room", roomId));
+            
+            if (!room.getMotelId().equals(motelId)) {
+                throw BaseException.badRequest("Room " + roomId + " does not belong to the specified motel");
+            }
+            
+            if (room.getStatus() == RoomStatus.OUT_OF_BUSINESS) {
+                continue;
+            }
+
+            boolean alreadyAssigned = serviceUsageRepository.findBillableByRoomId(roomId)
+                    .stream()
+                    .anyMatch(u -> u.getServiceId().equals(serviceId));
+
+            if (!alreadyAssigned) {
+                ServiceUsage usage = new ServiceUsage();
+                usage.setRoomId(roomId);
+                usage.setServiceId(serviceId);
+                usage.setRegisteredQuantity(1);
+                usage.setStatus(ServiceUsage.ServiceUsageStatus.ACTIVE);
+                usage.setRegisteredAt(OffsetDateTime.now());
+                usage.setUpdatedAt(OffsetDateTime.now());
+                serviceUsageRepository.save(usage);
+            }
+        }
     }
 
     private Motel requireMotel(Long motelId) {

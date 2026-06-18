@@ -13,6 +13,8 @@ public record InvoiceResult(
     BigDecimal paidAmount,
     BigDecimal balanceDeduction,
     BigDecimal remainingAmount,
+    BigDecimal overpaidAmount,
+    BigDecimal creditBalanceSnapshot,
     String status,
     String invoiceType,
     String cancelReason,

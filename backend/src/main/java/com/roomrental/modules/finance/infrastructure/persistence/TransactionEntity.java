@@ -58,5 +58,7 @@ public class TransactionEntity {
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
-}
 
+    @Column(name = "overpaid_amount")
+    private BigDecimal overpaidAmount;
+}

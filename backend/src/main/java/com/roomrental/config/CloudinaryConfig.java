@@ -2,6 +2,7 @@ package com.roomrental.config;
 
 import com.cloudinary.Cloudinary;
 import com.roomrental.common.config.AppProperties;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -11,19 +12,21 @@ import java.util.Map;
 @Configuration
 public class CloudinaryConfig {
 
-    private final AppProperties appProperties;
+    @Value("${app.cloudinary.cloud-name:test}")
+    private String cloudName;
 
-    public CloudinaryConfig(AppProperties appProperties) {
-        this.appProperties = appProperties;
-    }
+    @Value("${app.cloudinary.api-key:test}")
+    private String apiKey;
+
+    @Value("${app.cloudinary.api-secret:test}")
+    private String apiSecret;
 
     @Bean
     public Cloudinary cloudinary() {
-        AppProperties.Cloudinary cloudinary = appProperties.cloudinary();
         Map<String, String> config = new HashMap<>();
-        config.put("cloud_name", cloudinary.cloudName());
-        config.put("api_key", cloudinary.apiKey());
-        config.put("api_secret", cloudinary.apiSecret());
+        config.put("cloud_name", cloudName);
+        config.put("api_key", apiKey);
+        config.put("api_secret", apiSecret);
         return new Cloudinary(config);
     }
 }

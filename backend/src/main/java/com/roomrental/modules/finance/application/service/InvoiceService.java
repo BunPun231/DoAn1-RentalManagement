@@ -16,6 +16,7 @@ import com.roomrental.modules.finance.domain.repository.MeterReadingRepository;
 import com.roomrental.modules.finance.domain.repository.InvoiceDetailRepository;
 import com.roomrental.modules.finance.domain.repository.InvoiceRepository;
 import com.roomrental.modules.finance.domain.repository.ServiceUsageRepository;
+import com.roomrental.modules.finance.domain.repository.ResidentBalanceRepository;
 import com.roomrental.modules.contract.domain.model.Contract;
 import com.roomrental.modules.contract.domain.repository.ContractRepository;
 import com.roomrental.modules.room.domain.model.Room;
@@ -52,6 +53,7 @@ public class InvoiceService {
     private final ServiceUsageRepository serviceUsageRepository;
     private final ServicePricingRepository servicePricingRepository;
     private final MeterReadingRepository meterReadingRepository;
+    private final ResidentBalanceRepository residentBalanceRepository;
     private final BillingStrategyFactory strategyFactory;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -64,6 +66,7 @@ public class InvoiceService {
             ServiceUsageRepository serviceUsageRepository,
             ServicePricingRepository servicePricingRepository,
             MeterReadingRepository meterReadingRepository,
+            ResidentBalanceRepository residentBalanceRepository,
             BillingStrategyFactory strategyFactory,
             ApplicationEventPublisher eventPublisher) {
         this.invoiceRepository = invoiceRepository;
@@ -74,6 +77,7 @@ public class InvoiceService {
         this.serviceUsageRepository = serviceUsageRepository;
         this.servicePricingRepository = servicePricingRepository;
         this.meterReadingRepository = meterReadingRepository;
+        this.residentBalanceRepository = residentBalanceRepository;
         this.strategyFactory = strategyFactory;
         this.eventPublisher = eventPublisher;
     }
@@ -152,18 +156,25 @@ public class InvoiceService {
             invoice.setTotalAmount(total);
             
             // 3. Apply auto-pay from balance if any
-            BigDecimal creditBalance = contract.getCreditBalance() != null ? contract.getCreditBalance() : BigDecimal.ZERO;
+            UUID residentId = contract.getPrimaryResidentUserId();
+            com.roomrental.modules.finance.domain.model.ResidentBalance residentBalance = residentBalanceRepository.findById(residentId)
+                .orElseGet(() -> {
+                    com.roomrental.modules.finance.domain.model.ResidentBalance rb = new com.roomrental.modules.finance.domain.model.ResidentBalance();
+                    rb.setResidentUserId(residentId);
+                    return rb;
+                });
+            BigDecimal creditBalance = residentBalance.getBalance() != null ? residentBalance.getBalance() : BigDecimal.ZERO;
             BigDecimal deduction = BigDecimal.ZERO;
 
             if (creditBalance.compareTo(BigDecimal.ZERO) > 0) {
                 if (creditBalance.compareTo(total) >= 0) {
                     deduction = total;
-                    contract.setCreditBalance(creditBalance.subtract(total));
+                    residentBalance.deductBalance(total);
                 } else {
                     deduction = creditBalance;
-                    contract.setCreditBalance(BigDecimal.ZERO);
+                    residentBalance.setBalance(BigDecimal.ZERO);
                 }
-                contractRepository.save(contract);
+                residentBalanceRepository.save(residentBalance);
             }
 
             invoice.setBalanceDeduction(deduction);
@@ -280,6 +291,20 @@ public class InvoiceService {
     }
 
     private InvoiceResult toResult(Invoice invoice) {
+        BigDecimal creditBalanceSnapshot = BigDecimal.ZERO;
+        if (invoice.getContractId() != null) {
+            contractRepository.findById(invoice.getContractId()).ifPresent(contract -> {
+                com.roomrental.modules.finance.domain.model.ResidentBalance rb = residentBalanceRepository.findById(contract.getPrimaryResidentUserId()).orElse(null);
+                if (rb != null && rb.getBalance() != null) {
+                    // Update this snapshot to what rb says
+                }
+            });
+        }
+        creditBalanceSnapshot = contractRepository.findById(invoice.getContractId())
+                .flatMap(c -> residentBalanceRepository.findById(c.getPrimaryResidentUserId()))
+                .map(rb -> rb.getBalance())
+                .orElse(BigDecimal.ZERO);
+
         return new InvoiceResult(
             invoice.getId(),
             invoice.getContractId(),
@@ -289,6 +314,8 @@ public class InvoiceService {
             invoice.getPaidAmount(),
             invoice.getBalanceDeduction(),
             invoice.getRemainingAmount(),
+            BigDecimal.ZERO, // overpaidAmount is typically mapped via transaction, but we provide ZERO here as a fallback placeholder.
+            creditBalanceSnapshot,
             invoice.getStatus().name(),
             invoice.getInvoiceType().name(),
             invoice.getCancelReason(),

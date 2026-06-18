@@ -22,14 +22,17 @@ public class SettlementService {
 
     private final ContractRepository contractRepository;
     private final InvoiceRepository invoiceRepository;
+    private final com.roomrental.modules.room.domain.repository.RoomRepository roomRepository;
     private final ApplicationEventPublisher eventPublisher;
 
     public SettlementService(
             ContractRepository contractRepository,
             InvoiceRepository invoiceRepository,
+            com.roomrental.modules.room.domain.repository.RoomRepository roomRepository,
             ApplicationEventPublisher eventPublisher) {
         this.contractRepository = contractRepository;
         this.invoiceRepository = invoiceRepository;
+        this.roomRepository = roomRepository;
         this.eventPublisher = eventPublisher;
     }
 
@@ -78,44 +81,70 @@ public class SettlementService {
     }
 
     @Transactional
-    public void confirmRefund(Long contractId) {
+    public void confirmSettlement(SettlementConfirmCommand command) {
         UUID tenantId = SecurityUtils.requireTenantId();
-        Contract contract = contractRepository.findByIdAndTenantId(contractId, tenantId)
-            .orElseThrow(() -> BaseException.notFound("Contract", contractId));
+        Contract contract = contractRepository.findByIdAndTenantId(command.contractId(), tenantId)
+            .orElseThrow(() -> BaseException.notFound("Contract", command.contractId()));
 
         if (contract.getIntendedMoveOutDate() == null) {
             throw BaseException.badRequest("Move out date is not scheduled");
         }
 
-        List<Invoice> unpaidInvoices = invoiceRepository.findUnpaidByContractId(contractId);
-        if (!unpaidInvoices.isEmpty()) {
-            throw BaseException.badRequest("All invoices must be paid before settlement");
+        List<Invoice> unpaidInvoices = invoiceRepository.findUnpaidByContractId(contract.getId());
+        BigDecimal currentDebt = unpaidInvoices.stream()
+            .map(Invoice::getRemainingAmount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        long daysLived = contract.getIntendedMoveOutDate().getDayOfMonth();
+        BigDecimal proRatedRent = contract.getRentPrice()
+            .multiply(BigDecimal.valueOf(daysLived))
+            .divide(BigDecimal.valueOf(30), 2, java.math.RoundingMode.HALF_UP);
+
+        // Utilities calculation could use final indices here
+        BigDecimal finalUtilities = BigDecimal.ZERO; 
+        BigDecimal repairFees = command.repairFees() != null ? command.repairFees() : BigDecimal.ZERO;
+
+        BigDecimal totalDeductions = currentDebt.add(proRatedRent).add(finalUtilities).add(repairFees);
+        BigDecimal deposit = contract.getDepositAmount() != null ? contract.getDepositAmount() : BigDecimal.ZERO;
+        
+        Invoice invoice = new Invoice();
+        invoice.setTenantId(tenantId);
+        invoice.setContractId(contract.getId());
+        invoice.setRoomId(contract.getRoomId());
+        invoice.setBillingMonth(contract.getIntendedMoveOutDate().withDayOfMonth(1));
+        invoice.setInvoiceType(Invoice.InvoiceType.SETTLEMENT);
+        invoice.setTotalAmount(totalDeductions);
+        invoice.setDueDate(java.time.LocalDate.now().plusDays(5));
+        invoice.setCreatedAt(OffsetDateTime.now());
+        invoice.setUpdatedAt(OffsetDateTime.now());
+
+        if (deposit.compareTo(totalDeductions) >= 0) {
+            invoice.setBalanceDeduction(totalDeductions);
+            invoice.setPaidAmount(BigDecimal.ZERO);
+            invoice.setStatus(Invoice.InvoiceStatus.PAID);
+            
+            contract.liquidate();
+            
+            // Release room
+            roomRepository.findById(contract.getRoomId()).ifPresent(room -> {
+                room.setStatus(com.roomrental.modules.room.domain.model.RoomStatus.EMPTY);
+                room.setCurrentResidentsCount(0);
+                roomRepository.save(room);
+            });
+            eventPublisher.publishEvent(new SettlementCompletedEvent(
+                tenantId, SecurityUtils.getCurrentUserId(), SecurityUtils.getCurrentRole(),
+                contract.getId(), "CONFIRMED"
+            ));
+        } else {
+            invoice.setBalanceDeduction(deposit);
+            invoice.setPaidAmount(BigDecimal.ZERO);
+            invoice.setStatus(Invoice.InvoiceStatus.PENDING);
+            contract.setStatus(Contract.ContractStatus.PENDING_LIQUIDATION);
         }
-
-        contract.liquidate();
+        
+        invoiceRepository.save(invoice);
         contract.setUpdatedAt(java.time.LocalDateTime.now());
         contractRepository.save(contract);
-
-        eventPublisher.publishEvent(new SettlementCompletedEvent(
-            tenantId, SecurityUtils.getCurrentUserId(), SecurityUtils.getCurrentRole(),
-            contract.getId(), "CONFIRMED"
-        ));
-    }
-
-    @Transactional
-    public void confirmWithBadDebt(Long contractId) {
-        UUID tenantId = SecurityUtils.requireTenantId();
-        Contract contract = contractRepository.findByIdAndTenantId(contractId, tenantId)
-            .orElseThrow(() -> BaseException.notFound("Contract", contractId));
-
-        contract.liquidate();
-        contract.setUpdatedAt(java.time.LocalDateTime.now());
-        contractRepository.save(contract);
-
-        eventPublisher.publishEvent(new SettlementCompletedEvent(
-            tenantId, SecurityUtils.getCurrentUserId(), SecurityUtils.getCurrentRole(),
-            contract.getId(), "BAD_DEBT"
-        ));
     }
 
     @Transactional

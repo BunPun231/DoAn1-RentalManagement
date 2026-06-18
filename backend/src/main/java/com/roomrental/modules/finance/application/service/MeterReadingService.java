@@ -97,13 +97,6 @@ public class MeterReadingService {
 
     @Transactional(readOnly = true)
     public MeterReadingResult submitWithOcr(MeterReadingOcrCommand command) {
-        String imageUrl = null;
-        try {
-            imageUrl = cloudinaryService.uploadImage(command.imageBytes(), "meter_readings");
-        } catch (java.io.IOException e) {
-            throw BaseException.badRequest("Failed to upload image: " + e.getMessage());
-        }
-
         resolveActiveServiceUsageId(command.roomId(), command.serviceId());
 
         // UC71 - Just return suggested result, do not save
@@ -111,6 +104,13 @@ public class MeterReadingService {
         
         if (ocrResult == null || ocrResult.extractedValue() == null) {
             throw BaseException.badRequest("Failed to extract reading from image");
+        }
+
+        String imageUrl = null;
+        try {
+            imageUrl = cloudinaryService.uploadImage(command.imageBytes(), "meter_readings");
+        } catch (java.io.IOException e) {
+            throw BaseException.badRequest("Failed to upload image: " + e.getMessage());
         }
 
         // Fake old reading for suggestion

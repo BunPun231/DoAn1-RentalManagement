@@ -12,6 +12,7 @@ import com.roomrental.modules.contract.domain.model.Contract;
 import com.roomrental.modules.contract.domain.repository.ContractRepository;
 import com.roomrental.modules.finance.domain.model.Invoice;
 import com.roomrental.modules.finance.domain.repository.InvoiceRepository;
+import com.roomrental.modules.finance.domain.repository.ResidentBalanceRepository;
 import com.roomrental.modules.finance.domain.repository.TransactionRepository;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
@@ -31,16 +32,19 @@ public class PaymentService {
     private final TransactionRepository transactionRepository;
     private final InvoiceRepository invoiceRepository;
     private final ContractRepository contractRepository;
+    private final ResidentBalanceRepository residentBalanceRepository;
     private final ApplicationEventPublisher eventPublisher;
 
     public PaymentService(
             TransactionRepository transactionRepository,
             InvoiceRepository invoiceRepository,
             ContractRepository contractRepository,
+            ResidentBalanceRepository residentBalanceRepository,
             ApplicationEventPublisher eventPublisher) {
         this.transactionRepository = transactionRepository;
         this.invoiceRepository = invoiceRepository;
         this.contractRepository = contractRepository;
+        this.residentBalanceRepository = residentBalanceRepository;
         this.eventPublisher = eventPublisher;
     }
 
@@ -68,15 +72,19 @@ public class PaymentService {
         
         if (invoiceId != null) {
             invoiceRepository.findById(invoiceId).ifPresentOrElse(invoice -> {
-                if (invoice.getStatus() == Invoice.InvoiceStatus.VOID) {
-                    throw BaseException.badRequest("Cannot pay a voided invoice");
+                if (invoice.isDeleted() || invoice.getStatus() == Invoice.InvoiceStatus.VOID) {
+                    throw BaseException.badRequest("Cannot pay a deleted or voided invoice");
+                }
+                if (invoice.getStatus() == Invoice.InvoiceStatus.PAID) {
+                    throw BaseException.badRequest("Invoice is already paid");
                 }
                 
                 tx.setTenantId(invoice.getTenantId());
                 tx.setInvoiceId(invoiceId);
                 tx.setStatus(TransactionStatus.SUCCESS);
                 
-                handleInvoicePayment(invoice, command.amount());
+                BigDecimal overpaidAmount = handleInvoicePayment(invoice, command.amount());
+                tx.setOverpaidAmount(overpaidAmount);
                 
                 // If overpaid, ideally add to resident balance.
             }, () -> {
@@ -104,8 +112,11 @@ public class PaymentService {
         Invoice invoice = invoiceRepository.findByIdAndTenantId(command.invoiceId(), tenantId)
             .orElseThrow(() -> BaseException.notFound("Invoice", command.invoiceId()));
 
-        if (invoice.getStatus() == Invoice.InvoiceStatus.VOID) {
-            throw BaseException.badRequest("Cannot pay a voided invoice");
+        if (invoice.isDeleted() || invoice.getStatus() == Invoice.InvoiceStatus.VOID) {
+            throw BaseException.badRequest("Cannot pay a deleted or voided invoice");
+        }
+        if (invoice.getStatus() == Invoice.InvoiceStatus.PAID) {
+            throw BaseException.badRequest("Invoice is already paid");
         }
 
         Transaction tx = new Transaction();
@@ -118,7 +129,8 @@ public class PaymentService {
         tx.setPaidAt(OffsetDateTime.now());
         tx.setCreatedAt(OffsetDateTime.now());
 
-        handleInvoicePayment(invoice, command.amount());
+        BigDecimal overpaidAmount = handleInvoicePayment(invoice, command.amount());
+        tx.setOverpaidAmount(overpaidAmount);
 
         Transaction saved = transactionRepository.save(tx);
 
@@ -149,15 +161,19 @@ public class PaymentService {
         Invoice invoice = invoiceRepository.findByIdAndTenantId(command.invoiceId(), tenantId)
             .orElseThrow(() -> BaseException.notFound("Invoice", command.invoiceId()));
 
-        if (invoice.getStatus() == Invoice.InvoiceStatus.VOID) {
-            throw BaseException.badRequest("Cannot pay a voided invoice");
+        if (invoice.isDeleted() || invoice.getStatus() == Invoice.InvoiceStatus.VOID) {
+            throw BaseException.badRequest("Cannot pay a deleted or voided invoice");
+        }
+        if (invoice.getStatus() == Invoice.InvoiceStatus.PAID) {
+            throw BaseException.badRequest("Invoice is already paid");
         }
 
         tx.setTenantId(tenantId);
         tx.setInvoiceId(invoice.getId());
         tx.setStatus(TransactionStatus.SUCCESS);
 
-        handleInvoicePayment(invoice, tx.getAmount());
+        BigDecimal overpaidAmount = handleInvoicePayment(invoice, tx.getAmount());
+        tx.setOverpaidAmount(overpaidAmount);
         Transaction saved = transactionRepository.save(tx);
 
         eventPublisher.publishEvent(new PaymentReceivedEvent(
@@ -179,10 +195,23 @@ public class PaymentService {
     }
 
     private TransactionResult toResult(Transaction tx) {
+        BigDecimal[] snapshot = new BigDecimal[]{BigDecimal.ZERO};
+        if (tx.getInvoiceId() != null) {
+            invoiceRepository.findById(tx.getInvoiceId()).ifPresent(inv -> {
+                contractRepository.findById(inv.getContractId()).ifPresent(contract -> {
+                    snapshot[0] = residentBalanceRepository.findById(contract.getPrimaryResidentUserId())
+                        .map(b -> b.getBalance())
+                        .orElse(BigDecimal.ZERO);
+                });
+            });
+        }
+
         return new TransactionResult(
             tx.getId(),
             tx.getInvoiceId(),
             tx.getAmount(),
+            tx.getOverpaidAmount(),
+            snapshot[0],
             tx.getTransactionRef(),
             tx.getPaymentMethod() != null ? tx.getPaymentMethod().name() : null,
             tx.getBankCode(),
@@ -191,18 +220,25 @@ public class PaymentService {
         );
     }
 
-    private void handleInvoicePayment(Invoice invoice, BigDecimal amount) {
+    private BigDecimal handleInvoicePayment(Invoice invoice, BigDecimal amount) {
         BigDecimal overpaid = invoice.applyPayment(amount);
         invoiceRepository.save(invoice);
         
         if (overpaid.compareTo(BigDecimal.ZERO) > 0) {
             contractRepository.findByIdAndTenantId(invoice.getContractId(), invoice.getTenantId())
                 .ifPresent(contract -> {
-                    BigDecimal currentCredit = contract.getCreditBalance() != null ? contract.getCreditBalance() : BigDecimal.ZERO;
-                    contract.setCreditBalance(currentCredit.add(overpaid));
-                    contractRepository.save(contract);
+                    UUID residentId = contract.getPrimaryResidentUserId();
+                    com.roomrental.modules.finance.domain.model.ResidentBalance residentBalance = residentBalanceRepository.findById(residentId)
+                        .orElseGet(() -> {
+                            com.roomrental.modules.finance.domain.model.ResidentBalance rb = new com.roomrental.modules.finance.domain.model.ResidentBalance();
+                            rb.setResidentUserId(residentId);
+                            return rb;
+                        });
+                    residentBalance.addBalance(overpaid);
+                    residentBalanceRepository.save(residentBalance);
                 });
         }
+        return overpaid;
     }
 }
 

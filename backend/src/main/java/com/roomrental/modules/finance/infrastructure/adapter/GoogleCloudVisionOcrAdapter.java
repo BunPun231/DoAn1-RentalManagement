@@ -58,6 +58,7 @@ public class GoogleCloudVisionOcrAdapter implements OcrPort {
                 return new OcrResult(extractedValue, confidence, rawText);
             }
         } catch (Exception e) {
+            e.printStackTrace();
             // Log exception in real world
             return new OcrResult(null, 0.0, e.getMessage());
         }

@@ -470,6 +470,9 @@ public class ContractService {
             room.setStatus(RoomStatus.RENTED);
             room.setCurrentResidentsCount(residentsCount > 0 ? residentsCount : 1);
             roomRepository.save(room);
+
+            List<ContractServiceItem> serviceItems = contractServiceItemRepository.findByContractId(contract.getId());
+            syncServiceUsages(room.getId(), serviceItems);
         }
 
         ContractResult result = toResult(saved);

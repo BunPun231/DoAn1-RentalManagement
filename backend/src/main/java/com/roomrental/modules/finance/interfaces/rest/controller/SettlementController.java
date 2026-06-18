@@ -47,17 +47,14 @@ public class SettlementController {
 
     @PostMapping("/{contractId}/confirm")
     @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
-    @Operation(summary = "Confirm refund and liquidate contract (UC80)")
-    public ResponseEntity<Void> confirmRefund(@PathVariable Long contractId) {
-        service.confirmRefund(contractId);
-        return ResponseEntity.noContent().build();
-    }
-
-    @PostMapping("/{contractId}/bad-debt")
-    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
-    @Operation(summary = "Confirm settlement with bad debt / abandoned (UC80)")
-    public ResponseEntity<Void> confirmWithBadDebt(@PathVariable Long contractId) {
-        service.confirmWithBadDebt(contractId);
+    @Operation(summary = "Confirm settlement and liquidate contract (UC80)")
+    public ResponseEntity<Void> confirmSettlement(
+            @PathVariable Long contractId,
+            @RequestBody @Valid com.roomrental.modules.finance.interfaces.rest.dto.SettlementConfirmRequest request) {
+        SettlementConfirmCommand cmd = new SettlementConfirmCommand(
+            contractId, request.finalElectricityIndex(), request.finalWaterIndex(), request.repairFees()
+        );
+        service.confirmSettlement(cmd);
         return ResponseEntity.noContent().build();
     }
 }
