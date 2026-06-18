@@ -21,6 +21,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -44,6 +46,23 @@ public class RoomService {
      */
     @Transactional(rollbackFor = Exception.class)
     public RoomResult create(Long motelId, RoomCreateCommand command) {
+        return createInternal(motelId, command);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public List<RoomResult> createBulk(Long motelId, List<RoomCreateCommand> commands) {
+        if (commands == null || commands.isEmpty()) {
+            throw BaseException.badRequest("rooms: required");
+        }
+
+        List<RoomResult> results = new ArrayList<>();
+        for (RoomCreateCommand command : commands) {
+            results.add(createInternal(motelId, command));
+        }
+        return results;
+    }
+
+    private RoomResult createInternal(Long motelId, RoomCreateCommand command) {
         Motel motel = requireMotel(motelId);
 
         if (roomRepository.existsByMotelIdAndRoomNumber(motelId, command.roomNumber())) {

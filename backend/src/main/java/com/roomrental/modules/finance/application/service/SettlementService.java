@@ -178,6 +178,14 @@ public class SettlementService {
             meterReadingRepository.saveAll(comp.generatedReadings());
         }
 
+        List<ServiceUsage> cancelledUsages = serviceUsageRepository.findBillableByRoomId(contract.getRoomId()).stream()
+                .peek(usage -> usage.setStatus(ServiceUsage.ServiceUsageStatus.CANCELLED))
+                .peek(usage -> usage.setUpdatedAt(OffsetDateTime.now()))
+                .toList();
+        if (!cancelledUsages.isEmpty()) {
+            serviceUsageRepository.saveAll(cancelledUsages);
+        }
+
         Transaction refundTransaction = null;
         BigDecimal refundAmount = remainingDeposit.max(BigDecimal.ZERO);
         if (refundAmount.compareTo(BigDecimal.ZERO) > 0) {

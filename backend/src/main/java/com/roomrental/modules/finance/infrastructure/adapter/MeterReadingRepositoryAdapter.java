@@ -98,6 +98,12 @@ public class MeterReadingRepositoryAdapter implements MeterReadingRepository {
     }
 
     @Override
+    public Optional<MeterReading> findLatestApprovedByServiceUsageId(Long serviceUsageId) {
+        return jpaRepository.findFirstByServiceUsageIdAndStatusOrderByBillingMonthDescCreatedAtDesc(serviceUsageId, MeterReadingStatus.APPROVED)
+                .map(mapper::toDomain);
+    }
+
+    @Override
     public boolean existsByServiceUsageIdAndBillingMonthAndStatus(Long serviceUsageId, LocalDate billingMonth, String status) {
         return jpaRepository.existsByServiceUsageIdAndBillingMonthAndStatus(serviceUsageId, billingMonth, MeterReadingStatus.valueOf(status));
     }

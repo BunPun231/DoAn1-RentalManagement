@@ -22,5 +22,6 @@ public interface MeterReadingRepository {
     Page<MeterReading> findByTenantIdAndRoomIdAndStatus(UUID tenantId, Long roomId, String status, Pageable pageable);
     Page<MeterReading> findPendingByTenantId(UUID tenantId, Pageable pageable);
     List<MeterReading> findApprovedByRoomIdAndBillingMonth(Long roomId, LocalDate billingMonth);
+    Optional<MeterReading> findLatestApprovedByServiceUsageId(Long serviceUsageId);
     boolean existsByServiceUsageIdAndBillingMonthAndStatus(Long serviceUsageId, LocalDate billingMonth, String status);
 }

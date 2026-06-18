@@ -21,5 +21,6 @@ public interface MeterReadingJpaRepository extends JpaRepository<MeterReadingEnt
     Page<MeterReadingEntity> findByTenantIdAndRoomId(UUID tenantId, Long roomId, Pageable pageable);
     Page<MeterReadingEntity> findByTenantIdAndRoomIdAndStatus(UUID tenantId, Long roomId, MeterReadingStatus status, Pageable pageable);
     List<MeterReadingEntity> findByRoomIdAndBillingMonthAndStatus(Long roomId, LocalDate billingMonth, MeterReadingStatus status);
+    Optional<MeterReadingEntity> findFirstByServiceUsageIdAndStatusOrderByBillingMonthDescCreatedAtDesc(Long serviceUsageId, MeterReadingStatus status);
     boolean existsByServiceUsageIdAndBillingMonthAndStatus(Long serviceUsageId, LocalDate billingMonth, MeterReadingStatus status);
 }

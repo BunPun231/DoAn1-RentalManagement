@@ -15,6 +15,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -34,6 +35,7 @@ class RoomServiceTest {
 
     @Mock private RoomRepository roomRepository;
     @Mock private MotelRepository motelRepository;
+    @Mock private ApplicationEventPublisher eventPublisher;
     @InjectMocks private RoomService roomService;
 
     private UUID tenantId;
@@ -75,6 +77,27 @@ class RoomServiceTest {
 
         assertThat(result.roomNumber()).isEqualTo("101");
         assertThat(result.status()).isEqualTo("EMPTY");
+    }
+
+    @Test
+    @DisplayName("UC26+: Bulk create rooms successfully")
+    void bulkCreate_success() {
+        when(motelRepository.findByIdAndTenantId(1L, tenantId)).thenReturn(Optional.of(motel));
+        when(roomRepository.existsByMotelIdAndRoomNumber(eq(1L), anyString())).thenReturn(false);
+        when(roomRepository.save(any(Room.class))).thenAnswer(inv -> {
+            Room r = inv.getArgument(0);
+            r.setId(r.getRoomNumber().equals("101") ? 1L : 2L);
+            return r;
+        });
+
+        var results = roomService.createBulk(1L, List.of(
+                new RoomCreateCommand("101", 1, BigDecimal.valueOf(25), BigDecimal.valueOf(3000000), "Nice room"),
+                new RoomCreateCommand("102", 1, BigDecimal.valueOf(26), BigDecimal.valueOf(3200000), "Nice room 2")
+        ));
+
+        assertThat(results).hasSize(2);
+        assertThat(results.get(0).roomNumber()).isEqualTo("101");
+        assertThat(results.get(1).roomNumber()).isEqualTo("102");
     }
 
     @Test

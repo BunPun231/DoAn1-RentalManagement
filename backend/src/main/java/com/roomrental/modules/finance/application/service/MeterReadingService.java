@@ -79,12 +79,7 @@ public class MeterReadingService {
             throw BaseException.badRequest("Already has approved reading for this month");
         }
 
-        // Get old reading (in real logic, query the previous approved reading from DB)
-        // For simplicity, we assume command provides oldReading or we calculate it. 
-        // Here we just fetch the last approved one to set oldReading.
-        List<MeterReading> prevReadings = meterReadingRepository.findApprovedByRoomIdAndBillingMonth(
-            command.roomId(), billingMonth.minusMonths(1));
-        BigDecimal oldReading = prevReadings.isEmpty() ? BigDecimal.ZERO : prevReadings.get(0).getNewReading();
+        BigDecimal oldReading = resolveOldReading(serviceUsageId);
 
         if (command.newReading().compareTo(oldReading) < 0) {
             throw BaseException.badRequest("New reading cannot be less than old reading");
@@ -134,10 +129,7 @@ public class MeterReadingService {
 
         String imageUrl = null;
 
-        // Fetch old reading from DB
-        List<MeterReading> prevReadings = meterReadingRepository.findApprovedByRoomIdAndBillingMonth(
-            command.roomId(), billingMonth.minusMonths(1));
-        BigDecimal oldReading = prevReadings.isEmpty() ? BigDecimal.ZERO : prevReadings.get(0).getNewReading();
+        BigDecimal oldReading = resolveOldReading(serviceUsageId);
         BigDecimal consumption = ocrResult.extractedValue().subtract(oldReading).max(BigDecimal.ZERO);
 
         RentalService svc = rentalServiceRepository.findById(command.serviceId()).orElse(null);
@@ -287,6 +279,13 @@ public class MeterReadingService {
         return serviceUsageRepository.findActiveByRoomIdAndServiceId(roomId, serviceId)
                 .orElseThrow(() -> BaseException.badRequest("Phòng chưa đăng ký sử dụng dịch vụ này"))
                 .getId();
+    }
+
+    private BigDecimal resolveOldReading(Long serviceUsageId) {
+        return meterReadingRepository.findLatestApprovedByServiceUsageId(serviceUsageId)
+                .map(MeterReading::getNewReading)
+                .or(() -> serviceUsageRepository.findById(serviceUsageId).map(ServiceUsage::getStartIndex))
+                .orElse(BigDecimal.ZERO);
     }
 }
 

@@ -24,6 +24,11 @@ public class TieredBillingStrategy implements BillingStrategy {
             return details;
         }
 
+        tiers = tiers.stream()
+                .filter(tier -> tier != null && tier.tierStart() != null && tier.pricePerUnit() != null)
+                .sorted(java.util.Comparator.comparing(BillingContext.PricingTier::tierStart))
+                .toList();
+
         for (int i = 0; i < tiers.size(); i++) {
             if (remainingConsumption.compareTo(BigDecimal.ZERO) <= 0) {
                 break;
@@ -32,6 +37,9 @@ public class TieredBillingStrategy implements BillingStrategy {
             BillingContext.PricingTier tier = tiers.get(i);
             BigDecimal tierStart = tier.tierStart();
             BigDecimal tierEnd = tier.tierEnd();
+            if (tierEnd != null && tierEnd.compareTo(tierStart) <= 0) {
+                continue;
+            }
             
             BigDecimal tierCapacity;
             if (tierEnd != null) {
