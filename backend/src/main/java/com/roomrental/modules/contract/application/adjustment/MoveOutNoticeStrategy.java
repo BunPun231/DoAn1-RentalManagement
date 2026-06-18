@@ -16,7 +16,7 @@ public class MoveOutNoticeStrategy implements ContractAdjustmentStrategy {
     }
 
     @Override
-    public void process(Contract contract, ContractAdjustmentRequest request) {
+    public Long process(Contract contract, ContractAdjustmentRequest request) {
         LocalDate intendedMoveOutDate = request.intendedMoveOutDate();
         if (intendedMoveOutDate == null) {
             throw BaseException.badRequest("intendedMoveOutDate: required");
@@ -25,5 +25,6 @@ public class MoveOutNoticeStrategy implements ContractAdjustmentStrategy {
             throw BaseException.badRequest("intendedMoveOutDate: must be today or later");
         }
         contract.setIntendedMoveOutDate(intendedMoveOutDate);
+        return null; // No appendix created for MOVE_OUT_NOTICE
     }
 }

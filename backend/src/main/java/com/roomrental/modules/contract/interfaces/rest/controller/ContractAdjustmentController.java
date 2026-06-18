@@ -2,6 +2,7 @@ package com.roomrental.modules.contract.interfaces.rest.controller;
 
 import com.roomrental.common.dto.ApiResponse;
 import com.roomrental.modules.contract.application.dto.ContractAdjustmentRequest;
+import com.roomrental.modules.contract.application.dto.ContractAppendixResult;
 import com.roomrental.modules.contract.application.service.ContractAdjustmentService;
 import com.roomrental.modules.contract.interfaces.rest.dto.ContractAdjustmentRequestBody;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -28,7 +29,7 @@ public class ContractAdjustmentController {
 
     @PostMapping("/{contractId}/adjustments")
     @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
-    public ResponseEntity<ApiResponse<Void>> adjust(
+    public ResponseEntity<ApiResponse<ContractAppendixResult>> adjust(
             @PathVariable Long contractId,
             @Valid @RequestBody ContractAdjustmentRequestBody body
     ) {
@@ -40,7 +41,7 @@ public class ContractAdjustmentController {
                 body.intendedMoveOutDate(),
                 body.metadata()
         );
-        adjustmentService.adjust(contractId, request);
-        return ResponseEntity.ok(ApiResponse.ok("Contract adjusted"));
+        ContractAppendixResult result = adjustmentService.adjust(contractId, request);
+        return ResponseEntity.ok(ApiResponse.ok(result, "Contract adjusted"));
     }
 }

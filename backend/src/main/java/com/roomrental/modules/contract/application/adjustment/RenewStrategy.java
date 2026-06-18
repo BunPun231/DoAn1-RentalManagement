@@ -26,7 +26,7 @@ public class RenewStrategy implements ContractAdjustmentStrategy {
     }
 
     @Override
-    public void process(Contract contract, ContractAdjustmentRequest request) {
+    public Long process(Contract contract, ContractAdjustmentRequest request) {
         LocalDate newEndDate = request.newEndDate();
         if (newEndDate == null) {
             throw BaseException.badRequest("newEndDate: required");
@@ -46,8 +46,9 @@ public class RenewStrategy implements ContractAdjustmentStrategy {
         appendix.setMetadata("{\"newEndDate\":\"" + newEndDate + "\"}");
         appendix.setCreatedBy(actorId);
         appendix.setCreatedAt(LocalDateTime.now());
-        appendixRepository.save(appendix);
+        ContractAppendix saved = appendixRepository.save(appendix);
 
         contract.setEndDate(newEndDate);
+        return saved.getId();
     }
 }

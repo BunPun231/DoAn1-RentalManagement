@@ -4,11 +4,12 @@ import com.roomrental.modules.contract.domain.model.Contract;
 import com.roomrental.modules.contract.infrastructure.persistence.ContractEntity;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
+import org.mapstruct.ReportingPolicy;
 
 /**
  * MapStruct Mapper cho Contract ↔ ContractEntity.
  */
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", unmappedSourcePolicy = ReportingPolicy.IGNORE)
 public interface ContractMapper {
     Contract toDomain(ContractEntity entity);
 

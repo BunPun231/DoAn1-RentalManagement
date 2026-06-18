@@ -280,6 +280,107 @@ public class ContractService {
                 .toList();
     }
 
+    // ========================
+    // UC67: Cancel Contract (soft delete)
+    // ========================
+
+    @Transactional
+    public ContractResult cancel(Long id, String reason) {
+        UUID tenantId = requireTenantId();
+        Contract contract = contractRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> BaseException.notFound("Contract", id));
+
+        if (contract.getStatus() == Contract.ContractStatus.CANCELED) {
+            throw BaseException.badRequest("Contract is already canceled");
+        }
+        if (contract.getStatus() == Contract.ContractStatus.LIQUIDATED) {
+            throw BaseException.badRequest("Cannot cancel a liquidated contract");
+        }
+
+        contract.setStatus(Contract.ContractStatus.CANCELED);
+        contract.setCancelReason(reason);
+        contract.setUpdatedAt(LocalDateTime.now());
+
+        Contract saved = contractRepository.save(contract);
+
+        // Release room back to EMPTY or DEPOSITED
+        Room room = roomRepository.findById(contract.getRoomId())
+                .orElseThrow(() -> BaseException.notFound("Room", contract.getRoomId()));
+        room.setStatus(RoomStatus.EMPTY);
+        room.setCurrentResidentsCount(0);
+        roomRepository.save(room);
+
+        return toResult(saved);
+    }
+
+    // ========================
+    // UC69: Deposit Management
+    // ========================
+
+    @Transactional
+    public ContractResult collectDeposit(Long id) {
+        UUID tenantId = requireTenantId();
+        Contract contract = contractRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> BaseException.notFound("Contract", id));
+
+        if (contract.getDepositStatus() != Contract.DepositStatus.UNPAID) {
+            throw BaseException.badRequest("Deposit must be UNPAID to collect");
+        }
+
+        contract.setDepositStatus(Contract.DepositStatus.PAID);
+        contract.setUpdatedAt(LocalDateTime.now());
+
+        // If DRAFT, auto-activate to ACTIVE once deposit is collected
+        if (contract.getStatus() == Contract.ContractStatus.DRAFT) {
+            contract.setStatus(Contract.ContractStatus.ACTIVE);
+        }
+
+        Contract saved = contractRepository.save(contract);
+
+        // Update room status if contract becomes active
+        if (saved.getStatus() == Contract.ContractStatus.ACTIVE) {
+            Room room = roomRepository.findById(contract.getRoomId())
+                    .orElseThrow(() -> BaseException.notFound("Room", contract.getRoomId()));
+            int residentsCount = contractResidentRepository.findByContractId(contract.getId()).size();
+            room.setStatus(RoomStatus.RENTED);
+            room.setCurrentResidentsCount(residentsCount > 0 ? residentsCount : 1);
+            roomRepository.save(room);
+        }
+
+        return toResult(saved);
+    }
+
+    @Transactional
+    public ContractResult refundDeposit(Long id) {
+        UUID tenantId = requireTenantId();
+        Contract contract = contractRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> BaseException.notFound("Contract", id));
+
+        if (contract.getDepositStatus() != Contract.DepositStatus.PAID) {
+            throw BaseException.badRequest("Deposit must be PAID to refund");
+        }
+
+        contract.setDepositStatus(Contract.DepositStatus.REFUNDED);
+        contract.setUpdatedAt(LocalDateTime.now());
+        Contract saved = contractRepository.save(contract);
+        return toResult(saved);
+    }
+
+    @Transactional
+    public ContractResult deductDeposit(Long id) {
+        UUID tenantId = requireTenantId();
+        Contract contract = contractRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> BaseException.notFound("Contract", id));
+
+        if (contract.getDepositStatus() != Contract.DepositStatus.PAID) {
+            throw BaseException.badRequest("Deposit must be PAID to deduct");
+        }
+
+        contract.setDepositStatus(Contract.DepositStatus.DEDUCTED);
+        contract.setUpdatedAt(LocalDateTime.now());
+        Contract saved = contractRepository.save(contract);
+        return toResult(saved);
+    }
 
     // Helper methods
     private UUID requireTenantId() {

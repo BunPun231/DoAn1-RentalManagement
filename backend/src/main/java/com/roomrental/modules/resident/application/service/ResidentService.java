@@ -47,7 +47,30 @@ public class ResidentService {
     public ResidentResult create(ResidentCreateCommand command) {
         UUID tenantId = SecurityUtils.requireTenantId();
 
-        if (userJpaRepository.existsByPhone(command.phone())) {
+        // Check if phone already registered
+        var existingUser = userJpaRepository.findByPhone(command.phone());
+        if (existingUser.isPresent()) {
+            UserEntity user = existingUser.get();
+            // If INACTIVE, reactivate and update details
+            if ("INACTIVE".equals(user.getStatus())) {
+                user.setFullName(command.fullName());
+                user.setEmail(command.email());
+                user.setStatus("ACTIVE");
+                user.setMustChangePassword(false); // keep old password, user already exists
+                user = userJpaRepository.save(user);
+
+                // Update resident profile
+                ResidentProfileEntity profile = profileRepository.findById(user.getId())
+                        .orElse(new ResidentProfileEntity());
+                profile.setUserId(user.getId());
+                profile.setIdCardNumber(command.idCardNumber());
+                profile.setIdCardFrontUrl(command.idCardFrontUrl());
+                profile.setIdCardBackUrl(command.idCardBackUrl());
+                profileRepository.save(profile);
+
+                return toResult(user, profile);
+            }
+            // If ACTIVE, throw conflict
             throw new BaseException(HttpStatus.CONFLICT, "PHONE_EXISTS", "Phone already registered");
         }
         if (profileRepository.existsByIdCardNumber(command.idCardNumber())) {

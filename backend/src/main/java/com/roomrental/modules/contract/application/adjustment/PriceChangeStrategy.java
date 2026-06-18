@@ -33,7 +33,7 @@ public class PriceChangeStrategy implements ContractAdjustmentStrategy {
     }
 
     @Override
-    public void process(Contract contract, ContractAdjustmentRequest request) {
+    public Long process(Contract contract, ContractAdjustmentRequest request) {
         LocalDate effectiveDate = request.effectiveDate();
         if (effectiveDate == null) {
             throw BaseException.badRequest("effectiveDate: required");
@@ -57,6 +57,7 @@ public class PriceChangeStrategy implements ContractAdjustmentStrategy {
         appendix.setMetadata(null);
         appendix.setCreatedBy(actorId);
         appendix.setCreatedAt(LocalDateTime.now());
-        appendixRepository.save(appendix);
+        ContractAppendix saved = appendixRepository.save(appendix);
+        return saved.getId();
     }
 }

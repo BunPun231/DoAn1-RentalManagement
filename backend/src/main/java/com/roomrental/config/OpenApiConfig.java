@@ -25,9 +25,6 @@ public class OpenApiConfig {
                                 REST API for **Smart Room Rental Management** — a multi-tenant SaaS platform
                                 for boarding house owners.
                                 """)
-                        .contact(new Contact()
-                                .name("SE356 Team")
-                                .email("se356@roomrental.com"))
                         .license(new License()
                                 .name("MIT")
                                 .url("https://opensource.org/licenses/MIT")))

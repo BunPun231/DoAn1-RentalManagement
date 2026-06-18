@@ -2,18 +2,25 @@ package com.roomrental.modules.contract.interfaces.rest.controller;
 
 import com.roomrental.common.dto.ApiResponse;
 import com.roomrental.common.dto.PageResponse;
+import com.roomrental.modules.contract.application.dto.ContractAdjustmentRequest;
+import com.roomrental.modules.contract.application.dto.ContractAppendixResult;
 import com.roomrental.modules.contract.application.dto.ContractCreateCommand;
 import com.roomrental.modules.contract.application.dto.ContractDetailResult;
 import com.roomrental.modules.contract.application.dto.ContractResult;
 import com.roomrental.modules.contract.application.dto.ContractServiceItemCommand;
+import com.roomrental.modules.contract.application.service.ContractAdjustmentService;
 import com.roomrental.modules.contract.application.service.ContractService;
+import com.roomrental.modules.contract.interfaces.rest.dto.ContractAdjustmentRequestBody;
 import com.roomrental.modules.contract.interfaces.rest.dto.ContractCreateRequestBody;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.List;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -24,7 +31,7 @@ import org.springframework.web.bind.annotation.*;
 
 /**
  * REST Controller cho Contract Management.
- * Endpoints: POST, GET, PATCH, DELETE.
+ * Endpoints: POST, GET, PATCH, DELETE, Adjustments, Cancel, Deposit.
  */
 @RestController
 @RequestMapping("/api/contracts")
@@ -32,13 +39,16 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "Contract Management", description = "Quản lý hợp đồng thuê phòng")
 public class ContractController {
     private final ContractService contractService;
+    private final ContractAdjustmentService adjustmentService;
 
-    public ContractController(ContractService contractService) {
+    public ContractController(ContractService contractService,
+                              ContractAdjustmentService adjustmentService) {
         this.contractService = contractService;
+        this.adjustmentService = adjustmentService;
     }
 
     /**
-         * Tạo hợp đồng mới (DRAFT status).
+     * Tạo hợp đồng mới (DRAFT status).
      * POST /api/contracts
      */
     @PostMapping
@@ -108,11 +118,16 @@ public class ContractController {
     @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
     public ResponseEntity<ApiResponse<PageResponse<ContractResult>>> listByMotel(
             @PathVariable Long motelId,
+            @Parameter(description = "Filter by status (ACTIVE, DRAFT, CANCELED, LIQUIDATED, PENDING_LIQUIDATION)")
             @RequestParam(required = false) String status,
+            @Parameter(description = "Filter expiring contracts within next 30 days")
             @RequestParam(required = false, defaultValue = "false") boolean expiring,
+            @Parameter(description = "From date (yyyy-MM-dd)")
             @RequestParam(required = false) LocalDate fromDate,
+            @Parameter(description = "To date (yyyy-MM-dd)")
             @RequestParam(required = false) LocalDate toDate,
-            @PageableDefault(size = 20) Pageable pageable) {
+            @Parameter(description = "Page number (0-based), size, sort - e.g. sort=createdAt,desc")
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
 
         if (expiring) {
             LocalDate from = fromDate != null ? fromDate : LocalDate.now();
@@ -180,5 +195,62 @@ public class ContractController {
                 .body(pdf);
     }
 
-    // Contract adjustments are handled by UC66 controller.
+    // ========================
+    // UC66: Contract Adjustments
+    // ========================
+
+    /**
+     * Điều chỉnh hợp đồng (UC66).
+     * POST /api/contracts/{contractId}/adjustments
+     */
+    @Operation(summary = "Adjust contract", description = "Price change, renew, move-out notice, or manual clause")
+    @PostMapping("/{contractId}/adjustments")
+    @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
+    public ResponseEntity<ApiResponse<ContractAppendixResult>> adjust(
+            @PathVariable Long contractId,
+            @Valid @RequestBody ContractAdjustmentRequestBody body
+    ) {
+        ContractAdjustmentRequest request = new ContractAdjustmentRequest(
+                body.type(),
+                body.effectiveDate(),
+                body.newRentPrice(),
+                body.newEndDate(),
+                body.intendedMoveOutDate(),
+                body.metadata()
+        );
+        ContractAppendixResult result = adjustmentService.adjust(contractId, request);
+        return ResponseEntity.ok(ApiResponse.ok(result, "Contract adjusted"));
+    }
+
+    // ========================
+    // UC67: Cancel Contract (soft delete)
+    // ========================
+
+    /**
+     * Hủy hợp đồng (UC67) - chuyển sang CANCELED.
+     * POST /api/contracts/{id}/cancel
+     */
+    @Operation(summary = "Cancel contract", description = "Soft-delete: set status to CANCELED and release room")
+    @PostMapping("/{id}/cancel")
+    @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
+    public ResponseEntity<ApiResponse<ContractResult>> cancel(
+            @PathVariable Long id,
+            @RequestParam(required = false) String reason) {
+        return ResponseEntity.ok(ApiResponse.ok(contractService.cancel(id, reason), "Contract canceled"));
+    }
+
+    // ========================
+    // UC69: Deposit Management
+    // ========================
+
+    /**
+     * Thu tiền cọc (UNPAID → PAID).
+     * POST /api/contracts/{id}/deposit/collect
+     */
+    @Operation(summary = "Collect deposit", description = "Mark deposit as PAID")
+    @PostMapping("/{id}/deposit/collect")
+    @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
+    public ResponseEntity<ApiResponse<ContractResult>> collectDeposit(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(contractService.collectDeposit(id), "Deposit collected"));
+    }
 }

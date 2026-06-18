@@ -6,8 +6,11 @@ import com.roomrental.modules.contract.application.adjustment.ContractAdjustment
 import com.roomrental.modules.contract.application.adjustment.ContractAdjustmentStrategyFactory;
 import com.roomrental.modules.contract.application.dto.ContractAdjustmentRequest;
 import com.roomrental.modules.contract.application.dto.ContractAdjustmentType;
+import com.roomrental.modules.contract.application.dto.ContractAppendixResult;
 import com.roomrental.modules.contract.application.event.ContractAdjustmentEvent;
 import com.roomrental.modules.contract.domain.model.Contract;
+import com.roomrental.modules.contract.domain.model.ContractAppendix;
+import com.roomrental.modules.contract.domain.repository.ContractAppendixRepository;
 import com.roomrental.modules.contract.domain.repository.ContractRepository;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -18,21 +21,24 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ContractAdjustmentService {
     private final ContractRepository contractRepository;
+    private final ContractAppendixRepository appendixRepository;
     private final ContractAdjustmentStrategyFactory strategyFactory;
     private final ApplicationEventPublisher eventPublisher;
 
     public ContractAdjustmentService(
             ContractRepository contractRepository,
+            ContractAppendixRepository appendixRepository,
             ContractAdjustmentStrategyFactory strategyFactory,
             ApplicationEventPublisher eventPublisher
     ) {
         this.contractRepository = contractRepository;
+        this.appendixRepository = appendixRepository;
         this.strategyFactory = strategyFactory;
         this.eventPublisher = eventPublisher;
     }
 
     @Transactional
-    public void adjust(Long contractId, ContractAdjustmentRequest request) {
+    public ContractAppendixResult adjust(Long contractId, ContractAdjustmentRequest request) {
         UUID tenantId = SecurityUtils.requireTenantId();
         UUID actorId = SecurityUtils.getCurrentUserId();
         Contract contract = contractRepository.findByIdAndTenantId(contractId, tenantId)
@@ -44,7 +50,7 @@ public class ContractAdjustmentService {
 
         ContractAdjustmentType type = parseType(request.type());
         ContractAdjustmentStrategy strategy = strategyFactory.getStrategy(type);
-        strategy.process(contract, request);
+        Long appendixId = strategy.process(contract, request);
 
         contract.setUpdatedAt(LocalDateTime.now());
         contractRepository.save(contract);
@@ -56,6 +62,22 @@ public class ContractAdjustmentService {
                 type,
                 LocalDateTime.now()
         ));
+
+        // Build result from the created appendix, or return minimal result
+        if (appendixId != null) {
+            ContractAppendix appendix = appendixRepository.findByContractId(contractId).stream()
+                    .filter(a -> a.getId().equals(appendixId))
+                    .findFirst()
+                    .orElse(null);
+            if (appendix != null) {
+                return toAppendixResult(appendix);
+            }
+        }
+        return new ContractAppendixResult(
+                null, contract.getId(), null, null,
+                type.name(), null,
+                actorId.toString(), LocalDateTime.now()
+        );
     }
 
     private ContractAdjustmentType parseType(String type) {
@@ -67,5 +89,18 @@ public class ContractAdjustmentService {
         } catch (IllegalArgumentException ex) {
             throw BaseException.badRequest("type: invalid value");
         }
+    }
+
+    private ContractAppendixResult toAppendixResult(ContractAppendix appendix) {
+        return new ContractAppendixResult(
+                appendix.getId(),
+                appendix.getContractId(),
+                appendix.getEffectiveDate(),
+                appendix.getNewRentPrice(),
+                appendix.getAppendixType(),
+                appendix.getMetadata(),
+                appendix.getCreatedBy() != null ? appendix.getCreatedBy().toString() : null,
+                appendix.getCreatedAt()
+        );
     }
 }

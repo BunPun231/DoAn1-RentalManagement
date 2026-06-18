@@ -3573,47 +3573,272 @@ Hình 3.14: Sơ đồ use case module Quản lý Tài chính
 
 **UC69 - Quản lý trạng thái tiền cọc**
 
-| **Mã use case**      | **UC69**                                                                                                                                                                                                                                                                              |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Tên use case**     | **Quản lý trạng thái tiền cọc**                                                                                                                                                                                                                                                       |
-| ---                  | ---                                                                                                                                                                                                                                                                                   |
-| **Mô tả**            | Ghi nhận và theo dõi luân chuyển dòng tiền đặt cọc của khách thuê (Chưa thu, Đã thu, Đã hoàn trả, Đã khấu trừ) nhằm minh bạch báo cáo tài chính.                                                                                                                                      |
-| ---                  | ---                                                                                                                                                                                                                                                                                   |
-| **Actors**           | Quản lý                                                                                                                                                                                                                                                                               |
-| ---                  | ---                                                                                                                                                                                                                                                                                   |
-| **Pre-Conditions**   | Quản lý đang ở màn hình Xem chi tiết Hợp đồng<br><br>Hợp đồng tồn tại trên hệ thống.                                                                                                                                                                                                  |
-| ---                  | ---                                                                                                                                                                                                                                                                                   |
-| **Post-Conditions**  | Trạng thái tiền cọc của hợp đồng được cập nhật.                                                                                                                                                                                                                                       |
-| ---                  | ---                                                                                                                                                                                                                                                                                   |
-| **Main flow**        | 1\. Quản lý truy cập màn hình chi tiết hợp đồng.<br><br>2\. Chọn phần "Thông tin tiền cọc".<br><br>3\. Quản lý thay đổi trạng thái từ "Chưa thu" sang "Đã thu" (sau khi khách chuyển tiền cọc).<br><br>4\. Nhấn "Lưu cập nhật".<br><br>5\. Hệ thống ghi nhận trạng thái mới vào CSDL. |
-| ---                  | ---                                                                                                                                                                                                                                                                                   |
-| **Alternative Flow** | Không có.                                                                                                                                                                                                                                                                             |
-| ---                  | ---                                                                                                                                                                                                                                                                                   |
-| **Exception**        | Không có.                                                                                                                                                                                                                                                                             |
-| ---                  | ---                                                                                                                                                                                                                                                                                   |
-| **Business Rules**   | **BR95:** Trạng thái "Đã hoàn trả" hoặc "Khấu trừ" thường được hệ thống tự động cập nhật thông qua quy trình Tất toán (UC75).<br><br>**BR96:** Chức năng quản lý thủ công này dùng chủ yếu cho việc xác nhận "Đã thu" lúc ban đầu.                                                    |
-| ---                  | ---                                                                                                                                                                                                                                                                                   |
+| **Mã use case**      | **UC69**                                                                                     | Activity | BR Code | Description |
+| (1) | BR69.1 | Security Rule: Hệ thống xác thực quyền hạn của Quản lý. Chỉ người sở hữu khu trọ mới có quyền xác nhận các giao dịch liên quan đến tiền mặt hoặc tiền gửi (Tiền cọc). |
+| (Luồng B) | BR69.2 | Security - Login Restriction Rule: Tài khoản Khách thuê ở trạng thái INACTIVE bị Spring Security chặn đăng nhập tuyệt đối (Trả về 401 Unauthorized). Khách chỉ nhận mã VietQR qua các kênh gián tiếp (Email/Zalo) do hệ thống hoặc Quản lý gửi từ trước. |
+| (2) | BR69.3 | Deposit State Machine: Trạng thái tiền cọc phải tuân thủ luồng chuyển đổi nghiêm ngặt: UNCOLLECTED (Chưa thu) $\rightarrow$ COLLECTED (Đã thu) $\rightarrow$ [REFUNDED (Đã hoàn) / DEDUCTED (Đã khấu trừ)]. Không cho phép chuyển ngược từ COLLECTED về UNCOLLECTED. |
+| (3, 4) | BR69.4 | Manual Confirmation Logic (BR96): Quản lý thực hiện cập nhật thủ công sang trạng thái COLLECTED sau khi xác nhận tiền đã vào tài khoản hoặc nhận tiền mặt. Hệ thống yêu cầu nhập [Ngày thu thực tế] để làm căn cứ báo cáo tài chính. |
+| (4) | BR69.5 | Atomic Activation Rule (Kích hoạt đồng bộ): Khi tiền cọc được xác nhận sang COLLECTED, Backend bắt buộc xử lý trong một @Transactional duy nhất để chuyển đổi trạng thái các Entity khác như sau:\
+- Contract.status: PENDING_PAYMENT --> ACTIVE\|
+
+Mã use case
+
+ |
+
+UC69
+
+ |
+|
+
+Tên use case
+
+ |
+
+Quản lý trạng thái tiền cọc và Kích hoạt Hợp đồng
+
+ |
+|
+
+Mô tả
+
+ |
+
+Ghi nhận, theo dõi luân chuyển dòng tiền đặt cọc của khách thuê. Khi khoản cọc (và tiền nhà tháng đầu) được xác nhận "Đã thu" (qua VietQR hoặc Quản lý bấm tay), hệ thống sẽ kích hoạt đồng bộ trạng thái của Hợp đồng, Phòng, và Tài khoản Khách thuê.
+
+ |
+|
+
+Actors
+
+ |
+
+Quản lý, Hệ thống (Webhook VietQR)
+
+ |
+|
+
+Pre-Conditions
+
+ |
+
+1\. Quản lý đã lập hợp đồng mới thành công ở trạng thái chờ.
+
+2\. Hợp đồng đang ở trạng thái DRAFT, Phòng ở trạng thái DEPOSITED, và Tài khoản khách thuê ở trạng thái INACTIVE.
+
+ |
+|
+
+Post-Conditions
+
+ |
+
+Tiền cọc chuyển sang COLLECTED. Hợp đồng, Phòng, và Tài khoản khách đồng loạt chuyển sang trạng thái hoạt động chính thức.
+
+ |
+|
+
+Main flow
+
+ |
+
+Luồng A: Quản lý xác nhận thủ công (Khách trả tiền mặt hoặc lỗi mạng)
+
+1\. Quản lý truy cập màn hình chi tiết hợp đồng, chọn phần "Thông tin tiền cọc".
+
+2\. Nhấn nút "Xác nhận đã thu tiền mặt/tiền cọc".
+
+3\. Hệ thống yêu cầu nhập ngày thu thực tế, sau đó thực hiện lệnh kích hoạt đồng bộ (Atomic Activation).
+
+4\. Hệ thống lưu dữ liệu, chuyển trạng thái tất cả entity liên quan.
+
+5\. Hệ thống gửi thông báo xác nhận đã thu tiền và thông tin kích hoạt tài khoản cho Khách thuê.
+
+Luồng B: Hệ thống tự động kích hoạt (Qua Cổng VietQR)
+
+1\. Khách thuê quét mã VietQR trên hóa đơn nhận phòng do Quản lý gửi.
+
+2\. Ngân hàng xử lý giao dịch thành công và gửi tín hiệu về Webhook của hệ thống.
+
+3\. Hệ thống (Backend) tiếp nhận callback, tự động gọi hàm kích hoạt đồng bộ (Atomic Activation) tương tự bước 3, 4, 5 của Luồng A mà không cần Quản lý thao tác.
+
+ |
+|
+
+Alternative Flow
+
+ |
+
+Không có.
+
+ |
+|
+
+Exception
+
+ |
+
+4a. Lỗi đồng bộ dữ liệu (Concurrency/Network Error): Nếu hệ thống ngân hàng gửi callback trùng lặp hoặc Quản lý bấm nút cùng lúc khi hệ thống đang xử lý, Backend sẽ chặn lại (Idempotency), thông báo "Giao dịch đã được xử lý" để tránh nhân đôi số dư.
+
+ |
 
 Business Rules
 
-| Activity | BR Code | Description                                                                                                                                                                                                                                                                  |
-| -------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| (1)      | BR69.1  | Security Rule: Hệ thống xác thực quyền hạn của Quản lý. Chỉ người sở hữu khu trọ mới có quyền xác nhận các giao dịch liên quan đến tiền mặt hoặc tiền gửi (Tiền cọc).                                                                                                        |
-| ---      | ---     | ---                                                                                                                                                                                                                                                                          |
-| (2)      | BR69.2  | Deposit State Machine: Trạng thái tiền cọc phải tuân thủ luồng chuyển đổi nghiêm ngặt: UNCOLLECTED (Chưa thu) \$\\rightarrow\$ COLLECTED (Đã thu) \$\\rightarrow\$ \[REFUNDED (Đã hoàn) / DEDUCTED (Đã khấu trừ)\]. Không cho phép chuyển ngược từ COLLECTED về UNCOLLECTED. |
-| ---      | ---     | ---                                                                                                                                                                                                                                                                          |
-| (3, 4)   | BR69.3  | Manual Confirmation Logic (BR96): Quản lý thực hiện cập nhật thủ công sang trạng thái COLLECTED sau khi xác nhận tiền đã vào tài khoản hoặc nhận tiền mặt. Hệ thống yêu cầu nhập \[Ngày thu thực tế\] để làm căn cứ báo cáo tài chính.                                       |
-| ---      | ---     | ---                                                                                                                                                                                                                                                                          |
-| (5)      | BR69.4  | Financial Integrity: Khi trạng thái chuyển sang COLLECTED, hệ thống phải cập nhật số dư "Tiền cọc đang giữ" của Hợp đồng. Số tiền này được xem là một khoản nợ phải trả (Liability) trong bảng cân đối kế toán của khu trọ.                                                  |
-| ---      | ---     | ---                                                                                                                                                                                                                                                                          |
-| (N/A)    | BR69.5  | Automated Transitions (BR95): Trạng thái REFUNDED (Hoàn lại cho khách) hoặc DEDUCTED (Khấu trừ vào nợ/hỏng hóc) chỉ được hệ thống tự động cập nhật sau khi quy trình Tất toán (UC75) hoàn tất và được Quản lý phê duyệt.                                                     |
-| ---      | ---     | ---                                                                                                                                                                                                                                                                          |
-| (N/A)    | BR69.6  | Notification Rule: Ngay khi trạng thái chuyển sang COLLECTED, hệ thống gửi 01 thông báo tự động (Push Notification/Zalo) cho Khách thuê để xác nhận: "Chủ nhà đã xác nhận nhận số tiền cọc \[X\] VNĐ của bạn".                                                               |
-| ---      | ---     | ---                                                                                                                                                                                                                                                                          |
-| (5)      | BR69.7  | Audit Log Rule: Mọi thay đổi trạng thái tiền cọc là hành động nhạy cảm. Hệ thống bắt buộc ghi log chi tiết: \[ActorId\], \[OldStatus\], \[NewStatus\], \[Amount\], \[Timestamp\] để phục vụ đối soát khi có tranh chấp.                                                      |
-| ---      | ---     | ---                                                                                                                                                                                                                                                                          |
-| (N/A)    | BR69.8  | Reporting Integration: Dữ liệu tiền cọc phải được tổng hợp vào báo cáo "Dòng tiền hàng tháng" (UC102). Tiền cọc COLLECTED trong tháng được tính là dòng tiền vào (Cash-in) nhưng không được tính là lợi nhuận thực tế.                                                       |
-| ---      | ---     | ---                                                                                                                                                                                                                                                                          |
+|
+
+Activity
+
+ |
+
+BR Code
+
+ |
+
+Description
+
+ |
+|
+
+(1)
+
+ |
+
+BR69.1
+
+ |
+
+Security Rule: Hệ thống xác thực quyền hạn của Quản lý. Chỉ người sở hữu khu trọ mới có quyền xác nhận các giao dịch liên quan đến tiền mặt hoặc tiền gửi (Tiền cọc).
+
+ |
+|
+
+(Luồng B)
+
+ |
+
+BR69.2
+
+ |
+
+Security - Login Restriction Rule: Tài khoản Khách thuê ở trạng thái INACTIVE bị Spring Security chặn đăng nhập tuyệt đối (Trả về 401 Unauthorized). Khách chỉ nhận mã VietQR qua các kênh gián tiếp (Email/Zalo) do hệ thống hoặc Quản lý gửi từ trước.
+
+ |
+|
+
+(2)
+
+ |
+
+BR69.3
+
+ |
+
+Deposit State Machine: Trạng thái tiền cọc phải tuân thủ luồng chuyển đổi nghiêm ngặt: UNCOLLECTED (Chưa thu) --> COLLECTED (Đã thu) --> [REFUNDED (Đã hoàn) / DEDUCTED (Đã khấu trừ)]. Không cho phép chuyển ngược từ COLLECTED về UNCOLLECTED.
+
+ |
+|
+
+(3, 4)
+
+ |
+
+BR69.4
+
+ |
+
+Manual Confirmation Logic (BR96): Quản lý thực hiện cập nhật thủ công sang trạng thái COLLECTED sau khi xác nhận tiền đã vào tài khoản hoặc nhận tiền mặt. Hệ thống yêu cầu nhập [Ngày thu thực tế] để làm căn cứ báo cáo tài chính.
+
+ |
+|
+
+(4)
+
+ |
+
+BR69.5
+
+ |
+
+Atomic Activation Rule (Kích hoạt đồng bộ): Khi tiền cọc được xác nhận sang COLLECTED, Backend bắt buộc xử lý trong một @Transactional duy nhất để chuyển đổi trạng thái các Entity khác như sau:
+
+- Contract.status: PENDING_PAYMENT --> ACTIVE
+
+- Room.status: DEPOSITED --> RENTED
+
+- User.status (Khách thuê): INACTIVE --> ACTIVE (Cho phép đăng nhập).
+
+ |
+|
+
+(5)
+
+ |
+
+BR69.6
+
+ |
+
+Financial Integrity: Khi trạng thái chuyển sang COLLECTED, hệ thống phải cập nhật số dư "Tiền cọc đang giữ" của Hợp đồng. Số tiền này được xem là một khoản nợ phải trả (Liability) trong bảng cân đối kế toán của khu trọ.
+
+ |
+|
+
+(N/A)
+
+ |
+
+BR69.7
+
+ |
+
+Automated Transitions (BR95): Trạng thái REFUNDED (Hoàn lại cho khách) hoặc DEDUCTED (Khấu trừ vào nợ/hỏng hóc) chỉ được hệ thống tự động cập nhật sau khi quy trình Tất toán (UC75) hoàn tất và được Quản lý phê duyệt.
+
+ |
+|
+
+(N/A)
+
+ |
+
+BR69.8
+
+ |
+
+Notification Rule: Ngay khi trạng thái chuyển sang COLLECTED, hệ thống gửi 01 thông báo tự động (Push Notification/Zalo) cho Khách thuê để xác nhận: "Chủ nhà đã xác nhận nhận số tiền cọc [X] VNĐ của bạn".
+
+ |
+|
+
+(5)
+
+ |
+
+BR69.9
+
+ |
+
+Audit Log Rule: Mọi thay đổi trạng thái tiền cọc là hành động nhạy cảm. Hệ thống bắt buộc ghi log chi tiết: [ActorId], [OldStatus], [NewStatus], [Amount], [Timestamp] để phục vụ đối soát khi có tranh chấp.
+
+ |
+|
+
+(N/A)
+
+ |
+
+BR69.10
+
+ |
+
+Reporting Integration: Dữ liệu tiền cọc phải được tổng hợp vào báo cáo "Dòng tiền hàng tháng" (UC102). Tiền cọc COLLECTED trong tháng được tính là dòng tiền vào (Cash-in) nhưng không được tính là lợi nhuận thực tế.
+
+ |
+- Room.status: DEPOSITED --> RENTED\
+- User.status (Khách thuê): INACTIVE --> ACTIVE (Cho phép đăng nhập). |
+| (5) | BR69.6 | Financial Integrity: Khi trạng thái chuyển sang COLLECTED, hệ thống phải cập nhật số dư "Tiền cọc đang giữ" của Hợp đồng. Số tiền này được xem là một khoản nợ phải trả (Liability) trong bảng cân đối kế toán của khu trọ. |
+| (N/A) | BR69.7 | Automated Transitions (BR95): Trạng thái REFUNDED (Hoàn lại cho khách) hoặc DEDUCTED (Khấu trừ vào nợ/hỏng hóc) chỉ được hệ thống tự động cập nhật sau khi quy trình Tất toán (UC75) hoàn tất và được Quản lý phê duyệt. |
+| (N/A) | BR69.8 | Notification Rule: Ngay khi trạng thái chuyển sang COLLECTED, hệ thống gửi 01 thông báo tự động (Push Notification/Zalo) cho Khách thuê để xác nhận: "Chủ nhà đã xác nhận nhận số tiền cọc [X] VNĐ của bạn". |
+| (5) | BR69.9 | Audit Log Rule: Mọi thay đổi trạng thái tiền cọc là hành động nhạy cảm. Hệ thống bắt buộc ghi log chi tiết: [ActorId], [OldStatus], [NewStatus], [Amount], [Timestamp] để phục vụ đối soát khi có tranh chấp. |
+| (N/A) | BR69.10 | Reporting Integration: Dữ liệu tiền cọc phải được tổng hợp vào báo cáo "Dòng tiền hàng tháng" (UC102). Tiền cọc COLLECTED trong tháng được tính là dòng tiền vào (Cash-in) nhưng không được tính là lợi nhuận thực tế. |                                                                                                                                                                                                                                                                     |
 
 **UC70 - Ghi nhận & Phê duyệt chỉ số Điện/Nước hàng tháng:**
 
