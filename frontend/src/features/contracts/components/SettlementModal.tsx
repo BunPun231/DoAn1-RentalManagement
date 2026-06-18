@@ -1,7 +1,8 @@
 import { useState } from "react";
+import { Plus, Trash2, Image as ImageIcon } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
-import { contractService, type SettlementCalculateResult } from "@/services/contractService";
+import { contractService, type SettlementCalculateResult, type DamageItemInput } from "@/services/contractService";
 import { formatCurrency } from "@/lib/utils";
 import { extractError } from "@/lib/api";
 
@@ -17,10 +18,32 @@ export function SettlementModal({ isOpen, onClose, contractId, onSuccess }: Sett
   const [moveOutDate, setMoveOutDate] = useState(new Date().toISOString().slice(0, 10));
   const [finalElectric, setFinalElectric] = useState("");
   const [finalWater, setFinalWater] = useState("");
+  const [damages, setDamages] = useState<DamageItemInput[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   
   const [calcResult, setCalcResult] = useState<SettlementCalculateResult | null>(null);
+
+  const handleAddDamage = () => {
+    setDamages([...damages, { itemName: "", penaltyFee: 0, imageUrl: "" }]);
+  };
+
+  const handleRemoveDamage = (index: number) => {
+    setDamages(damages.filter((_, i) => i !== index));
+  };
+
+  const handleDamageChange = (index: number, field: keyof DamageItemInput, value: any) => {
+    setDamages(prev => prev.map((item, i) => i === index ? { ...item, [field]: value } : item));
+  };
+
+  const handleDamageImageChange = (index: number, file: File | null) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      handleDamageChange(index, "imageUrl", reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleCalculate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,7 +55,7 @@ export function SettlementModal({ isOpen, onClose, contractId, onSuccess }: Sett
         moveOutDate,
         finalElectricReading: finalElectric ? parseFloat(finalElectric) : undefined,
         finalWaterReading: finalWater ? parseFloat(finalWater) : undefined,
-        damages: [], // Can add damage list later if needed
+        damages: damages.filter(d => d.itemName.trim() !== ""),
       });
       setCalcResult(result);
       setStep(2);
@@ -51,7 +74,7 @@ export function SettlementModal({ isOpen, onClose, contractId, onSuccess }: Sett
         moveOutDate,
         finalElectricReading: finalElectric ? parseFloat(finalElectric) : undefined,
         finalWaterReading: finalWater ? parseFloat(finalWater) : undefined,
-        damages: [],
+        damages: damages.filter(d => d.itemName.trim() !== ""),
       });
       onSuccess();
     } catch (err) {
@@ -61,10 +84,10 @@ export function SettlementModal({ isOpen, onClose, contractId, onSuccess }: Sett
     }
   };
 
-  const inputClass = "w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-deep/30 focus:border-brand-deep transition-all bg-white";
+  const inputClass = "w-full px-4 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-deep/30 focus:border-brand-deep transition-all bg-white";
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`Thanh lý hợp đồng #${contractId}`}>
+    <Modal isOpen={isOpen} onClose={onClose} title={`Thanh lý hợp đồng #${contractId}`} size="lg">
       {error && (
         <div className="rounded-xl bg-red-50 border border-red-100 p-3 text-sm text-red-700 mb-4">
           {error}
@@ -72,7 +95,7 @@ export function SettlementModal({ isOpen, onClose, contractId, onSuccess }: Sett
       )}
 
       {step === 1 ? (
-        <form onSubmit={handleCalculate} className="space-y-4">
+        <form onSubmit={handleCalculate} className="space-y-6 max-h-[75vh] overflow-y-auto pr-1">
           <div className="space-y-1">
             <label className="text-sm font-medium text-slate-700">Ngày chuyển đi *</label>
             <input
@@ -92,7 +115,7 @@ export function SettlementModal({ isOpen, onClose, contractId, onSuccess }: Sett
                 step="0.01"
                 value={finalElectric}
                 onChange={(e) => setFinalElectric(e.target.value)}
-                placeholder="Để trống nếu ko có"
+                placeholder="Để trống nếu không có"
                 className={inputClass}
               />
             </div>
@@ -103,10 +126,81 @@ export function SettlementModal({ isOpen, onClose, contractId, onSuccess }: Sett
                 step="0.01"
                 value={finalWater}
                 onChange={(e) => setFinalWater(e.target.value)}
-                placeholder="Để trống nếu ko có"
+                placeholder="Để trống nếu không có"
                 className={inputClass}
               />
             </div>
+          </div>
+
+          {/* Damages Section */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between border-t border-slate-100 pt-4">
+              <h4 className="text-sm font-semibold text-slate-800">Kê khai tài sản hư hại / đền bù</h4>
+              <Button type="button" variant="outline" size="sm" onClick={handleAddDamage}>
+                <Plus size={14} className="mr-1" />
+                Thêm tài sản hỏng
+              </Button>
+            </div>
+
+            {damages.length === 0 ? (
+              <p className="text-xs text-slate-400 italic">Chưa ghi nhận tài sản hư hại nào.</p>
+            ) : (
+              <div className="space-y-3">
+                {damages.map((damage, idx) => (
+                  <div key={idx} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 relative">
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveDamage(idx)}
+                      className="absolute right-2 top-2 text-slate-400 hover:text-red-500 transition-colors"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-slate-500">Tên tài sản/Lỗi vi phạm</label>
+                        <input
+                          type="text"
+                          required
+                          value={damage.itemName}
+                          onChange={(e) => handleDamageChange(idx, "itemName", e.target.value)}
+                          placeholder="VD: Hỏng khóa cửa, Mất chìa khóa"
+                          className={inputClass}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-slate-500">Số tiền khấu trừ (đ)</label>
+                        <input
+                          type="number"
+                          required
+                          value={damage.penaltyFee || ""}
+                          onChange={(e) => handleDamageChange(idx, "penaltyFee", parseFloat(e.target.value) || 0)}
+                          placeholder="0"
+                          className={inputClass}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-slate-500 flex items-center gap-1">
+                        <ImageIcon size={12} />
+                        Ảnh minh chứng hư hại
+                      </label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleDamageImageChange(idx, e.target.files?.[0] || null)}
+                        className="text-xs text-slate-500 w-full file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-brand-deep/10 file:text-brand-deep hover:file:bg-brand-deep/20"
+                      />
+                      {damage.imageUrl && (
+                        <div className="relative inline-block mt-1">
+                          <img src={damage.imageUrl} alt="Hư hại" className="h-16 w-auto rounded border border-slate-200 object-cover" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="pt-4 border-t border-slate-100 flex justify-end gap-2">
@@ -145,6 +239,20 @@ export function SettlementModal({ isOpen, onClose, contractId, onSuccess }: Sett
               </span>
             </div>
           </div>
+
+          {calcResult?.itemBreakdown && calcResult.itemBreakdown.length > 0 && (
+            <div className="space-y-1.5 rounded-xl border border-slate-100 p-3 bg-slate-50">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Chi tiết khấu trừ</p>
+              <div className="divide-y divide-slate-100 text-xs">
+                {calcResult.itemBreakdown.map((item, i) => (
+                  <div key={i} className="flex justify-between py-1.5">
+                    <span className="text-slate-600">{item.description}</span>
+                    <span className="font-medium text-rose-600">{formatCurrency(item.amount)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="pt-4 border-t border-slate-100 flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => setStep(1)} disabled={loading}>Quay lại</Button>

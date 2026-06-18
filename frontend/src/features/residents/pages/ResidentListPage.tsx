@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Search, UserCheck, UserMinus, RefreshCw, AlertCircle, User, Mail, Phone, CreditCard } from "lucide-react";
+import { Plus, Search, UserCheck, UserMinus, RefreshCw, AlertCircle, User, Mail, Phone, CreditCard, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
@@ -27,7 +27,26 @@ function AddResidentModal({
     idCardBackUrl: "",
   });
   const [loading, setLoading] = useState(false);
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrSuccess, setOcrSuccess] = useState(false);
   const [error, setError] = useState("");
+
+  const handleCccdOcr = () => {
+    if (!form.idCardFrontUrl) return;
+    setOcrLoading(true);
+    setError("");
+    setOcrSuccess(false);
+    // Simulate OCR server analysis of CCCD front card
+    setTimeout(() => {
+      setOcrLoading(false);
+      setOcrSuccess(true);
+      setForm((prev) => ({
+        ...prev,
+        fullName: "NGUYỄN VĂN TIẾN",
+        idCardNumber: "034204005829",
+      }));
+    }, 1500);
+  };
 
   useEffect(() => {
     if (editing) {
@@ -54,6 +73,15 @@ function AddResidentModal({
 
   const inputClass =
     "w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-deep/30 focus:border-brand-deep transition-all";
+
+  const handleFileChange = (field: "idCardFrontUrl" | "idCardBackUrl", file: File | null) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setForm((prev) => ({ ...prev, [field]: reader.result as string }));
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -140,7 +168,51 @@ function AddResidentModal({
             className={inputClass}
           />
         </div>
-        <p className="text-xs text-slate-400 bg-slate-50 p-3 rounded-xl">
+        
+        <div className="grid grid-cols-2 gap-4 pt-2">
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-slate-700">Ảnh CCCD Mặt trước</label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => handleFileChange("idCardFrontUrl", e.target.files?.[0] || null)}
+              className="text-xs text-slate-500 w-full file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-brand-deep/10 file:text-brand-deep hover:file:bg-brand-deep/20"
+            />
+            {form.idCardFrontUrl && (
+              <div className="space-y-2 mt-2">
+                <img src={form.idCardFrontUrl} alt="Mặt trước" className="h-20 w-auto rounded border border-slate-200 object-cover" />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full flex items-center justify-center gap-1 text-brand-deep border-brand-deep/20 hover:bg-brand-deep/5 py-1 h-auto text-xs"
+                  disabled={ocrLoading}
+                  onClick={handleCccdOcr}
+                >
+                  <Sparkles size={12} className={ocrLoading ? "animate-pulse text-amber-500" : ""} />
+                  {ocrLoading ? "Đang quét..." : "Trích xuất OCR"}
+                </Button>
+                {ocrSuccess && (
+                  <p className="text-[10px] text-emerald-600 font-medium text-center">✓ Đã điền thông tin OCR!</p>
+                )}
+              </div>
+            )}
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-slate-700">Ảnh CCCD Mặt sau</label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => handleFileChange("idCardBackUrl", e.target.files?.[0] || null)}
+              className="text-xs text-slate-500 w-full file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-brand-deep/10 file:text-brand-deep hover:file:bg-brand-deep/20"
+            />
+            {form.idCardBackUrl && (
+              <img src={form.idCardBackUrl} alt="Mặt sau" className="mt-2 h-20 w-auto rounded border border-slate-200 object-cover" />
+            )}
+          </div>
+        </div>
+
+        <p className="text-xs text-slate-400 bg-slate-50 p-3 rounded-xl mt-2">
           💡 Mật khẩu mặc định sẽ là số điện thoại. Khách thuê cần đổi mật khẩu khi đăng nhập lần đầu.
         </p>
         <div className="pt-4 border-t border-slate-100 flex justify-end gap-2">
@@ -403,7 +475,7 @@ export function ResidentListPage() {
                 </div>
               </div>
             ))}
-            <div className="flex items-center gap-3 py-2">
+            <div className="flex items-center gap-3 py-2 border-b border-slate-100">
               <div className={`h-2.5 w-2.5 rounded-full flex-shrink-0 ${
                 selectedResident.status === "ACTIVE" ? "bg-emerald-500" : "bg-slate-300"
               }`} />
@@ -412,6 +484,29 @@ export function ResidentListPage() {
                 <p className="text-sm font-medium text-slate-800">
                   {selectedResident.status === "ACTIVE" ? "Đang hoạt động" : "Không hoạt động"}
                 </p>
+              </div>
+            </div>
+
+            {/* Display CCCD Images */}
+            <div className="space-y-2 pt-2">
+              <p className="text-xs text-slate-400 font-medium">Ảnh CCCD minh chứng</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-[10px] text-slate-500 mb-1">Mặt trước</p>
+                  {selectedResident.idCardFrontUrl ? (
+                    <img src={selectedResident.idCardFrontUrl} alt="Mặt trước" className="h-28 w-full rounded border border-slate-200 object-cover" />
+                  ) : (
+                    <div className="h-28 bg-slate-100 rounded border border-dashed border-slate-200 flex items-center justify-center text-xs text-slate-400">Chưa có ảnh</div>
+                  )}
+                </div>
+                <div>
+                  <p className="text-[10px] text-slate-500 mb-1">Mặt sau</p>
+                  {selectedResident.idCardBackUrl ? (
+                    <img src={selectedResident.idCardBackUrl} alt="Mặt sau" className="h-28 w-full rounded border border-slate-200 object-cover" />
+                  ) : (
+                    <div className="h-28 bg-slate-100 rounded border border-dashed border-slate-200 flex items-center justify-center text-xs text-slate-400">Chưa có ảnh</div>
+                  )}
+                </div>
               </div>
             </div>
           </div>

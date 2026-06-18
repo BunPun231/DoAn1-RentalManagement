@@ -4,76 +4,76 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 import { Modal } from "@/components/ui/Modal";
+import { Input } from "@/components/ui/Input";
 import { formatCurrency } from "@/lib/utils";
 import { contractService, type ContractResult, type ContractCreateRequest } from "@/services/contractService";
 import { motelService, roomService, type MotelResult, type RoomResult } from "@/services/motelService";
 import { residentService, type ResidentResult } from "@/services/residentService";
 import { extractError } from "@/lib/api";
 import { SettlementModal } from "../components/SettlementModal";
+import { CreateContractModal } from "../components/CreateContractModal";
 
 // ============ STATUS HELPERS ============
 const STATUS_BADGE: Record<string, React.ReactNode> = {
   ACTIVE: <Badge variant="success">Đang hiệu lực</Badge>,
+  DRAFT: <Badge variant="warning">Nháp / Chờ kích hoạt</Badge>,
+  PENDING: <Badge variant="warning">Chờ ký</Badge>,
   PENDING_LIQUIDATION: <Badge variant="warning">Chờ tất toán</Badge>,
   LIQUIDATED: <Badge variant="default">Đã tất toán</Badge>,
   CANCELLED: <Badge variant="danger">Đã hủy</Badge>,
+  CANCELED: <Badge variant="danger">Đã hủy</Badge>,
 };
 
 const DEPOSIT_BADGE: Record<string, React.ReactNode> = {
   PENDING: <Badge variant="warning">Chưa thu</Badge>,
+  UNPAID: <Badge variant="warning">Chưa thu</Badge>,
   HOLDING: <Badge variant="success">Đang giữ</Badge>,
+  PAID: <Badge variant="success">Đang giữ</Badge>,
   REFUNDED: <Badge variant="default">Đã hoàn</Badge>,
   DEDUCTED: <Badge variant="danger">Đã khấu trừ</Badge>,
 };
 
-// ============ CREATE CONTRACT MODAL ============
-function CreateContractModal({
-  isOpen,
+// ============ CONTRACT DETAIL MODAL ============
+function ContractDetailModal({
+  contract,
   onClose,
-  onSuccess,
+  onRefresh,
+  residents,
 }: {
-  isOpen: boolean;
+  contract: ContractResult;
   onClose: () => void;
-  onSuccess: () => void;
+  onRefresh: () => void;
+  residents: ResidentResult[];
 }) {
-  const [step, setStep] = useState(1);
-  const [motels, setMotels] = useState<MotelResult[]>([]);
-  const [rooms, setRooms] = useState<RoomResult[]>([]);
-  const [residents, setResidents] = useState<ResidentResult[]>([]);
-  const [motelId, setMotelId] = useState("");
-  const [form, setForm] = useState<Partial<ContractCreateRequest>>({
-    startDate: new Date().toISOString().slice(0, 10),
-    endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
-    billingDate: new Date().toISOString().slice(0, 10),
-    depositStatus: "UNPAID",
-  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    if (isOpen) {
-      motelService.list().then((r) => { setMotels(r.content); if (r.content.length > 0) setMotelId(String(r.content[0].id)); });
-      residentService.list(0, 100).then((r) => setResidents(r.content));
-    }
-  }, [isOpen]);
+  // UI state toggles
+  const [showRenewForm, setShowRenewForm] = useState(false);
+  const [newEndDate, setNewEndDate] = useState("");
 
-  useEffect(() => {
-    if (motelId) {
-      roomService.list(Number(motelId)).then((r) =>
-        setRooms(r.content.filter((room) => room.status === "AVAILABLE"))
-      );
-    }
-  }, [motelId]);
+  const [showAppendixForm, setShowAppendixForm] = useState(false);
+  const [appendixType, setAppendixType] = useState("PRICE_CHANGE");
+  const [adjEffectiveDate, setAdjEffectiveDate] = useState("");
+  const [adjNewEndDate, setAdjNewEndDate] = useState("");
+  const [adjNewRentPrice, setAdjNewRentPrice] = useState("");
+  const [adjIntendedMoveOutDate, setAdjIntendedMoveOutDate] = useState("");
+  const [adjNotes, setAdjNotes] = useState("");
 
-  const inputClass = "w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-deep/30 focus:border-brand-deep transition-all";
+  const [showDepositForm, setShowDepositForm] = useState(false);
+  const [depositAction, setDepositAction] = useState("COLLECT"); // COLLECT, REFUND, DEDUCT
+  const [depAmount, setDepAmount] = useState("");
+  const [depReason, setDepReason] = useState("");
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
+  const handleCancel = async () => {
+    const reason = prompt("Lý do hủy hợp đồng:");
+    if (!reason) return;
     setLoading(true);
+    setError("");
     try {
-      await contractService.create(form as ContractCreateRequest);
-      onSuccess();
+      await contractService.cancel(contract.id, reason);
+      onClose();
+      onRefresh();
     } catch (err) {
       setError(extractError(err));
     } finally {
@@ -81,262 +81,89 @@ function CreateContractModal({
     }
   };
 
-  const selectedRoom = rooms.find((r) => r.id === form.roomId);
-
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Tạo hợp đồng mới" size="lg">
-      {/* Step indicator */}
-      <div className="flex items-center gap-2 mb-6">
-        {[1, 2, 3].map((s) => (
-          <div key={s} className="flex items-center gap-2">
-            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-              s < step ? "bg-emerald-500 text-white" : s === step ? "bg-brand-deep text-white" : "bg-slate-100 text-slate-400"
-            }`}>
-              {s < step ? <CheckCircle2 size={14} /> : s}
-            </div>
-            <span className={`text-xs font-medium ${s === step ? "text-brand-ink" : "text-slate-400"}`}>
-              {s === 1 ? "Phòng & Thời hạn" : s === 2 ? "Khách thuê" : "Tài chính"}
-            </span>
-            {s < 3 && <div className="flex-1 h-px w-8 bg-slate-200" />}
-          </div>
-        ))}
-      </div>
-
-      {error && (
-        <div className="rounded-xl bg-red-50 border border-red-100 p-3 text-sm text-red-700 mb-4">{error}</div>
-      )}
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Step 1: Room & Dates */}
-        {step === 1 && (
-          <>
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-slate-700">Khu trọ *</label>
-              <select id="contract-motel" value={motelId} onChange={(e) => setMotelId(e.target.value)} className={inputClass}>
-                {motels.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-slate-700">Phòng (chỉ phòng trống) *</label>
-              <select
-                id="contract-room"
-                value={form.roomId ?? ""}
-                onChange={(e) => setForm({ ...form, roomId: Number(e.target.value) })}
-                required
-                className={inputClass}
-              >
-                <option value="">-- Chọn phòng --</option>
-                {rooms.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    Phòng {r.roomNumber} - Tầng {r.floor} ({formatCurrency(r.basePrice)}/tháng)
-                  </option>
-                ))}
-              </select>
-              {selectedRoom && (
-                <p className="text-xs text-emerald-600 mt-1">
-                  ✓ Giá phòng: {formatCurrency(selectedRoom.basePrice)}/tháng
-                  {selectedRoom.area ? ` • ${selectedRoom.area}m²` : ""}
-                </p>
-              )}
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-slate-700">Ngày bắt đầu *</label>
-                <input id="contract-start" type="date" value={form.startDate ?? ""} onChange={(e) => setForm({ ...form, startDate: e.target.value })} required className={inputClass} />
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-slate-700">Ngày kết thúc *</label>
-                <input id="contract-end" type="date" value={form.endDate ?? ""} onChange={(e) => setForm({ ...form, endDate: e.target.value })} required className={inputClass} />
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* Step 2: Resident */}
-        {step === 2 && (
-          <>
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-slate-700">Người đại diện (khách thuê chính) *</label>
-              <select
-                id="contract-resident"
-                value={form.primaryResidentUserId ?? ""}
-                onChange={(e) => setForm({ ...form, primaryResidentUserId: e.target.value })}
-                required
-                className={inputClass}
-              >
-                <option value="">-- Chọn khách thuê --</option>
-                {residents.map((r) => (
-                  <option key={r.userId} value={r.userId}>
-                    {r.fullName} — {r.phone} {r.idCardNumber ? `(CCCD: ${r.idCardNumber})` : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <p className="text-xs text-slate-400 bg-slate-50 rounded-xl p-3">
-              💡 Chỉ khách thuê đã có hồ sơ trong hệ thống mới có thể chọn. <br />
-              Nếu chưa có, hãy <strong>thêm khách thuê trước</strong> tại mục Khách thuê.
-            </p>
-          </>
-        )}
-
-        {/* Step 3: Finance */}
-        {step === 3 && (
-          <>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-slate-700">Tiền thuê/tháng (đ) *</label>
-                <input
-                  id="contract-rent"
-                  type="number"
-                  value={form.rentPrice ?? ""}
-                  onChange={(e) => setForm({ ...form, rentPrice: Number(e.target.value) })}
-                  required
-                  placeholder={selectedRoom ? String(selectedRoom.basePrice) : "0"}
-                  min={0}
-                  className={inputClass}
-                />
-                {selectedRoom && !form.rentPrice && (
-                  <button type="button" className="text-xs text-brand-deep underline mt-0.5"
-                    onClick={() => setForm({ ...form, rentPrice: selectedRoom.basePrice })}>
-                    Dùng giá phòng ({formatCurrency(selectedRoom.basePrice)})
-                  </button>
-                )}
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-slate-700">Tiền đặt cọc (đ) *</label>
-                <input
-                  id="contract-deposit"
-                  type="number"
-                  value={form.depositAmount ?? ""}
-                  onChange={(e) => setForm({ ...form, depositAmount: Number(e.target.value) })}
-                  required
-                  min={0}
-                  placeholder="0"
-                  className={inputClass}
-                />
-              </div>
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-slate-700">Ngày bắt đầu tính phí *</label>
-              <input
-                id="contract-billing"
-                type="date"
-                value={form.billingDate ?? ""}
-                onChange={(e) => setForm({ ...form, billingDate: e.target.value })}
-                required
-                className={inputClass}
-              />
-              <p className="text-xs text-slate-400">Ngày hàng tháng hệ thống sẽ tính tiền thuê</p>
-            </div>
-            {form.rentPrice && form.depositAmount && (
-              <div className="bg-brand-deep/5 rounded-xl p-4 space-y-2 text-sm border border-brand-deep/10">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Giá thuê/tháng</span>
-                  <span className="font-semibold">{formatCurrency(form.rentPrice)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Tiền cọc</span>
-                  <span className="font-semibold">{formatCurrency(form.depositAmount)}</span>
-                </div>
-                <div className="flex justify-between border-t border-brand-deep/10 pt-2 font-semibold text-brand-deep">
-                  <span>Thanh toán ban đầu</span>
-                  <span>{formatCurrency(form.rentPrice + form.depositAmount)}</span>
-                </div>
-              </div>
-            )}
-          </>
-        )}
-
-        {/* Navigation */}
-        <div className="pt-4 border-t border-slate-100 flex justify-between">
-          <Button type="button" variant="outline" onClick={() => step > 1 ? setStep(s => s - 1) : onClose()}>
-            {step === 1 ? "Hủy" : "← Quay lại"}
-          </Button>
-          {step < 3 ? (
-            <Button
-              type="button"
-              onClick={() => setStep(s => s + 1)}
-              disabled={
-                (step === 1 && (!form.roomId || !form.startDate || !form.endDate)) ||
-                (step === 2 && !form.primaryResidentUserId)
-              }
-            >
-              Tiếp theo →
-            </Button>
-          ) : (
-            <Button type="submit" disabled={loading}>
-              {loading ? "Đang tạo..." : "✓ Tạo hợp đồng"}
-            </Button>
-          )}
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-// ============ CONTRACT DETAIL MODAL ============
-function ContractDetailModal({
-  contract,
-  onClose,
-  onRefresh,
-}: {
-  contract: ContractResult;
-  onClose: () => void;
-  onRefresh: () => void;
-}) {
-  const [loading, setLoading] = useState(false);
-  const [downloading, setDownloading] = useState(false);
-
-  const handleCancel = async () => {
-    const reason = prompt("Lý do hủy hợp đồng:");
-    if (!reason) return;
+  const handleRenewSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newEndDate) return;
     setLoading(true);
+    setError("");
     try {
-      await contractService.cancel(contract.id, reason);
-      onClose();
+      await contractService.addAppendix(contract.id, {
+        type: "RENEW",
+        newEndDate,
+      });
+      setShowRenewForm(false);
       onRefresh();
+      onClose();
     } catch (err) {
-      alert(extractError(err));
+      setError(extractError(err));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCollectDeposit = async () => {
-    if (!confirm(`Xác nhận thu cọc ${formatCurrency(contract.depositAmount)}?`)) return;
+  const handleAppendixSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setLoading(true);
+    setError("");
     try {
-      await contractService.collectDeposit(contract.id);
+      await contractService.addAppendix(contract.id, {
+        type: appendixType,
+        effectiveDate: adjEffectiveDate || undefined,
+        newEndDate: adjNewEndDate || undefined,
+        newRentPrice: adjNewRentPrice ? parseFloat(adjNewRentPrice) : undefined,
+        intendedMoveOutDate: adjIntendedMoveOutDate || undefined,
+        metadata: adjNotes || undefined,
+      });
+      setShowAppendixForm(false);
       onRefresh();
       onClose();
     } catch (err) {
-      alert(extractError(err));
+      setError(extractError(err));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDownloadPdf = async () => {
-    setDownloading(true);
+  const handleDepositSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
     try {
-      const blob = await contractService.exportPdf(contract.id);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `HopDong_${contract.contractCode}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
+      if (depositAction === "COLLECT") {
+        await contractService.collectDeposit(contract.id);
+      } else if (depositAction === "DEDUCT") {
+        if (!depAmount || !depReason) {
+          setError("Vui lòng điền đầy đủ số tiền khấu trừ và lý do");
+          setLoading(false);
+          return;
+        }
+        await contractService.deductDeposit(contract.id, {
+          deductAmount: parseFloat(depAmount),
+          reason: depReason,
+        });
+      } else if (depositAction === "REFUND") {
+        await contractService.refundDeposit(contract.id, depReason || undefined);
+      }
+      setShowDepositForm(false);
+      onRefresh();
+      onClose();
     } catch (err) {
-      alert(extractError(err));
+      setError(extractError(err));
     } finally {
-      setDownloading(false);
+      setLoading(false);
     }
+  };
+
+  const getResidentName = (userId?: string) => {
+    if (!userId) return "-";
+    const res = residents.find((r) => r.userId === userId);
+    return res ? res.fullName : `${userId.slice(0, 8)}...`;
   };
 
   const rows = [
     { label: "Mã hợp đồng", value: contract.contractCode ?? `#${contract.id}` },
     { label: "Phòng", value: `Phòng ${contract.roomId}` },
+    { label: "Khách đại diện", value: getResidentName(contract.primaryResidentUserId) },
     { label: "Thời hạn", value: `${contract.startDate} → ${contract.endDate}` },
     { label: "Tiền thuê", value: formatCurrency(contract.rentPrice) + "/tháng" },
     { label: "Tiền cọc", value: formatCurrency(contract.depositAmount) },
@@ -344,21 +171,163 @@ function ContractDetailModal({
     { label: "Ngày tính phí", value: contract.billingDate ?? "-" },
   ];
 
+  const inputClass = "w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-deep/30 focus:border-brand-deep transition-all bg-white";
+
   return (
     <Modal isOpen onClose={onClose} title="Chi tiết hợp đồng" size="lg">
-      <div className="space-y-4">
+      <div className="space-y-4 max-h-[75vh] overflow-y-auto px-1">
+        {error && (
+          <div className="rounded-xl bg-red-50 border border-red-100 p-3 text-sm text-red-700">{error}</div>
+        )}
+
         <div className="flex items-center justify-between">
           <span className="font-mono text-sm text-slate-400">#{contract.id}</span>
           {STATUS_BADGE[contract.status]}
         </div>
-        <div className="divide-y divide-slate-100 rounded-xl border border-slate-100 overflow-hidden">
+
+        <div className="divide-y divide-slate-100 rounded-xl border border-slate-100 overflow-hidden bg-slate-50">
           {rows.map(({ label, value }) => (
-            <div key={label} className="flex items-center justify-between py-3 px-4 hover:bg-slate-50">
+            <div key={label} className="flex items-center justify-between py-2.5 px-4">
               <span className="text-sm text-slate-500">{label}</span>
               <span className="text-sm font-medium text-slate-800">{value}</span>
             </div>
           ))}
         </div>
+
+        {/* Warning banner for unpaid deposit (UC69 collect deposit / activate contract) */}
+        {(contract.depositStatus === "PENDING" || contract.depositStatus === "UNPAID") && (
+          <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+            <div>
+              <h5 className="font-semibold text-amber-800 text-sm">Chưa thu tiền đặt cọc</h5>
+              <p className="text-xs text-amber-700 mt-0.5">
+                Hợp đồng sẽ được tự động kích hoạt sau khi thu đủ tiền cọc: <strong>{formatCurrency(contract.depositAmount)}</strong>.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              className="bg-amber-600 hover:bg-amber-700 text-white border-0 font-medium"
+              disabled={loading}
+              onClick={async () => {
+                setLoading(true);
+                setError("");
+                try {
+                  await contractService.collectDeposit(contract.id);
+                  onRefresh();
+                  onClose();
+                } catch (err) {
+                  setError(extractError(err));
+                } finally {
+                  setLoading(false);
+                }
+              }}
+            >
+              Xác nhận đã thu cọc
+            </Button>
+          </div>
+        )}
+
+        {/* Extended UI: Form gia hạn hợp đồng (Calendar UI) */}
+        {showRenewForm && (
+          <form onSubmit={handleRenewSubmit} className="p-4 bg-amber-50/50 border border-amber-200/60 rounded-xl space-y-3">
+            <h4 className="font-semibold text-sm text-amber-800">Gia hạn hợp đồng</h4>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-slate-600">Chọn ngày gia hạn mới *</label>
+              <input type="date" value={newEndDate} onChange={(e) => setNewEndDate(e.target.value)} required className={inputClass} />
+            </div>
+            <div className="flex justify-end gap-2 text-xs">
+              <Button type="button" variant="outline" size="sm" onClick={() => setShowRenewForm(false)}>Hủy</Button>
+              <Button type="submit" size="sm" disabled={loading}>Xác nhận gia hạn</Button>
+            </div>
+          </form>
+        )}
+
+        {/* Extended UI: Form phụ lục hợp đồng */}
+        {showAppendixForm && (
+          <form onSubmit={handleAppendixSubmit} className="p-4 bg-blue-50/40 border border-blue-200/50 rounded-xl space-y-3">
+            <h4 className="font-semibold text-sm text-blue-800">Tạo phụ lục điều chỉnh hợp đồng</h4>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-slate-600">Loại điều chỉnh *</label>
+                <select value={appendixType} onChange={(e) => setAppendixType(e.target.value)} className={inputClass}>
+                  <option value="PRICE_CHANGE">Thay đổi giá thuê</option>
+                  <option value="RENEW">Gia hạn hợp đồng</option>
+                  <option value="MOVE_OUT_NOTICE">Báo trước ngày chuyển đi</option>
+                  <option value="MANUAL_CLAUSE">Điều khoản phụ khác</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-slate-600">Ngày hiệu lực</label>
+                <input type="date" value={adjEffectiveDate} onChange={(e) => setAdjEffectiveDate(e.target.value)} className={inputClass} />
+              </div>
+            </div>
+
+            {appendixType === "PRICE_CHANGE" && (
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-slate-600">Giá thuê mới (đ/tháng)</label>
+                <input type="number" value={adjNewRentPrice} onChange={(e) => setAdjNewRentPrice(e.target.value)} placeholder="Nhập giá mới" className={inputClass} />
+              </div>
+            )}
+
+            {appendixType === "RENEW" && (
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-slate-600">Ngày kết thúc mới</label>
+                <input type="date" value={adjNewEndDate} onChange={(e) => setAdjNewEndDate(e.target.value)} className={inputClass} />
+              </div>
+            )}
+
+            {appendixType === "MOVE_OUT_NOTICE" && (
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-slate-600">Ngày dự kiến dời đi</label>
+                <input type="date" value={adjIntendedMoveOutDate} onChange={(e) => setAdjIntendedMoveOutDate(e.target.value)} className={inputClass} />
+              </div>
+            )}
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-slate-600">Ghi chú điều khoản</label>
+              <textarea value={adjNotes} onChange={(e) => setAdjNotes(e.target.value)} placeholder="Nội dung điều khoản..." rows={2} className={`${inputClass} resize-none`} />
+            </div>
+
+            <div className="flex justify-end gap-2 text-xs">
+              <Button type="button" variant="outline" size="sm" onClick={() => setShowAppendixForm(false)}>Hủy</Button>
+              <Button type="submit" size="sm" disabled={loading}>Lưu phụ lục</Button>
+            </div>
+          </form>
+        )}
+
+        {/* Extended UI: Form quản lý tiền cọc */}
+        {showDepositForm && (
+          <form onSubmit={handleDepositSubmit} className="p-4 bg-emerald-50/40 border border-emerald-200/50 rounded-xl space-y-3">
+            <h4 className="font-semibold text-sm text-emerald-800">Quản lý tiền đặt cọc</h4>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-slate-600">Hành động *</label>
+                <select value={depositAction} onChange={(e) => setDepositAction(e.target.value)} className={inputClass}>
+                  <option value="COLLECT">Thu tiền cọc</option>
+                  <option value="REFUND">Hoàn cọc cho khách</option>
+                  <option value="DEDUCT">Khấu trừ tiền cọc (vi phạm/đền bù)</option>
+                </select>
+              </div>
+              {depositAction === "DEDUCT" && (
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-600">Số tiền khấu trừ *</label>
+                  <input type="number" value={depAmount} onChange={(e) => setDepAmount(e.target.value)} placeholder="0" className={inputClass} required />
+                </div>
+              )}
+            </div>
+
+            {(depositAction === "REFUND" || depositAction === "DEDUCT") && (
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-slate-600">Lý do ghi nhận</label>
+                <input type="text" value={depReason} onChange={(e) => setDepReason(e.target.value)} placeholder="VD: Khách vi phạm hợp đồng, đền bù mất chìa khóa..." className={inputClass} />
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 text-xs">
+              <Button type="button" variant="outline" size="sm" onClick={() => setShowDepositForm(false)}>Hủy</Button>
+              <Button type="submit" size="sm" disabled={loading}>Xác nhận</Button>
+            </div>
+          </form>
+        )}
 
         {contract.notes && (
           <div className="rounded-xl bg-slate-50 border border-slate-100 p-4">
@@ -379,43 +348,40 @@ function ContractDetailModal({
         )}
       </div>
 
-      <div className="flex justify-between items-center pt-4 border-t border-slate-100 mt-4">
-        <Button variant="outline" onClick={handleDownloadPdf} disabled={downloading}>
-          {downloading ? "Đang xuất PDF..." : "Xuất PDF"}
-        </Button>
-        <div className="flex gap-2">
-          {contract.depositStatus === "PENDING" && contract.status !== "CANCELLED" && (
+      <div className="flex justify-end items-center pt-4 border-t border-slate-100 mt-4 gap-2">
+        {(contract.status === "ACTIVE" || contract.status === "DRAFT") && (
+          <>
             <Button
               variant="outline"
               className="text-emerald-600 border-emerald-200 hover:bg-emerald-50"
-              onClick={handleCollectDeposit}
-              disabled={loading}
+              onClick={() => { setShowDepositForm(true); setShowRenewForm(false); setShowAppendixForm(false); }}
             >
-              Thu cọc
+              Quản lý cọc
             </Button>
-          )}
-          {contract.status === "ACTIVE" && (
-            <>
-              <Button
-                variant="outline"
-                className="text-amber-600 border-amber-200 hover:bg-amber-50"
-                onClick={() => {
-                  const newEndDate = prompt("Gia hạn đến ngày (YYYY-MM-DD):");
-                  if (!newEndDate) return;
-                  contractService.addAppendix(contract.id, { type: "RENEW", newEndDate })
-                    .then(() => { onClose(); onRefresh(); })
-                    .catch((err) => alert(extractError(err)));
-                }}
-              >
-                Gia hạn
-              </Button>
-              <Button variant="danger" onClick={handleCancel} disabled={loading}>
-                {loading ? "Đang xử lý..." : "Hủy hợp đồng"}
-              </Button>
-            </>
-          )}
-          <Button variant="outline" onClick={onClose}>Đóng</Button>
-        </div>
+            {contract.status === "ACTIVE" && (
+              <>
+                <Button
+                  variant="outline"
+                  className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                  onClick={() => { setShowAppendixForm(true); setShowRenewForm(false); setShowDepositForm(false); }}
+                >
+                  Tạo phụ lục
+                </Button>
+                <Button
+                  variant="outline"
+                  className="text-amber-600 border-amber-200 hover:bg-amber-50"
+                  onClick={() => { setShowRenewForm(true); setShowAppendixForm(false); setShowDepositForm(false); }}
+                >
+                  Gia hạn
+                </Button>
+              </>
+            )}
+            <Button variant="danger" onClick={handleCancel} disabled={loading}>
+              {loading ? "Đang xử lý..." : "Hủy hợp đồng"}
+            </Button>
+          </>
+        )}
+        <Button variant="outline" onClick={onClose}>Đóng</Button>
       </div>
     </Modal>
   );
@@ -437,12 +403,16 @@ export function ContractListPage() {
   // For listing, we need a motelId — load first available motel
   const [motels, setMotels] = useState<MotelResult[]>([]);
   const [selectedMotelId, setSelectedMotelId] = useState<number | null>(null);
+  const [residents, setResidents] = useState<ResidentResult[]>([]);
 
   useEffect(() => {
     motelService.list().then((r) => {
       setMotels(r.content);
       if (r.content.length > 0) setSelectedMotelId(r.content[0].id);
     });
+    residentService.list(0, 1000).then((r) => {
+      setResidents(r.content);
+    }).catch((err) => console.error("Error loading residents", err));
   }, []);
 
   const fetchContracts = useCallback(async () => {
@@ -466,13 +436,21 @@ export function ContractListPage() {
     fetchContracts();
   }, [fetchContracts]);
 
+  const getResidentName = (userId?: string) => {
+    if (!userId) return "-";
+    const res = residents.find((r) => r.userId === userId);
+    return res ? res.fullName : `${userId.slice(0, 8)}...`;
+  };
+
   const filtered = contracts.filter((c) => {
     if (!search) return true;
     const q = search.toLowerCase();
+    const resName = getResidentName(c.primaryResidentUserId).toLowerCase();
     return (
       c.contractCode?.toLowerCase().includes(q) ||
       String(c.roomId).includes(q) ||
-      c.primaryResidentUserId?.toLowerCase().includes(q)
+      c.primaryResidentUserId?.toLowerCase().includes(q) ||
+      resName.includes(q)
     );
   });
 
@@ -596,7 +574,8 @@ export function ContractListPage() {
                 <TableHead>Khách đại diện</TableHead>
                 <TableHead>Thời hạn</TableHead>
                 <TableHead>Tài chính</TableHead>
-                <TableHead>Trạng thái</TableHead>
+                <TableHead>Trạng thái cọc</TableHead>
+                <TableHead>Trạng thái HĐ</TableHead>
                 <TableHead className="text-right">Thao tác</TableHead>
               </TableRow>
             </TableHeader>
@@ -612,8 +591,8 @@ export function ContractListPage() {
                       <div className="font-semibold text-brand-deep">Phòng {contract.roomId}</div>
                     </TableCell>
                     <TableCell>
-                      <div className="text-sm text-slate-600 font-mono">
-                        {contract.primaryResidentUserId?.slice(0, 12)}...
+                      <div className="text-sm text-slate-700 font-medium">
+                        {getResidentName(contract.primaryResidentUserId)}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -628,9 +607,10 @@ export function ContractListPage() {
                     <TableCell>
                       <div className="text-sm font-medium text-brand-ink">{formatCurrency(contract.rentPrice)}/tháng</div>
                       <div className="text-xs text-slate-400">
-                        Cọc: {formatCurrency(contract.depositAmount)} • {DEPOSIT_BADGE[contract.depositStatus]}
+                        Cọc: {formatCurrency(contract.depositAmount)}
                       </div>
                     </TableCell>
+                    <TableCell>{DEPOSIT_BADGE[contract.depositStatus] ?? <Badge variant="warning">Chưa rõ</Badge>}</TableCell>
                     <TableCell>{STATUS_BADGE[contract.status] ?? <Badge>{contract.status}</Badge>}</TableCell>
                     <TableCell className="text-right space-x-2">
                       <Button
@@ -678,6 +658,7 @@ export function ContractListPage() {
           contract={selectedContract}
           onClose={() => setSelectedContract(null)}
           onRefresh={fetchContracts}
+          residents={residents}
         />
       )}
 

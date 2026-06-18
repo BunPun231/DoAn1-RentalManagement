@@ -9,6 +9,7 @@ import { motelService, type MotelResult } from "@/services/motelService";
 import { extractError } from "@/lib/api";
 import { Modal } from "@/components/ui/Modal";
 import { PaymentModal } from "../components/PaymentModal";
+import { useAuthStore } from "@/store/authStore";
 
 const STATUS_BADGE: Record<string, React.ReactNode> = {
   PENDING: <Badge variant="warning">Chưa thanh toán</Badge>,
@@ -125,6 +126,9 @@ function GenerateInvoiceModal({
 }
 
 export function InvoiceListPage() {
+  const { user } = useAuthStore();
+  const isTenant = (user?.role as string) === "TENANT" || (user?.role as string) === "RESIDENT";
+
   const [invoices, setInvoices] = useState<InvoiceResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -134,12 +138,15 @@ export function InvoiceListPage() {
   const [totalPages, setTotalPages] = useState(0);
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceResult | null>(null);
+  const [invoiceDetails, setInvoiceDetails] = useState<InvoiceResult | null>(null);
   const [paymentInvoice, setPaymentInvoice] = useState<InvoiceResult | null>(null);
 
   const fetchInvoices = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await invoiceService.list(undefined, statusFilter || undefined, page, 20);
+      const result = isTenant
+        ? await invoiceService.listMine(statusFilter || undefined, page, 20)
+        : await invoiceService.list(undefined, statusFilter || undefined, page, 20);
       setInvoices(result.content);
       setTotalPages(result.totalPages);
       setError(null);
@@ -148,11 +155,23 @@ export function InvoiceListPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, statusFilter]);
+  }, [page, statusFilter, isTenant]);
 
   useEffect(() => {
     fetchInvoices();
   }, [fetchInvoices]);
+
+  useEffect(() => {
+    if (selectedInvoice) {
+      invoiceService.get(selectedInvoice.id)
+        .then((res) => {
+          setInvoiceDetails(res);
+        })
+        .catch((err) => console.error("Error loading invoice details", err));
+    } else {
+      setInvoiceDetails(null);
+    }
+  }, [selectedInvoice]);
 
   const filtered = invoices.filter((inv) => {
     if (!search) return true;
@@ -185,14 +204,16 @@ export function InvoiceListPage() {
           <Button variant="outline" onClick={() => fetchInvoices()} disabled={loading}>
             <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
           </Button>
-          <Button
-            id="generate-invoices-btn"
-            variant="outline"
-            onClick={() => setIsGenerateOpen(true)}
-          >
-            <Zap size={16} className="mr-2" />
-            Tạo hóa đơn loạt
-          </Button>
+          {!isTenant && (
+            <Button
+              id="generate-invoices-btn"
+              variant="outline"
+              onClick={() => setIsGenerateOpen(true)}
+            >
+              <Zap size={16} className="mr-2" />
+              Tạo hóa đơn loạt
+            </Button>
+          )}
         </div>
       </div>
 
@@ -297,28 +318,28 @@ export function InvoiceListPage() {
                     <div className="text-sm text-emerald-700 font-medium">{formatCurrency(invoice.paidAmount)}</div>
                   </TableCell>
                   <TableCell>{STATUS_BADGE[invoice.status] ?? <Badge>{invoice.status}</Badge>}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      {(invoice.status === "PENDING" || invoice.status === "PARTIAL") && (
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        {(invoice.status === "PENDING" || invoice.status === "PARTIAL") && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 border-emerald-200"
+                            onClick={() => setPaymentInvoice(invoice)}
+                          >
+                            <CreditCard size={14} className="mr-1.5" />
+                            {isTenant ? "Thanh toán" : "Thu tiền"}
+                          </Button>
+                        )}
                         <Button
                           variant="outline"
                           size="sm"
-                          className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 border-emerald-200"
-                          onClick={() => setPaymentInvoice(invoice)}
+                          onClick={() => setSelectedInvoice(invoice)}
                         >
-                          <CreditCard size={14} className="mr-1.5" />
-                          Thu tiền
+                          Chi tiết
                         </Button>
-                      )}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setSelectedInvoice(invoice)}
-                      >
-                        Chi tiết
-                      </Button>
-                    </div>
-                  </TableCell>
+                      </div>
+                    </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -338,9 +359,8 @@ export function InvoiceListPage() {
         )}
       </div>
 
-      {/* Invoice Detail Modal */}
       {selectedInvoice && (
-        <Modal isOpen={!!selectedInvoice} onClose={() => setSelectedInvoice(null)} title={`Chi tiết hóa đơn #${selectedInvoice.id}`}>
+        <Modal isOpen={!!selectedInvoice} onClose={() => setSelectedInvoice(null)} title={`Chi tiết hóa đơn #${selectedInvoice.id}`} size="lg">
           <div className="space-y-3">
             {[
               { label: "Phòng", value: `Phòng ${selectedInvoice.roomId}` },
@@ -358,6 +378,30 @@ export function InvoiceListPage() {
               <span className="text-slate-500 text-sm">Trạng thái</span>
               <span>{STATUS_BADGE[selectedInvoice.status]}</span>
             </div>
+
+            {invoiceDetails?.details && invoiceDetails.details.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-slate-200">
+                <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Chi tiết các khoản phí</h4>
+                <div className="divide-y divide-slate-100 bg-slate-50 rounded-xl border border-slate-200 p-3 space-y-2">
+                  {invoiceDetails.details.map((detail, idx) => (
+                    <div key={idx} className="flex justify-between text-sm py-1.5">
+                      <div className="flex flex-col">
+                        <span className="font-medium text-slate-800">{detail.serviceName}</span>
+                        {detail.chargeType !== "FIXED" && detail.oldReading !== undefined && detail.newReading !== undefined && (
+                          <span className="text-xs text-slate-400">
+                            Chỉ số: {detail.oldReading} → {detail.newReading} ({detail.consumption} {detail.serviceName.toLowerCase().includes("nước") ? "khối" : "số"})
+                          </span>
+                        )}
+                        {detail.chargeType !== "FIXED" && (
+                          <span className="text-xs text-slate-400">Đơn giá: {formatCurrency(detail.unitPrice)}</span>
+                        )}
+                      </div>
+                      <span className="font-bold text-slate-800">{formatCurrency(detail.totalCost)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           <div className="pt-4 border-t border-slate-100 flex justify-end mt-4">
             <Button variant="outline" onClick={() => setSelectedInvoice(null)}>Đóng</Button>

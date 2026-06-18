@@ -1,6 +1,25 @@
-import { Bell, Search } from "lucide-react";
+import { Search } from "lucide-react";
+import { useAuthStore } from "@/store/authStore";
 
 export function Header() {
+  const { user } = useAuthStore();
+
+  const getRoleLabel = (role?: string) => {
+    switch (role) {
+      case "ADMIN":
+        return "Admin";
+      case "MANAGER":
+        return "Quản lý";
+      case "TENANT":
+      case "RESIDENT":
+        return "Khách thuê";
+      case "TECHNICIAN":
+        return "Kỹ thuật viên";
+      default:
+        return "Người dùng";
+    }
+  };
+
   return (
     <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-6">
       <div className="flex flex-1 items-center gap-4">
@@ -14,12 +33,8 @@ export function Header() {
         </div>
       </div>
       <div className="flex items-center gap-4">
-        <button className="relative p-2 text-slate-500 hover:text-slate-700">
-          <Bell className="h-5 w-5" />
-          <span className="absolute top-1.5 right-2 h-2 w-2 rounded-full bg-red-500"></span>
-        </button>
-        <div className="text-sm font-medium text-slate-600 border border-slate-200 rounded-lg px-3 py-1.5">
-          Demo - Vai trò hiện tại: Quản lý
+        <div className="text-sm font-medium text-slate-600 border border-slate-200 rounded-lg px-3 py-1.5 bg-slate-50">
+          Vai trò: {getRoleLabel(user?.role)}
         </div>
       </div>
     </header>

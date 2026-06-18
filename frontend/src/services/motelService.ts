@@ -46,7 +46,7 @@ export interface RoomResult {
   floor: number;
   area?: number;
   basePrice: number;
-  status: "AVAILABLE" | "RENTED" | "DEPOSITED" | "REPAIRING" | "OUT_OF_BUSINESS";
+  status: "AVAILABLE" | "EMPTY" | "RENTED" | "DEPOSITED" | "REPAIRING" | "OUT_OF_BUSINESS";
   currentResidentsCount: number;
   description?: string;
 }

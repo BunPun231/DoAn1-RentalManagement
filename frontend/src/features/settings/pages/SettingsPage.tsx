@@ -114,20 +114,41 @@ function ChangePasswordSection() {
 const TABS = [
   { id: "profile", label: "Hồ sơ", icon: User },
   { id: "security", label: "Bảo mật", icon: Shield },
-  { id: "notifications", label: "Thông báo", icon: Bell },
-  { id: "billing", label: "Gói cước", icon: CreditCard },
 ] as const;
 
-type TabId = "profile" | "security" | "notifications" | "billing";
+type TabId = "profile" | "security";
 
 export function SettingsPage() {
-  const { user } = useAuthStore();
+  const { user, setUser } = useAuthStore();
   const [activeTab, setActiveTab] = useState<TabId>("profile");
   const [isSaving, setIsSaving] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState("");
+
+  const [name, setName] = useState(user?.name || "");
+  const [phone, setPhone] = useState(user?.phone || "");
+  const [email, setEmail] = useState(user?.email || "");
 
   const handleSave = () => {
     setIsSaving(true);
-    setTimeout(() => setIsSaving(false), 1000);
+    setError("");
+    setSuccess(false);
+    try {
+      if (user) {
+        setUser({
+          ...user,
+          name,
+          phone,
+          email,
+        });
+      }
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (err) {
+      setError("Không thể lưu thay đổi.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const inputClass = "w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-deep/30 focus:border-brand-deep transition-all";
@@ -148,6 +169,19 @@ export function SettingsPage() {
           </Button>
         )}
       </div>
+
+      {success && (
+        <div className="flex items-center gap-3 rounded-xl bg-emerald-50 border border-emerald-100 p-4 text-emerald-700 max-w-lg">
+          <CheckCircle2 size={18} />
+          <span className="text-sm font-medium">Thay đổi thông tin hồ sơ đã được lưu thành công!</span>
+        </div>
+      )}
+      {error && (
+        <div className="flex items-center gap-3 rounded-xl bg-red-50 border border-red-100 p-4 text-red-700 max-w-lg">
+          <AlertCircle size={18} />
+          <span className="text-sm">{error}</span>
+        </div>
+      )}
 
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Sidebar */}
@@ -189,16 +223,34 @@ export function SettingsPage() {
               <div className="space-y-4">
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-slate-700">Họ và tên</label>
-                  <input id="profile-name" type="text" defaultValue={user?.name} className={inputClass} />
+                  <input
+                    id="profile-name"
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className={inputClass}
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="text-sm font-medium text-slate-700">Số điện thoại</label>
-                    <input id="profile-phone" type="tel" defaultValue={user?.phone} className={inputClass} />
+                    <input
+                      id="profile-phone"
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className={inputClass}
+                    />
                   </div>
                   <div className="space-y-1">
                     <label className="text-sm font-medium text-slate-700">Email</label>
-                    <input id="profile-email" type="email" defaultValue={user?.email} className={inputClass} />
+                    <input
+                      id="profile-email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className={inputClass}
+                    />
                   </div>
                 </div>
               </div>
@@ -239,74 +291,6 @@ export function SettingsPage() {
                   <span className="text-xs bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full font-medium">Đang hoạt động</span>
                 </div>
               </div>
-            </div>
-          )}
-
-          {/* Notifications Tab */}
-          {activeTab === "notifications" && (
-            <div className="space-y-6 max-w-lg">
-              <h2 className="text-base font-bold text-brand-ink border-b border-slate-100 pb-3">Thông báo Email</h2>
-              <div className="space-y-4">
-                {[
-                  { id: "notif-new-tenant", label: "Khách thuê đăng ký mới", desc: "Nhận thông báo khi có người đăng ký qua link" },
-                  { id: "notif-overdue", label: "Hóa đơn quá hạn", desc: "Nhắc nhở khi khách thuê chưa thanh toán" },
-                  { id: "notif-expiring", label: "Hợp đồng sắp hết hạn", desc: "Nhắc nhở 30 ngày trước khi hợp đồng hết hạn" },
-                  { id: "notif-monthly", label: "Báo cáo tổng kết tháng", desc: "Gửi báo cáo doanh thu vào ngày đầu tháng" },
-                ].map((item) => (
-                  <label
-                    key={item.id}
-                    className="flex items-start gap-4 p-4 rounded-xl border border-slate-100 hover:bg-slate-50 cursor-pointer transition-colors"
-                  >
-                    <input
-                      id={item.id}
-                      type="checkbox"
-                      defaultChecked
-                      className="w-4 h-4 text-brand-deep rounded border-slate-300 mt-0.5"
-                    />
-                    <div>
-                      <p className="text-sm font-medium text-slate-800">{item.label}</p>
-                      <p className="text-xs text-slate-500 mt-0.5">{item.desc}</p>
-                    </div>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Billing Tab */}
-          {activeTab === "billing" && (
-            <div className="space-y-6 max-w-lg">
-              <h2 className="text-base font-bold text-brand-ink border-b border-slate-100 pb-3">Gói dịch vụ hiện tại</h2>
-              <div className="rounded-2xl bg-gradient-to-br from-brand-deep to-slate-800 p-6 text-white">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="text-lg font-bold">Gói Professional</h3>
-                    <p className="text-white/70 text-sm mt-1">Quản lý tối đa 500 phòng</p>
-                  </div>
-                  <span className="bg-emerald-400 text-emerald-900 text-xs font-bold px-3 py-1 rounded-full">ACTIVE</span>
-                </div>
-                <div className="flex items-baseline gap-1 mb-4">
-                  <span className="text-3xl font-bold">500.000đ</span>
-                  <span className="text-white/60">/tháng</span>
-                </div>
-                <p className="text-white/60 text-xs">Gia hạn tự động: 23/06/2026</p>
-              </div>
-              <div className="space-y-3">
-                <p className="text-sm font-medium text-slate-600">Quyền lợi của gói:</p>
-                {[
-                  "Quản lý tối đa 500 phòng",
-                  "Xuất báo cáo PDF không giới hạn",
-                  "Hỗ trợ kỹ thuật ưu tiên 24/7",
-                  "Tích hợp cổng thanh toán tự động",
-                  "Lưu trữ dữ liệu không giới hạn",
-                ].map((f) => (
-                  <div key={f} className="flex items-center gap-3 text-sm text-slate-600">
-                    <CheckCircle2 size={16} className="text-emerald-500 flex-shrink-0" />
-                    {f}
-                  </div>
-                ))}
-              </div>
-              <Button variant="outline" className="w-full">Xem thêm gói cước</Button>
             </div>
           )}
         </div>

@@ -74,8 +74,9 @@ export interface DepositDeductRequest {
 }
 
 export interface DamageItemInput {
-  description: string;
-  amount: number;
+  itemName: string;
+  penaltyFee: number;
+  imageUrl?: string;
 }
 
 export interface SettlementRequest {

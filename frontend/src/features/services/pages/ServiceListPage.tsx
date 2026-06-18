@@ -8,14 +8,22 @@ import { motelService, type MotelResult } from "@/services/motelService";
 import { extractError } from "@/lib/api";
 import { AssignServiceModal } from "../components/AssignServiceModal";
 
+
+
 const CHARGE_TYPE_LABEL: Record<string, string> = {
   FIXED: "Cố định",
-  METERED: "Theo đồng hồ",
-  TIERED: "Bậc thang",
+  PER_PERSON: "Theo người",
+  PER_INDEX: "Theo chỉ số (Điện/Nước)",
+  PER_QUANTITY: "Theo số lượng",
+  METERED: "Theo chỉ số",
+  TIERED: "Lũy tiến / Bậc thang",
 };
 
 const CHARGE_TYPE_COLOR: Record<string, string> = {
   FIXED: "bg-violet-100 text-violet-700",
+  PER_PERSON: "bg-orange-100 text-orange-700",
+  PER_INDEX: "bg-blue-100 text-blue-700",
+  PER_QUANTITY: "bg-cyan-100 text-cyan-700",
   METERED: "bg-blue-100 text-blue-700",
   TIERED: "bg-emerald-100 text-emerald-700",
 };
@@ -40,6 +48,7 @@ function ServiceFormModal({
     unit: "",
     mandatory: false,
     basePrice: 0,
+    pricingTiers: [],
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -52,13 +61,38 @@ function ServiceFormModal({
         unit: editing.unit ?? "",
         mandatory: editing.mandatory,
         basePrice: editing.basePrice ?? 0,
-        pricingTiers: editing.pricingTiers,
+        pricingTiers: editing.pricingTiers ?? [],
       });
     } else {
-      setForm({ name: "", chargeType: "FIXED", unit: "", mandatory: false, basePrice: 0 });
+      setForm({ name: "", chargeType: "FIXED", unit: "", mandatory: false, basePrice: 0, pricingTiers: [] });
     }
     setError("");
   }, [editing, isOpen]);
+
+  const handleAddTier = () => {
+    setForm((prev) => ({
+      ...prev,
+      pricingTiers: [
+        ...(prev.pricingTiers || []),
+        { tierStart: 0, tierEnd: 0, pricePerUnit: 0 },
+      ],
+    }));
+  };
+
+  const handleRemoveTier = (index: number) => {
+    setForm((prev) => ({
+      ...prev,
+      pricingTiers: (prev.pricingTiers || []).filter((_, i) => i !== index),
+    }));
+  };
+
+  const handleTierChange = (index: number, field: string, val: number) => {
+    setForm((prev) => {
+      const tiers = [...(prev.pricingTiers || [])];
+      tiers[index] = { ...tiers[index], [field]: val };
+      return { ...prev, pricingTiers: tiers };
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,7 +115,7 @@ function ServiceFormModal({
   const inputClass = "w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-deep/30 focus:border-brand-deep transition-all";
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={editing ? "Cập nhật dịch vụ" : "Thêm dịch vụ mới"}>
+    <Modal isOpen={isOpen} onClose={onClose} title={editing ? "Cập nhật dịch vụ" : "Thêm dịch vụ mới"} size={form.chargeType === "TIERED" ? "lg" : "md"}>
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
           <div className="rounded-xl bg-red-50 border border-red-100 p-3 text-sm text-red-700">{error}</div>
@@ -108,8 +142,9 @@ function ServiceFormModal({
               className={inputClass}
             >
               <option value="FIXED">Cố định (phí hàng tháng)</option>
-              <option value="METERED">Theo đồng hồ (số × đơn giá)</option>
-              <option value="TIERED">Bậc thang (lũy tiến)</option>
+              <option value="PER_PERSON">Theo người</option>
+              <option value="PER_INDEX">Theo chỉ số (Điện/Nước)</option>
+              <option value="PER_QUANTITY">Theo số lượng</option>
             </select>
           </div>
           <div className="space-y-1">
@@ -124,21 +159,60 @@ function ServiceFormModal({
             />
           </div>
         </div>
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-slate-700">
-            {form.chargeType === "FIXED" ? "Phí cố định (đ/tháng)" : "Đơn giá cơ bản (đ/đơn vị)"} *
-          </label>
-          <input
-            id="service-price"
-            type="number"
-            value={form.basePrice ?? ""}
-            onChange={(e) => setForm({ ...form, basePrice: Number(e.target.value) })}
-            required
-            min={0}
-            placeholder="0"
-            className={inputClass}
-          />
-        </div>
+
+        {form.chargeType !== "TIERED" ? (
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-slate-700">
+              {form.chargeType === "FIXED" ? "Phí cố định (đ/tháng)" : "Đơn giá cơ bản (đ/đơn vị)"} *
+            </label>
+            <input
+              id="service-price"
+              type="number"
+              value={form.basePrice ?? ""}
+              onChange={(e) => setForm({ ...form, basePrice: Number(e.target.value) })}
+              required
+              min={0}
+              placeholder="0"
+              className={inputClass}
+            />
+          </div>
+        ) : (
+          <div className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+            <div className="flex justify-between items-center">
+              <label className="text-sm font-bold text-slate-700">Cấu hình bậc giá lũy tiến</label>
+              <Button type="button" size="sm" onClick={handleAddTier}>+ Thêm bậc</Button>
+            </div>
+            <div className="space-y-2">
+              {(form.pricingTiers || []).map((tier, index) => (
+                <div key={index} className="grid grid-cols-4 gap-2 items-center">
+                  <input
+                    type="number"
+                    value={tier.tierStart ?? 0}
+                    placeholder="Từ"
+                    onChange={(e) => handleTierChange(index, "tierStart", Number(e.target.value))}
+                    className={`${inputClass} !py-1.5`}
+                  />
+                  <input
+                    type="number"
+                    value={tier.tierEnd ?? 0}
+                    placeholder="Đến"
+                    onChange={(e) => handleTierChange(index, "tierEnd", Number(e.target.value))}
+                    className={`${inputClass} !py-1.5`}
+                  />
+                  <input
+                    type="number"
+                    value={tier.pricePerUnit}
+                    placeholder="Đơn giá"
+                    onChange={(e) => handleTierChange(index, "pricePerUnit", Number(e.target.value))}
+                    className={`${inputClass} !py-1.5`}
+                  />
+                  <Button type="button" variant="danger" size="sm" onClick={() => handleRemoveTier(index)}>Xóa</Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
           <input
             id="service-mandatory"
@@ -388,7 +462,13 @@ function ServiceCard({
           <span className="text-slate-400">Đơn giá</span>
           <span className="font-bold text-brand-deep text-base">
             {formatCurrency(service.basePrice ?? 0)}
-            {service.unit && <span className="text-slate-400 font-normal text-xs">/{service.unit}</span>}
+            {service.unit && service.unit !== "string" && service.unit !== "adqqgaf" ? (
+              <span className="text-slate-400 font-normal text-xs">/{service.unit}</span>
+            ) : (
+              <span className="text-slate-400 font-normal text-xs">
+                /{service.name.toLowerCase().includes("nước") ? "khối" : service.name.toLowerCase().includes("điện") ? "số" : "tháng"}
+              </span>
+            )}
           </span>
         </div>
         {service.chargeType === "TIERED" && service.pricingTiers && service.pricingTiers.length > 0 && (

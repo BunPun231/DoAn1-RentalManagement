@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { User } from "@/types";
+import { useTenantStore } from "@/store/tenantStore";
 
 type AuthState = {
   accessToken: string | null;
@@ -31,6 +32,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: () => {
     localStorage.removeItem("access_token");
     localStorage.removeItem("user");
+    useTenantStore.getState().setTenantId(null);
     set({ accessToken: null, user: null });
     // Secure Session Requirement: trigger full page reload to clear cache
     window.location.href = "/login";

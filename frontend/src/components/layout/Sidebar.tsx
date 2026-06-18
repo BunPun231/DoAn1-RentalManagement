@@ -30,6 +30,38 @@ export function Sidebar() {
   const location = useLocation();
   const { user, logout } = useAuthStore();
 
+  const isTenant = (user?.role as string) === "TENANT" || (user?.role as string) === "RESIDENT";
+
+  // Filter NAV_ITEMS based on role
+  const filteredItems = NAV_ITEMS.filter((item) => {
+    if (isTenant) {
+      // Tenants only see Dashboard, Invoices, and Settings
+      return ["/dashboard", "/invoices", "/settings"].includes(item.path);
+    }
+    // Admin / Manager sees all
+    return true;
+  }).map((item) => {
+    if (isTenant && item.path === "/invoices") {
+      return { ...item, name: "Hóa đơn của tôi" };
+    }
+    return item;
+  });
+
+  const getRoleLabel = (role?: string) => {
+    switch (role) {
+      case "ADMIN":
+        return "Admin";
+      case "MANAGER":
+        return "Quản lý";
+      case "TENANT":
+        return "Khách thuê";
+      case "TECHNICIAN":
+        return "Kỹ thuật viên";
+      default:
+        return "Người dùng";
+    }
+  };
+
   return (
     <div className="flex h-screen w-64 flex-col border-r border-slate-200 bg-slate-50">
       <div className="flex h-16 items-center px-6">
@@ -38,7 +70,7 @@ export function Sidebar() {
       
       <div className="flex-1 overflow-y-auto py-4">
         <nav className="space-y-1 px-3">
-          {NAV_ITEMS.map((item) => {
+          {filteredItems.map((item) => {
             const isActive = location.pathname.startsWith(item.path);
             return (
               <Link
@@ -66,7 +98,7 @@ export function Sidebar() {
           </div>
           <div className="flex flex-col">
             <span className="text-sm font-semibold text-slate-800">{user?.name}</span>
-            <span className="text-xs text-slate-500">{user?.role === "MANAGER" ? "Quản lý" : "Admin"}</span>
+            <span className="text-xs text-slate-500">{getRoleLabel(user?.role)}</span>
           </div>
         </div>
         <button 

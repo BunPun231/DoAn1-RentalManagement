@@ -145,30 +145,42 @@ export const meterReadingService = {
 
   /** UC70: Submit meter reading */
   async submit(data: MeterReadingSubmitRequest): Promise<MeterReadingResult> {
-    const res = await api.post<{ data: MeterReadingResult }>("/api/v1/meter-readings", data);
-    return res.data.data;
+    const res = await api.post<MeterReadingResult>("/api/v1/meter-readings", data);
+    return res.data;
+  },
+
+  /** UC71: Extract reading using OCR and submit */
+  async submitWithOcr(data: {
+    roomId: number;
+    serviceId: number;
+    billingMonth: string;
+    base64Image: string;
+    mimeType: string;
+  }): Promise<MeterReadingResult> {
+    const res = await api.post<MeterReadingResult>("/api/v1/meter-readings/ocr", data);
+    return res.data;
   },
 
   /** UC72: Get reading history for a room */
   async getHistory(roomId: number): Promise<MeterReadingResult[]> {
-    const res = await api.get<{ data: MeterReadingResult[] }>(`/api/v1/meter-readings/rooms/${roomId}/history`);
-    return res.data.data;
+    const res = await api.get<MeterReadingResult[]>(`/api/v1/meter-readings/rooms/${roomId}/history`);
+    return res.data;
   },
 
   /** UC70: Approve meter reading */
   async approve(readingId: number): Promise<MeterReadingResult> {
-    const res = await api.post<{ data: MeterReadingResult }>(`/api/v1/meter-readings/${readingId}/approve`);
-    return res.data.data;
+    const res = await api.post<MeterReadingResult>(`/api/v1/meter-readings/${readingId}/approve`);
+    return res.data;
   },
 
   /** UC70: Reject meter reading */
   async reject(readingId: number, reason?: string): Promise<MeterReadingResult> {
-    const res = await api.post<{ data: MeterReadingResult }>(
+    const res = await api.post<MeterReadingResult>(
       `/api/v1/meter-readings/${readingId}/reject`,
       null,
       { params: { reason } }
     );
-    return res.data.data;
+    return res.data;
   },
 };
 

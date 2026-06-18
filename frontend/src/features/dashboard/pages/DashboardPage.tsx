@@ -3,11 +3,16 @@ import { Link } from "react-router-dom";
 import {
   Building2, Users, FileText, AlertCircle, TrendingUp,
   TrendingDown, Wallet, CheckCircle2, Clock, ArrowRight,
-  RefreshCw, ChevronRight
+  RefreshCw, ChevronRight, CreditCard
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { reportService, type DashboardSummaryResult } from "@/services/reportService";
 import { extractError } from "@/lib/api";
+import { useAuthStore } from "@/store/authStore";
+import { invoiceService, type InvoiceResult } from "@/services/invoiceService";
+import { PaymentModal } from "@/features/invoices/components/PaymentModal";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
 
 function StatCard({
   title,
@@ -51,18 +56,35 @@ function StatCard({
 }
 
 export function DashboardPage() {
+  const { user } = useAuthStore();
+  const isTenant = (user?.role as string) === "TENANT" || (user?.role as string) === "RESIDENT";
+
+  // Manager state
   const [data, setData] = useState<DashboardSummaryResult | null>(null);
+  
+  // Common states
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Tenant states
+  const [tenantInvoices, setTenantInvoices] = useState<InvoiceResult[]>([]);
+  const [paymentInvoice, setPaymentInvoice] = useState<InvoiceResult | null>(null);
+
   const fetchData = async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
+    setError(null);
     try {
-      const result = await reportService.getDashboardSummary();
-      setData(result);
-      setError(null);
+      if (isTenant) {
+        // Fetch only tenant invoices
+        const res = await invoiceService.listMine(undefined, 0, 50);
+        setTenantInvoices(res.content || []);
+      } else {
+        // Fetch manager dashboard summary
+        const result = await reportService.getDashboardSummary();
+        setData(result);
+      }
     } catch (err) {
       setError(extractError(err));
     } finally {
@@ -109,6 +131,174 @@ export function DashboardPage() {
     );
   }
 
+  // ==================== TENANT VIEW ====================
+  if (isTenant) {
+    const unpaidInvoices = tenantInvoices.filter(inv => inv.status !== "PAID");
+    const unpaidCount = unpaidInvoices.length;
+    const totalDebt = unpaidInvoices.reduce((sum, inv) => sum + (inv.totalAmount - (inv.paidAmount || 0)), 0);
+    const myRoom = tenantInvoices.length > 0 ? `Phòng #${tenantInvoices[0].roomId}` : "Chưa xác định";
+
+    return (
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold font-display text-brand-ink">Xin chào, {user?.name}!</h1>
+            <p className="text-sm text-slate-500 mt-1">
+              Cổng thông tin khách thuê • {new Date().toLocaleDateString("vi-VN", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+            </p>
+          </div>
+          <button
+            onClick={() => fetchData(true)}
+            disabled={refreshing}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 transition-all disabled:opacity-50"
+          >
+            <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
+            Làm mới
+          </button>
+        </div>
+
+        {/* Tenant KPI Cards */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <StatCard
+            title="Số hóa đơn cần thanh toán"
+            value={`${unpaidCount} hóa đơn`}
+            icon={AlertCircle}
+            iconBg="bg-rose-100"
+            iconColor="text-rose-600"
+            sub={unpaidCount > 0 ? "Vui lòng thanh toán đúng hạn" : "Không có hóa đơn trễ hạn"}
+          />
+          <StatCard
+            title="Tổng dư nợ hiện tại"
+            value={formatCurrency(totalDebt)}
+            icon={Wallet}
+            iconBg="bg-amber-100"
+            iconColor="text-amber-600"
+            sub="Cần thanh toán qua ngân hàng"
+          />
+          <StatCard
+            title="Phòng thuê của tôi"
+            value={myRoom}
+            icon={Building2}
+            iconBg="bg-emerald-100"
+            iconColor="text-emerald-600"
+            sub="Trạng thái: Đang ở"
+          />
+        </div>
+
+        {/* Main layout */}
+        <div className="grid gap-6 lg:grid-cols-3">
+          {/* Unpaid invoices / Invoice History */}
+          <div className="lg:col-span-2 rounded-2xl bg-white border border-slate-100 shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <h2 className="font-semibold text-brand-ink">Hóa đơn của tôi</h2>
+              <Link
+                to="/invoices"
+                className="text-sm text-brand-deep font-medium flex items-center gap-1 hover:underline"
+              >
+                Tất cả hóa đơn <ChevronRight size={14} />
+              </Link>
+            </div>
+            <div className="p-6">
+              {tenantInvoices.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 text-center text-slate-500">
+                  <CheckCircle2 size={32} className="text-emerald-400 mb-2" />
+                  <p className="text-sm font-medium">Bạn chưa có hóa đơn nào</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {tenantInvoices.slice(0, 5).map((inv) => {
+                    const remainingDebt = inv.totalAmount - (inv.paidAmount || 0);
+                    return (
+                      <div
+                        key={inv.id}
+                        className="flex items-center justify-between p-4 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-bold text-slate-800">Kỳ {inv.billingMonth}</span>
+                            {inv.status === "PAID" ? (
+                              <span className="text-xs bg-emerald-100 text-emerald-700 px-2.5 py-0.5 rounded-full font-medium">Đã đóng</span>
+                            ) : inv.status === "PARTIAL" ? (
+                              <span className="text-xs bg-amber-100 text-amber-700 px-2.5 py-0.5 rounded-full font-medium font-mono">Đóng một phần</span>
+                            ) : (
+                              <span className="text-xs bg-red-100 text-red-700 px-2.5 py-0.5 rounded-full font-medium">Chưa thanh toán</span>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-400">
+                            Loại: {inv.invoiceType === "MONTHLY" ? "Tiền nhà hàng tháng" : "Chi phí khác"}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <p className="text-sm font-extrabold text-slate-800">{formatCurrency(inv.totalAmount)}</p>
+                            {remainingDebt > 0 && remainingDebt !== inv.totalAmount && (
+                              <p className="text-xs text-rose-500 font-medium">Còn nợ: {formatCurrency(remainingDebt)}</p>
+                            )}
+                          </div>
+                          {inv.status !== "PAID" && (
+                            <Button
+                              size="sm"
+                              className="bg-brand-deep hover:bg-brand-deep/90 text-white font-medium"
+                              onClick={() => setPaymentInvoice(inv)}
+                            >
+                              Thanh toán
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Quick manual payment info */}
+          <div className="rounded-2xl bg-white border border-slate-100 shadow-sm overflow-hidden p-6 space-y-4">
+            <h3 className="font-bold text-brand-ink border-b border-slate-100 pb-3 flex items-center gap-2">
+              <CreditCard size={18} className="text-brand-deep" />
+              Thông tin chuyển khoản
+            </h3>
+            <div className="space-y-3 text-sm">
+              <div className="bg-slate-50 p-4 rounded-xl space-y-3 border border-slate-150">
+                <div>
+                  <span className="text-xs text-slate-400 block">Ngân hàng</span>
+                  <span className="font-bold text-slate-800 text-sm">MB Bank</span>
+                </div>
+                <div>
+                  <span className="text-xs text-slate-400 block">Số tài khoản</span>
+                  <span className="font-mono font-bold text-brand-deep text-base">1903 0456 7899</span>
+                </div>
+                <div>
+                  <span className="text-xs text-slate-400 block">Chủ tài khoản</span>
+                  <span className="font-bold text-slate-850 uppercase">NGUYEN TRAN PHUONG (CHU TRO)</span>
+                </div>
+              </div>
+              <div className="text-xs text-slate-500 leading-relaxed bg-amber-50 border border-amber-100 rounded-xl p-3">
+                ⚠️ <strong>Lưu ý:</strong> Khi chuyển khoản qua ứng dụng, quý khách vui lòng nhập đúng nội dung chuyển khoản theo định dạng <strong>SMARTBOARDING HD[Mã hóa đơn]</strong> để hệ thống tự động ghi nhận và duyệt hóa đơn cho bạn nhanh chóng nhất.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {paymentInvoice && (
+          <PaymentModal
+            isOpen={!!paymentInvoice}
+            onClose={() => setPaymentInvoice(null)}
+            invoiceId={paymentInvoice.id}
+            totalDebt={paymentInvoice.totalAmount - (paymentInvoice.paidAmount || 0)}
+            onSuccess={() => {
+              setPaymentInvoice(null);
+              fetchData();
+            }}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // ==================== MANAGER VIEW ====================
   const collectionRate = data && data.expectedRevenue > 0
     ? Math.round((data.collectedRevenue / data.expectedRevenue) * 100)
     : 0;
