@@ -38,3 +38,8 @@ app:
     cloud-name: ${CLOUDINARY_CLOUD_NAME:test}
     api-key: ${CLOUDINARY_API_KEY:test}
     api-secret: ${CLOUDINARY_API_SECRET:test}
+  ocr:
+    provider: ${OCR_PROVIDER:GEMINI}
+  gemini:
+    api-key: ${GEMINI_API_KEY:}
+    model: ${GEMINI_MODEL:gemini-3.5-flash}

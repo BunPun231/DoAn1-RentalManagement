@@ -99,7 +99,7 @@ public class MeterReadingService {
     public MeterReadingResult submitWithOcr(MeterReadingOcrCommand command) {
         resolveActiveServiceUsageId(command.roomId(), command.serviceId());
 
-        // UC71 - Just return suggested result, do not save
+        // UC71 - Just return suggested result, do not save and do not upload to Cloudinary at this step
         OcrResult ocrResult = ocrPort.extractReading(command.imageBytes(), command.mimeType());
         
         if (ocrResult == null || ocrResult.extractedValue() == null) {
@@ -107,11 +107,6 @@ public class MeterReadingService {
         }
 
         String imageUrl = null;
-        try {
-            imageUrl = cloudinaryService.uploadImage(command.imageBytes(), "meter_readings");
-        } catch (java.io.IOException e) {
-            throw BaseException.badRequest("Failed to upload image: " + e.getMessage());
-        }
 
         // Fake old reading for suggestion
         BigDecimal oldReading = BigDecimal.ZERO; 

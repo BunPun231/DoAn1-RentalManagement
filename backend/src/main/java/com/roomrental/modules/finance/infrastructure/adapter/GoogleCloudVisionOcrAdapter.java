@@ -4,6 +4,7 @@ import com.google.cloud.vision.v1.*;
 import com.google.protobuf.ByteString;
 import com.roomrental.modules.finance.domain.port.OcrPort;
 import com.roomrental.modules.finance.domain.port.OcrResult;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -13,6 +14,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Component
+@ConditionalOnProperty(name = "app.ocr.provider", havingValue = "GOOGLE_VISION")
 public class GoogleCloudVisionOcrAdapter implements OcrPort {
 
     @Override
