@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/rental_management}
+    url: ${DB_URL:jdbc:postgresql://localhost:15432/rental_management}
     username: ${DB_USERNAME:rental_dev}
     password: ${DB_PASSWORD:rental_dev_pass}
     hikari:
@@ -21,7 +21,7 @@ spring:
   data:
     redis:
       host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
+      port: ${REDIS_PORT:16379}
 
 logging:
   level:

@@ -27,7 +27,7 @@ COMMENT ON COLUMN tenants.owner_user_id IS 'User (role=MANAGER) sở hữu tenan
 -- 2. subscription_plans
 -- ------------------------------------------------------------------
 CREATE TABLE subscription_plans (
-    id                SERIAL PRIMARY KEY,
+    id                BIGSERIAL PRIMARY KEY,
     name              VARCHAR(100) NOT NULL UNIQUE,
     price_per_month   DECIMAL(12,2) NOT NULL,
     max_motels        INT NOT NULL,
@@ -44,9 +44,9 @@ COMMENT ON TABLE subscription_plans IS 'Các gói dịch vụ SaaS (Cơ bản, N
 -- 3. tenant_subscriptions
 -- ------------------------------------------------------------------
 CREATE TABLE tenant_subscriptions (
-    id          SERIAL PRIMARY KEY,
+    id          BIGSERIAL PRIMARY KEY,
     tenant_id   UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    plan_id     INT NOT NULL REFERENCES subscription_plans(id),
+    plan_id     BIGINT NOT NULL REFERENCES subscription_plans(id),
     start_date  DATE NOT NULL,
     end_date    DATE NOT NULL,
     status      VARCHAR(20) NOT NULL
@@ -109,9 +109,9 @@ COMMENT ON TABLE resident_profiles IS 'Hồ sơ định danh mở rộng cho ng�
 -- ------------------------------------------------------------------
 CREATE TABLE technician_profiles (
     user_id             UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-    expertise           TEXT[],
+    expertise           TEXT,
     is_available        BOOLEAN NOT NULL DEFAULT TRUE,
-    assigned_motel_ids  INTEGER[],
+    assigned_motel_ids  TEXT,
     created_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at          TIMESTAMP
 );
@@ -120,7 +120,7 @@ CREATE TABLE technician_profiles (
 -- 8. profile_change_requests (yêu cầu sửa hồ sơ của resident)
 -- ------------------------------------------------------------------
 CREATE TABLE profile_change_requests (
-    id               SERIAL PRIMARY KEY,
+    id               BIGSERIAL PRIMARY KEY,
     resident_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     new_full_name    VARCHAR(255),
     new_id_card      VARCHAR(20),
@@ -137,7 +137,7 @@ CREATE TABLE profile_change_requests (
 -- 9. motels
 -- ------------------------------------------------------------------
 CREATE TABLE motels (
-    id           SERIAL PRIMARY KEY,
+    id           BIGSERIAL PRIMARY KEY,
     tenant_id    UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
     name         VARCHAR(255) NOT NULL,
     address      TEXT NOT NULL,
@@ -154,8 +154,8 @@ COMMENT ON TABLE motels IS 'Khu trọ / Tòa nhà cho thuê';
 -- 10. rooms
 -- ------------------------------------------------------------------
 CREATE TABLE rooms (
-    id                     SERIAL PRIMARY KEY,
-    motel_id               INT NOT NULL REFERENCES motels(id) ON DELETE CASCADE,
+    id                     BIGSERIAL PRIMARY KEY,
+    motel_id               BIGINT NOT NULL REFERENCES motels(id) ON DELETE CASCADE,
     room_number            VARCHAR(20) NOT NULL,
     floor                  INT NOT NULL,
     area                   DECIMAL(10,2),
@@ -174,8 +174,8 @@ CREATE TABLE rooms (
 -- 11. services
 -- ------------------------------------------------------------------
 CREATE TABLE services (
-    id           SERIAL PRIMARY KEY,
-    motel_id     INT NOT NULL REFERENCES motels(id) ON DELETE CASCADE,
+    id           BIGSERIAL PRIMARY KEY,
+    motel_id     BIGINT NOT NULL REFERENCES motels(id) ON DELETE CASCADE,
     name         VARCHAR(100) NOT NULL,
     charge_type  VARCHAR(20) NOT NULL
                  CHECK (charge_type IN ('FIXED','PER_PERSON','PER_INDEX','PER_QUANTITY')),
@@ -191,8 +191,8 @@ CREATE TABLE services (
 -- 12. service_pricing
 -- ------------------------------------------------------------------
 CREATE TABLE service_pricing (
-    id             SERIAL PRIMARY KEY,
-    service_id     INT NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+    id             BIGSERIAL PRIMARY KEY,
+    service_id     BIGINT NOT NULL REFERENCES services(id) ON DELETE CASCADE,
     effective_from DATE NOT NULL,
     effective_to   DATE,
     base_price     DECIMAL(12,2),
@@ -203,8 +203,8 @@ CREATE TABLE service_pricing (
 -- 13. service_tier_pricing
 -- ------------------------------------------------------------------
 CREATE TABLE service_tier_pricing (
-    id             SERIAL PRIMARY KEY,
-    pricing_id     INT NOT NULL REFERENCES service_pricing(id) ON DELETE CASCADE,
+    id             BIGSERIAL PRIMARY KEY,
+    pricing_id     BIGINT NOT NULL REFERENCES service_pricing(id) ON DELETE CASCADE,
     tier_start     DECIMAL(12,2) NOT NULL,
     tier_end       DECIMAL(12,2),
     price_per_unit DECIMAL(12,2) NOT NULL,
@@ -216,9 +216,9 @@ CREATE TABLE service_tier_pricing (
 -- 14. service_usages
 -- ------------------------------------------------------------------
 CREATE TABLE service_usages (
-    id                  SERIAL PRIMARY KEY,
-    room_id             INT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
-    service_id          INT NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+    id                  BIGSERIAL PRIMARY KEY,
+    room_id             BIGINT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+    service_id          BIGINT NOT NULL REFERENCES services(id) ON DELETE CASCADE,
     registered_quantity INT NOT NULL DEFAULT 1,
     start_index         DECIMAL(12,2),
     status              VARCHAR(20) NOT NULL DEFAULT 'ACTIVE'
@@ -231,8 +231,8 @@ CREATE TABLE service_usages (
 -- 15. devices
 -- ------------------------------------------------------------------
 CREATE TABLE devices (
-    id             SERIAL PRIMARY KEY,
-    motel_id       INT NOT NULL REFERENCES motels(id) ON DELETE CASCADE,
+    id             BIGSERIAL PRIMARY KEY,
+    motel_id       BIGINT NOT NULL REFERENCES motels(id) ON DELETE CASCADE,
     name           VARCHAR(255) NOT NULL,
     brand          VARCHAR(100),
     purchase_price DECIMAL(12,2),
@@ -248,9 +248,9 @@ CREATE TABLE devices (
 -- 16. device_usages
 -- ------------------------------------------------------------------
 CREATE TABLE device_usages (
-    id                 SERIAL PRIMARY KEY,
-    device_id          INT NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
-    room_id            INT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+    id                 BIGSERIAL PRIMARY KEY,
+    device_id          BIGINT NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+    room_id            BIGINT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
     assigned_quantity  INT NOT NULL DEFAULT 1,
     condition          VARCHAR(20) NOT NULL CHECK (condition IN ('NEW','GOOD','BROKEN')),
     assigned_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -261,10 +261,10 @@ CREATE TABLE device_usages (
 -- 17. device_movement_logs
 -- ------------------------------------------------------------------
 CREATE TABLE device_movement_logs (
-    id           SERIAL PRIMARY KEY,
-    device_id    INT NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
-    from_room_id INT REFERENCES rooms(id),
-    to_room_id   INT REFERENCES rooms(id),
+    id           BIGSERIAL PRIMARY KEY,
+    device_id    BIGINT NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+    from_room_id BIGINT REFERENCES rooms(id),
+    to_room_id   BIGINT REFERENCES rooms(id),
     action       VARCHAR(20) NOT NULL CHECK (action IN ('ASSIGN','RECALL')),
     changed_by   UUID NOT NULL REFERENCES users(id),
     timestamp    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -275,8 +275,8 @@ CREATE TABLE device_movement_logs (
 -- 18. contracts
 -- ------------------------------------------------------------------
 CREATE TABLE contracts (
-    id                      SERIAL PRIMARY KEY,
-    room_id                 INT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+    id                      BIGSERIAL PRIMARY KEY,
+    room_id                 BIGINT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
     primary_resident_user_id UUID NOT NULL REFERENCES users(id),
     start_date              DATE NOT NULL,
     end_date                DATE NOT NULL,
@@ -296,7 +296,7 @@ CREATE TABLE contracts (
 -- 19. contract_residents (thay cho contract_tenants)
 -- ------------------------------------------------------------------
 CREATE TABLE contract_residents (
-    contract_id     INT NOT NULL REFERENCES contracts(id) ON DELETE CASCADE,
+    contract_id     BIGINT NOT NULL REFERENCES contracts(id) ON DELETE CASCADE,
     resident_user_id UUID NOT NULL REFERENCES users(id),
     is_active       BOOLEAN NOT NULL DEFAULT TRUE,
     joined_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -308,8 +308,8 @@ CREATE TABLE contract_residents (
 -- 20. contract_appendixes
 -- ------------------------------------------------------------------
 CREATE TABLE contract_appendixes (
-    id                SERIAL PRIMARY KEY,
-    contract_id       INT NOT NULL REFERENCES contracts(id) ON DELETE CASCADE,
+    id                BIGSERIAL PRIMARY KEY,
+    contract_id       BIGINT NOT NULL REFERENCES contracts(id) ON DELETE CASCADE,
     effective_date    DATE NOT NULL,
     new_base_price    DECIMAL(12,2),
     new_service_prices JSONB,
@@ -323,8 +323,8 @@ CREATE TABLE contract_appendixes (
 -- 21. meter_readings
 -- ------------------------------------------------------------------
 CREATE TABLE meter_readings (
-    id                 SERIAL PRIMARY KEY,
-    service_usage_id   INT NOT NULL REFERENCES service_usages(id) ON DELETE CASCADE,
+    id                 BIGSERIAL PRIMARY KEY,
+    service_usage_id   BIGINT NOT NULL REFERENCES service_usages(id) ON DELETE CASCADE,
     billing_month      DATE NOT NULL,
     old_reading        DECIMAL(12,2) NOT NULL,
     new_reading        DECIMAL(12,2) NOT NULL,
@@ -343,8 +343,8 @@ CREATE TABLE meter_readings (
 -- 22. invoices
 -- ------------------------------------------------------------------
 CREATE TABLE invoices (
-    id            SERIAL PRIMARY KEY,
-    contract_id   INT NOT NULL REFERENCES contracts(id) ON DELETE CASCADE,
+    id            BIGSERIAL PRIMARY KEY,
+    contract_id   BIGINT NOT NULL REFERENCES contracts(id) ON DELETE CASCADE,
     billing_month DATE NOT NULL,
     total_amount  DECIMAL(12,2) NOT NULL,
     paid_amount   DECIMAL(12,2) NOT NULL DEFAULT 0,
@@ -359,21 +359,21 @@ CREATE TABLE invoices (
 -- 23. invoice_details
 -- ------------------------------------------------------------------
 CREATE TABLE invoice_details (
-    id          SERIAL PRIMARY KEY,
-    invoice_id  INT NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
+    id          BIGSERIAL PRIMARY KEY,
+    invoice_id  BIGINT NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
     description VARCHAR(255) NOT NULL,
     quantity    DECIMAL(12,2) NOT NULL,
     unit_price  DECIMAL(12,2) NOT NULL,
     line_total  DECIMAL(12,2) GENERATED ALWAYS AS (quantity * unit_price) STORED,
-    service_id  INT REFERENCES services(id)
+    service_id  BIGINT REFERENCES services(id)
 );
 
 -- ------------------------------------------------------------------
 -- 24. transactions
 -- ------------------------------------------------------------------
 CREATE TABLE transactions (
-    id                SERIAL PRIMARY KEY,
-    invoice_id        INT NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
+    id                BIGSERIAL PRIMARY KEY,
+    invoice_id        BIGINT NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
     amount            DECIMAL(12,2) NOT NULL,
     transaction_ref   VARCHAR(100) UNIQUE,
     payment_method    VARCHAR(20) NOT NULL CHECK (payment_method IN ('VIETQR','CASH','BANK_TRANSFER')),
@@ -398,8 +398,8 @@ COMMENT ON TABLE resident_balances IS 'Số dư tài khoản của người thu�
 -- 26. maintenance_tickets
 -- ------------------------------------------------------------------
 CREATE TABLE maintenance_tickets (
-    id            SERIAL PRIMARY KEY,
-    room_id       INT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+    id            BIGSERIAL PRIMARY KEY,
+    room_id       BIGINT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
     reported_by   UUID NOT NULL REFERENCES users(id),
     assigned_to   UUID REFERENCES users(id),
     category      VARCHAR(50) NOT NULL,
@@ -418,9 +418,9 @@ CREATE TABLE maintenance_tickets (
 -- 27. maintenance_details
 -- ------------------------------------------------------------------
 CREATE TABLE maintenance_details (
-    id                  SERIAL PRIMARY KEY,
-    ticket_id           INT NOT NULL REFERENCES maintenance_tickets(id) ON DELETE CASCADE,
-    device_id           INT NOT NULL REFERENCES devices(id),
+    id                  BIGSERIAL PRIMARY KEY,
+    ticket_id           BIGINT NOT NULL REFERENCES maintenance_tickets(id) ON DELETE CASCADE,
+    device_id           BIGINT NOT NULL REFERENCES devices(id),
     quantity_used       INT NOT NULL,
     unit_price_snapshot DECIMAL(12,2) NOT NULL,
     after_images        TEXT[],
