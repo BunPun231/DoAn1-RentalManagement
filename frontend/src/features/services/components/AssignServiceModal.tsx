@@ -31,7 +31,7 @@ export function AssignServiceModal({ isOpen, onClose, motelId, service }: Assign
             const assignments = await Promise.all(
               res.content.map(async (room) => {
                 try {
-                  const svcs = await serviceService.listByRoom(motelId, room.hashid || room.id);
+                  const svcs = await serviceService.listByRoom(motelId, room.hashid);
                   const isAssigned = svcs.some((s) => s.id === service.id);
                   return { roomId: room.id, isAssigned };
                 } catch {

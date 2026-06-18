@@ -22,6 +22,8 @@ public record ContractCreateCommand(
         BigDecimal depositAmount,
         String depositStatus,
         LocalDate billingDate,
+        Integer billingCycleDay,
+        Integer paymentCycleMonths,
         List<String> residentUserIds,
         List<ContractServiceItemCommand> serviceItems
 ) {

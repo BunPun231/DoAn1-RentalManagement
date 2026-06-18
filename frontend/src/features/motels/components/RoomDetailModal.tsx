@@ -29,7 +29,7 @@ export function RoomDetailModal({ isOpen, onClose, room, onSuccess }: RoomDetail
 
   const handleUpdateStatus = async (newStatus: string) => {
     try {
-      await roomService.updateStatus(room.motelId, room.hashid || room.id, { status: newStatus });
+      await roomService.updateStatus(room.motelId, room.hashid, { status: newStatus });
       setStatus(newStatus as any);
       onSuccess?.();
     } catch (err) {
@@ -43,7 +43,7 @@ export function RoomDetailModal({ isOpen, onClose, room, onSuccess }: RoomDetail
     setLoading(true);
     setError("");
     try {
-      await roomService.update(room.motelId, room.hashid || room.id, {
+      await roomService.update(room.motelId, room.hashid, {
         roomNumber: roomNumber.trim(),
         floor: parseInt(floor, 10),
         area: area ? parseFloat(area) : undefined,
@@ -62,7 +62,7 @@ export function RoomDetailModal({ isOpen, onClose, room, onSuccess }: RoomDetail
   const handleDelete = async () => {
     if (!confirm(`Xóa phòng ${room.roomNumber}? Thao tác này không thể hoàn tác.`)) return;
     try {
-      await roomService.delete(room.motelId, room.hashid || room.id);
+      await roomService.delete(room.motelId, room.hashid);
       onClose();
       onSuccess?.();
     } catch (err) {

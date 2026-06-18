@@ -158,7 +158,28 @@ public class ContractService {
         contract.setDepositAmount(command.depositAmount());
         contract.setDepositStatus(depositStatus);
         contract.setStatus(depositPaid ? Contract.ContractStatus.ACTIVE : Contract.ContractStatus.DRAFT);
-        contract.setBillingDate(command.billingDate());
+        
+        contract.setBillingCycleDay(command.billingCycleDay() != null ? command.billingCycleDay() : 31);
+        contract.setPaymentCycleMonths(command.paymentCycleMonths() != null ? command.paymentCycleMonths() : 1);
+        
+        LocalDate billingDate = command.billingDate();
+        if (billingDate == null) {
+            LocalDate start = command.startDate();
+            int cycleDay = contract.getBillingCycleDay();
+            if (cycleDay == 31) {
+                billingDate = start.withDayOfMonth(start.lengthOfMonth());
+            } else {
+                int day = Math.min(cycleDay, start.lengthOfMonth());
+                if (start.getDayOfMonth() <= day) {
+                    billingDate = start.withDayOfMonth(day);
+                } else {
+                    LocalDate nextMonth = start.plusMonths(1);
+                    int nextDay = Math.min(cycleDay, nextMonth.lengthOfMonth());
+                    billingDate = nextMonth.withDayOfMonth(nextDay);
+                }
+            }
+        }
+        contract.setBillingDate(billingDate);
         contract.setCreatedAt(LocalDateTime.now());
         contract.setCreatedBy(currentUserId);
 
@@ -279,6 +300,8 @@ public class ContractService {
                 contract.getDepositStatus().toString(),
                 contract.getStatus().toString(),
                 contract.getBillingDate(),
+                contract.getBillingCycleDay(),
+                contract.getPaymentCycleMonths(),
                 contract.getIntendedMoveOutDate(),
                 contract.getPdfUrl(),
                 contract.getCreatedAt(),
@@ -759,6 +782,8 @@ public class ContractService {
                 contract.getDepositStatus().toString(),
                 contract.getStatus().toString(),
                 contract.getBillingDate(),
+                contract.getBillingCycleDay(),
+                contract.getPaymentCycleMonths(),
                 contract.getIntendedMoveOutDate(),
                 contract.getPdfUrl(),
                 contract.getCreatedAt(),

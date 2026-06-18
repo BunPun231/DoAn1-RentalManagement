@@ -24,6 +24,8 @@ public class Contract {
     private DepositStatus depositStatus;
     private ContractStatus status;
     private LocalDate billingDate;
+    private Integer billingCycleDay;
+    private Integer paymentCycleMonths;
     private LocalDate intendedMoveOutDate;
     private String pdfUrl;
     private String cancelReason;
@@ -163,6 +165,22 @@ public class Contract {
 
     public void setBillingDate(LocalDate billingDate) {
         this.billingDate = billingDate;
+    }
+
+    public Integer getBillingCycleDay() {
+        return billingCycleDay;
+    }
+
+    public void setBillingCycleDay(Integer billingCycleDay) {
+        this.billingCycleDay = billingCycleDay;
+    }
+
+    public Integer getPaymentCycleMonths() {
+        return paymentCycleMonths;
+    }
+
+    public void setPaymentCycleMonths(Integer paymentCycleMonths) {
+        this.paymentCycleMonths = paymentCycleMonths;
     }
 
     public LocalDate getIntendedMoveOutDate() {

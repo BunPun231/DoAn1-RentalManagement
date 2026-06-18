@@ -21,6 +21,7 @@ function SubmitReadingModal({
   isOpen,
   onClose,
   roomId,
+  roomNumber,
   serviceId,
   serviceName,
   billingMonth,
@@ -30,6 +31,7 @@ function SubmitReadingModal({
   isOpen: boolean;
   onClose: () => void;
   roomId: number;
+  roomNumber: string;
   serviceId: number;
   serviceName: string;
   billingMonth: string;
@@ -57,7 +59,7 @@ function SubmitReadingModal({
     if (!readingImageUrl) return;
     setOcrLoading(true);
     setError("");
-    
+
     const match = readingImageUrl.match(/^data:(image\/[a-zA-Z+.-]+);base64,(.+)$/);
     if (!match) {
       setError("Định dạng ảnh không hợp lệ");
@@ -123,7 +125,7 @@ function SubmitReadingModal({
     "w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-deep/30 focus:border-brand-deep transition-all";
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`Ghi chỉ số ${serviceName} - Phòng P.${roomId}`} size="lg">
+    <Modal isOpen={isOpen} onClose={onClose} title={`Ghi chỉ số ${serviceName} - Phòng P.${roomNumber}`} size="lg">
       <form onSubmit={handleSubmit} className="space-y-5">
         {error && (
           <div className="rounded-xl bg-red-50 border border-red-100 p-3 text-sm text-red-700">{error}</div>
@@ -216,6 +218,148 @@ function SubmitReadingModal({
   );
 }
 
+interface TinderPendingItem {
+  roomId: number;
+  roomNumber: string;
+  serviceId: number;
+  serviceName: string;
+  oldReading: number;
+  currentReading: MeterReadingResult;
+}
+
+function TinderReviewModal({
+  isOpen,
+  onClose,
+  pendingReadings,
+  onApprove,
+  onReject,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  pendingReadings: TinderPendingItem[];
+  onApprove: (readingId: number) => Promise<void>;
+  onReject: (readingId: number) => Promise<void>;
+}) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  // Reset index when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setCurrentIndex(0);
+    }
+  }, [isOpen]);
+
+  const currentItem = pendingReadings[currentIndex];
+
+  const handleApprove = useCallback(async () => {
+    if (!currentItem) return;
+    await onApprove(currentItem.currentReading.id);
+    setCurrentIndex(prev => prev + 1);
+  }, [currentItem, onApprove]);
+
+  const handleReject = useCallback(async () => {
+    if (!currentItem) return;
+    await onReject(currentItem.currentReading.id);
+    setCurrentIndex(prev => prev + 1);
+  }, [currentItem, onReject]);
+
+  // Keyboard listeners
+  useEffect(() => {
+    if (!isOpen || !currentItem) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        handleReject();
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        handleApprove();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, currentItem, handleApprove, handleReject]);
+
+  if (!isOpen) return null;
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Duyệt nhanh chỉ số" size="md">
+      {!currentItem ? (
+        <div className="flex flex-col items-center justify-center p-8 text-center space-y-4">
+          <CheckCircle2 size={48} className="text-emerald-500 animate-bounce" />
+          <h4 className="text-lg font-bold text-slate-700">Đã hoàn thành!</h4>
+          <p className="text-sm text-slate-500">Không còn chỉ số nào cần duyệt trong danh sách.</p>
+          <Button onClick={onClose} className="mt-2">Đóng</Button>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          <div className="text-center">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              Mục {currentIndex + 1} / {pendingReadings.length}
+            </span>
+            <h3 className="text-xl font-bold text-brand-ink mt-1">
+              Phòng P.{currentItem.roomNumber} - {currentItem.serviceName}
+            </h3>
+            <p className="text-sm text-slate-500">Kỳ thanh toán: {currentItem.currentReading.billingMonth.slice(0, 7)}</p>
+          </div>
+
+          {currentItem.currentReading.imageUrl ? (
+            <div className="flex justify-center bg-slate-50 rounded-xl p-2 border border-slate-200">
+              <img
+                src={currentItem.currentReading.imageUrl}
+                alt="Minh chứng"
+                className="max-h-60 w-auto rounded-lg object-contain"
+              />
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center bg-slate-50 rounded-xl p-8 border border-slate-200 text-slate-400">
+              <Camera size={40} className="mb-2" />
+              <p className="text-sm">Không có ảnh minh chứng</p>
+            </div>
+          )}
+
+          <div className="grid grid-cols-3 gap-2 text-center bg-brand-deep/5 rounded-xl p-3 border border-brand-deep/10">
+            <div>
+              <p className="text-xs text-slate-500">Đầu kỳ</p>
+              <p className="text-lg font-bold text-slate-700">{currentItem.oldReading}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500">Cuối kỳ</p>
+              <p className="text-lg font-bold text-slate-700">{currentItem.currentReading.newReading ?? "-"}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500">Tiêu thụ</p>
+              <p className="text-lg font-bold text-emerald-600">
+                {currentItem.currentReading.consumption != null ? currentItem.currentReading.consumption : "-"}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex justify-between items-center gap-4 pt-2">
+            <Button
+              variant="outline"
+              className="flex-1 text-red-600 border-red-200 hover:bg-red-50 py-3 h-auto font-bold rounded-xl"
+              onClick={handleReject}
+            >
+              ← Từ chối (Trái)
+            </Button>
+            <Button
+              className="flex-1 bg-emerald-600 hover:bg-emerald-700 py-3 h-auto font-bold rounded-xl"
+              onClick={handleApprove}
+            >
+              Duyệt (Phải) →
+            </Button>
+          </div>
+          <div className="text-[10px] text-center text-slate-400">
+            * Nhấn phím Mũi tên Trái để Từ chối hoặc Mũi tên Phải để Duyệt.
+          </div>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
 export function MeterReadingPage() {
   const { user } = useAuthStore();
   const isManager = user?.role === "ADMIN" || user?.role === "MANAGER";
@@ -223,15 +367,17 @@ export function MeterReadingPage() {
   const [motels, setMotels] = useState<MotelResult[]>([]);
   const [selectedMotelId, setSelectedMotelId] = useState<number | null>(null);
   const [billingMonth, setBillingMonth] = useState(new Date().toISOString().slice(0, 7));
-  
+
   const [rooms, setRooms] = useState<RoomResult[]>([]);
   const [services, setServices] = useState<ServiceResult[]>([]);
   const [readings, setReadings] = useState<MeterReadingResult[]>([]);
-  
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
-  const [submittingData, setSubmittingData] = useState<{ roomId: number, serviceId: number, serviceName: string, oldReading: number } | null>(null);
+
+  const [submittingData, setSubmittingData] = useState<{ roomId: number, roomNumber: string, serviceId: number, serviceName: string, oldReading: number } | null>(null);
+  const [tinderOpen, setTinderOpen] = useState(false);
+  const [bulkLoading, setBulkLoading] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   // Fetch motels
@@ -275,28 +421,28 @@ export function MeterReadingPage() {
   const tableData = useMemo(() => {
     const data = [];
     const targetMonth = billingMonth + "-01";
-    
+
     for (const room of rooms) {
       // Only skip empty, available or out of business rooms
       if (room.status === "EMPTY" || room.status === "AVAILABLE" || room.status === "OUT_OF_BUSINESS") continue;
-      
+
       for (const service of services) {
         // Find existing reading for this month
-        const currentReading = readings.find(r => 
-          r.roomId === room.id && 
-          r.serviceId === service.id && 
+        const currentReading = readings.find(r =>
+          r.roomId === room.id &&
+          r.serviceId === service.id &&
           r.billingMonth === targetMonth
         );
-        
+
         // Calculate old reading by finding the latest APPROVED reading before this month
         let oldReading = 0;
-        const pastReadings = readings.filter(r => 
-          r.roomId === room.id && 
-          r.serviceId === service.id && 
+        const pastReadings = readings.filter(r =>
+          r.roomId === room.id &&
+          r.serviceId === service.id &&
           r.status === "APPROVED" &&
           new Date(r.billingMonth) < new Date(targetMonth)
         ).sort((a, b) => new Date(b.billingMonth).getTime() - new Date(a.billingMonth).getTime());
-        
+
         if (pastReadings.length > 0) {
           oldReading = pastReadings[0].newReading || 0;
         }
@@ -315,6 +461,33 @@ export function MeterReadingPage() {
   }, [rooms, services, readings, billingMonth]);
 
   const pendingCount = tableData.filter(d => !d.currentReading || d.currentReading.status === "PENDING" || d.currentReading.status === "SUBMITTED").length;
+
+  const pendingReadings = useMemo(() => {
+    return tableData.filter(d => d.currentReading && (d.currentReading.status === "PENDING" || d.currentReading.status === "SUBMITTED")) as Array<{
+      roomId: number;
+      roomNumber: string;
+      serviceId: number;
+      serviceName: string;
+      oldReading: number;
+      currentReading: MeterReadingResult;
+    }>;
+  }, [tableData]);
+
+  const handleBulkApprove = async () => {
+    if (pendingReadings.length === 0) return;
+    if (!confirm(`Bạn có chắc chắn muốn duyệt tất cả ${pendingReadings.length} chỉ số đang chờ duyệt?`)) return;
+    setBulkLoading(true);
+    try {
+      const ids = pendingReadings.map(d => d.currentReading.id);
+      await meterReadingService.bulkApprove(ids);
+      fetchData();
+      alert("Đã duyệt tất cả chỉ số thành công!");
+    } catch (err) {
+      alert(extractError(err));
+    } finally {
+      setBulkLoading(false);
+    }
+  };
 
   const handleApprove = async (readingId: number) => {
     try {
@@ -336,6 +509,28 @@ export function MeterReadingPage() {
     }
   };
 
+  const handleApproveAsync = async (readingId: number) => {
+    try {
+      await meterReadingService.approve(readingId);
+      await fetchData();
+    } catch (err) {
+      alert(extractError(err));
+      throw err;
+    }
+  };
+
+  const handleRejectAsync = async (readingId: number) => {
+    const reason = prompt("Lý do từ chối:");
+    if (!reason) return;
+    try {
+      await meterReadingService.reject(readingId, reason);
+      await fetchData();
+    } catch (err) {
+      alert(extractError(err));
+      throw err;
+    }
+  };
+
   const selectClass = "h-10 rounded-xl border border-slate-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-deep/20 bg-white";
 
   return (
@@ -352,7 +547,7 @@ export function MeterReadingPage() {
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <select
               id="meter-motel"
               value={selectedMotelId ?? ""}
@@ -370,6 +565,24 @@ export function MeterReadingPage() {
               onChange={(e) => setBillingMonth(e.target.value)}
               className={selectClass}
             />
+            {isManager && pendingReadings.length > 0 && (
+              <>
+                <Button
+                  variant="outline"
+                  className="text-brand-deep border-brand-deep hover:bg-brand-deep/5"
+                  onClick={() => setTinderOpen(true)}
+                >
+                  ⚡ Duyệt nhanh
+                </Button>
+                <Button
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                  onClick={handleBulkApprove}
+                  disabled={bulkLoading}
+                >
+                  Duyệt tất cả ({pendingReadings.length})
+                </Button>
+              </>
+            )}
           </div>
           {pendingCount > 0 && (
             <div className="flex items-center gap-2 text-sm text-amber-600 font-medium bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-100">
@@ -424,7 +637,7 @@ export function MeterReadingPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        {row.currentReading 
+                        {row.currentReading
                           ? (STATUS_BADGE[row.currentReading.status] ?? <Badge>{row.currentReading.status}</Badge>)
                           : <Badge variant="default" className="bg-slate-100 text-slate-500 border-slate-200">Chưa ghi</Badge>
                         }
@@ -443,11 +656,12 @@ export function MeterReadingPage() {
                         {!row.currentReading && (
                           <Button
                             size="sm"
-                            onClick={() => setSubmittingData({ 
-                              roomId: row.roomId, 
-                              serviceId: row.serviceId, 
-                              serviceName: row.serviceName, 
-                              oldReading: row.oldReading 
+                            onClick={() => setSubmittingData({
+                              roomId: row.roomId,
+                              roomNumber: row.roomNumber,
+                              serviceId: row.serviceId,
+                              serviceName: row.serviceName,
+                              oldReading: row.oldReading
                             })}
                           >
                             <Gauge size={14} className="mr-1.5" />
@@ -490,6 +704,7 @@ export function MeterReadingPage() {
         isOpen={!!submittingData}
         onClose={() => setSubmittingData(null)}
         roomId={submittingData?.roomId || 0}
+        roomNumber={submittingData?.roomNumber || ""}
         serviceId={submittingData?.serviceId || 0}
         serviceName={submittingData?.serviceName || ""}
         billingMonth={billingMonth}
@@ -498,6 +713,14 @@ export function MeterReadingPage() {
           setSubmittingData(null);
           fetchData();
         }}
+      />
+
+      <TinderReviewModal
+        isOpen={tinderOpen}
+        onClose={() => setTinderOpen(false)}
+        pendingReadings={pendingReadings}
+        onApprove={handleApproveAsync}
+        onReject={handleRejectAsync}
       />
 
       {lightboxImage && (

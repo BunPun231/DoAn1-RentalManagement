@@ -19,6 +19,8 @@ public record ContractResult(
         String depositStatus,
         String status,
         LocalDate billingDate,
+        Integer billingCycleDay,
+        Integer paymentCycleMonths,
         LocalDate intendedMoveOutDate,
         String pdfUrl,
         LocalDateTime createdAt,

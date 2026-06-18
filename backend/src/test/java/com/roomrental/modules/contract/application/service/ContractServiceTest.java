@@ -108,6 +108,8 @@ class ContractServiceTest {
                 new BigDecimal("5000000"),
                 "UNPAID",
                 null,
+                30,
+                1,
                 List.of(),
                 List.of()
         ));
@@ -136,14 +138,16 @@ class ContractServiceTest {
                 null,
                 null,
                 null,
-            new BigDecimal("4500000"),
+                new BigDecimal("4500000"),
                 LocalDate.of(2025, 1, 1),
                 LocalDate.of(2024, 1, 1),
                 new BigDecimal("5000000"),
-            "UNPAID",
-            null,
-            List.of(),
-            List.of()
+                "UNPAID",
+                null,
+                30,
+                1,
+                List.of(),
+                List.of()
         ))).isInstanceOf(BaseException.class);
     }
 

@@ -184,6 +184,12 @@ export const meterReadingService = {
     );
     return res.data;
   },
+
+  /** UC70: Bulk approve meter readings */
+  async bulkApprove(ids: number[]): Promise<MeterReadingResult[]> {
+    const res = await api.post<MeterReadingResult[]>("/api/v1/meter-readings/bulk-approve", ids);
+    return res.data;
+  },
 };
 
 // ============ PAYMENT APIs ============

@@ -1,7 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
-import { roomService } from "@/services/motelService";
+import { roomService, type RoomResult } from "@/services/motelService";
 import { extractError } from "@/lib/api";
 import { formatVnStyle, stripVnStyle } from "@/lib/utils";
 
@@ -26,9 +26,20 @@ export function BulkAddRoomModal({ isOpen, onClose, onSuccess, motelId }: BulkAd
   const [area, setArea] = useState("");
   const [basePrice, setBasePrice] = useState("");
   
+  const [existingRooms, setExistingRooms] = useState<RoomResult[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [progressText, setProgressText] = useState("");
   const [globalError, setGlobalError] = useState("");
+
+  useEffect(() => {
+    if (isOpen) {
+      setGlobalError("");
+      setProgressText("");
+      roomService.list(motelId)
+        .then(res => setExistingRooms(res.content))
+        .catch(err => console.error("Failed to load existing rooms for numbering sequence", err));
+    }
+  }, [isOpen, motelId]);
 
   const previewRooms = useMemo(() => {
     const list: RoomPreviewItem[] = [];
@@ -43,7 +54,24 @@ export function BulkAddRoomModal({ isOpen, onClose, onSuccess, motelId }: BulkAd
     }
 
     for (let f = start; f <= end; f++) {
-      for (let r = 1; r <= count; r++) {
+      let startSuffix = 1;
+      const floorRooms = existingRooms.filter(room => Number(room.floor) === f);
+      if (floorRooms.length > 0) {
+        const suffixes = floorRooms.map(room => {
+          const numStr = room.roomNumber.replace(/^[a-zA-Z\s]*/, ""); // strip prefix letters
+          const floorStr = f.toString();
+          if (numStr.startsWith(floorStr)) {
+            const suffixStr = numStr.slice(floorStr.length);
+            const parsed = parseInt(suffixStr, 10);
+            return isNaN(parsed) ? 0 : parsed;
+          }
+          const parsed = parseInt(numStr, 10);
+          return isNaN(parsed) ? 0 : parsed;
+        });
+        startSuffix = Math.max(...suffixes, 0) + 1;
+      }
+
+      for (let r = startSuffix; r < startSuffix + count; r++) {
         const roomNumber = `P${f}${String(r).padStart(2, "0")}`;
         list.push({
           floor: f,
@@ -54,7 +82,7 @@ export function BulkAddRoomModal({ isOpen, onClose, onSuccess, motelId }: BulkAd
       }
     }
     return list;
-  }, [fromFloor, toFloor, roomsPerFloor, area, basePrice]);
+  }, [fromFloor, toFloor, roomsPerFloor, area, basePrice, existingRooms]);
 
   const handleBulkCreate = async () => {
     setGlobalError("");

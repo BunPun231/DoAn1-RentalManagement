@@ -65,6 +65,8 @@ public class ContractController {
                 body.depositAmount(),
                 body.depositStatus(),
             body.billingDate(),
+            body.billingCycleDay(),
+            body.paymentCycleMonths(),
             body.residentUserIds(),
             body.serviceItems() != null
                 ? body.serviceItems().stream()

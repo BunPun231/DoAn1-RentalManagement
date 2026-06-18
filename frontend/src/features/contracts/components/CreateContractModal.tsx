@@ -26,7 +26,8 @@ export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContra
   const [selectedRoomId, setSelectedRoomId] = useState<number | "">("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [billingDate, setBillingDate] = useState(""); // YYYY-MM-DD
+  const [billingCycleDay, setBillingCycleDay] = useState<number>(31);
+  const [paymentCycleMonths, setPaymentCycleMonths] = useState<number>(1);
   const [rentPrice, setRentPrice] = useState("");
   const [depositAmount, setDepositAmount] = useState("");
   const [depositStatus, setDepositStatus] = useState("UNPAID");
@@ -87,18 +88,12 @@ export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContra
   }, [isOpen]);
 
   const applyMotelBillingConfigs = (motelId: number, basePrice: number) => {
-    const today = new Date();
-    const formatDate = (d: Date) => d.toISOString().split("T")[0];
-    
     const selectedMotel = motels.find(m => m.id === motelId);
     
     // closingDay
-    const closingDayVal = selectedMotel && typeof selectedMotel.billingCycleDay === 'number' ? selectedMotel.billingCycleDay : 30;
-    let billing = new Date(today.getFullYear(), today.getMonth(), closingDayVal);
-    if (today.getDate() > closingDayVal) {
-      billing = new Date(today.getFullYear(), today.getMonth() + 1, closingDayVal);
-    }
-    setBillingDate(formatDate(billing));
+    const closingDayVal = selectedMotel && typeof selectedMotel.billingCycleDay === 'number' ? selectedMotel.billingCycleDay : 31;
+    setBillingCycleDay(closingDayVal);
+    setPaymentCycleMonths(1);
 
     // depositRate
     const depositRate = selectedMotel && typeof selectedMotel.depositPercent === 'number' ? selectedMotel.depositPercent : 100;
@@ -124,7 +119,8 @@ export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContra
             setSelectedRoomId("");
             setRentPrice("");
             setDepositAmount("");
-            setBillingDate("");
+            setBillingCycleDay(31);
+            setPaymentCycleMonths(1);
           }
         })
         .catch((err) => setError(extractError(err)));
@@ -254,7 +250,8 @@ export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContra
         roomId: Number(selectedRoomId),
         startDate,
         endDate,
-        billingDate,
+        billingCycleDay,
+        paymentCycleMonths,
         rentPrice: parseFloat(rentPrice) || 0,
         depositAmount: parseFloat(depositAmount) || 0,
         depositStatus,
@@ -331,7 +328,7 @@ export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContra
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="flex flex-col gap-1.5 w-full">
               <label className="text-sm font-medium text-slate-700">Ngày bắt đầu *</label>
               <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required className={inputClass} />
@@ -341,8 +338,32 @@ export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContra
               <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} required className={inputClass} />
             </div>
             <div className="flex flex-col gap-1.5 w-full">
-              <label className="text-sm font-medium text-slate-700">Ngày chốt tiền hàng tháng *</label>
-              <input type="date" value={billingDate} onChange={(e) => setBillingDate(e.target.value)} required className={inputClass} />
+              <label className="text-sm font-medium text-slate-700">Ngày chốt kỳ đóng tiền *</label>
+              <select
+                value={billingCycleDay}
+                onChange={(e) => setBillingCycleDay(parseInt(e.target.value, 10))}
+                className={inputClass}
+                required
+              >
+                {Array.from({ length: 28 }, (_, i) => i + 1).map((d) => (
+                  <option key={d} value={d}>Ngày {d} hàng tháng</option>
+                ))}
+                <option value={31}>Ngày cuối tháng</option>
+              </select>
+            </div>
+            <div className="flex flex-col gap-1.5 w-full">
+              <label className="text-sm font-medium text-slate-700">Kỳ đóng tiền *</label>
+              <select
+                value={paymentCycleMonths}
+                onChange={(e) => setPaymentCycleMonths(parseInt(e.target.value, 10))}
+                className={inputClass}
+                required
+              >
+                <option value={1}>1 tháng / lần</option>
+                <option value={2}>2 tháng / lần</option>
+                <option value={3}>3 tháng / lần</option>
+                <option value={6}>6 tháng / lần</option>
+              </select>
             </div>
           </div>
 

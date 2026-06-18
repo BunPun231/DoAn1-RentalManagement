@@ -83,7 +83,7 @@ export function InvoiceDetailModal({ isOpen, onClose, invoice, onCollectPayment,
             <div class="title">HÓA ĐƠN TIỀN PHÒNG & DỊCH VỤ</div>
             <p>Mã hóa đơn: #${invoice.id} | Kỳ: ${invoice.billingMonth}</p>
           </div>
-          <p>Phòng: P.${invoice.roomId}</p>
+          <p>Phòng: P.${invoice.roomNumber || invoice.roomId}</p>
           <table>
             <thead>
               <tr>
@@ -123,7 +123,7 @@ export function InvoiceDetailModal({ isOpen, onClose, invoice, onCollectPayment,
         {/* Header summary */}
         <div className="flex justify-between items-start border-b border-slate-100 pb-4">
           <div>
-            <h2 className="text-xl font-bold text-brand-ink">Phòng P.{invoice.roomId}</h2>
+            <h2 className="text-xl font-bold text-brand-ink">Phòng P.{invoice.roomNumber || invoice.roomId}</h2>
             <p className="text-sm text-slate-500 mt-1">
               Kỳ hóa đơn: {invoice.billingMonth ? new Date(invoice.billingMonth).toLocaleDateString("vi-VN", { month: "long", year: "numeric" }) : "-"}
             </p>

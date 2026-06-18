@@ -50,8 +50,10 @@ export interface ContractCreateRequest {
   primaryResidentIdCardBackUrl?: string;
   startDate: string;
   endDate: string;
-  /** billingDate: day of month when rent is due (YYYY-MM-DD) */
-  billingDate: string;
+  /** billingDate: day of month when rent is due (optional) */
+  billingDate?: string;
+  billingCycleDay?: number;
+  paymentCycleMonths?: number;
   rentPrice: number;
   depositAmount: number;
   /** UNPAID | PAID */

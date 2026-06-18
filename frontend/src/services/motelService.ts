@@ -47,7 +47,7 @@ export interface MotelUpdateRequest {
 
 export interface RoomResult {
   id: number;
-  hashid?: string;
+  hashid: string;
   motelId: number;
   roomNumber: string;
   floor: number;

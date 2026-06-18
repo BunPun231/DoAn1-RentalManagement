@@ -150,7 +150,9 @@ export function DashboardPage() {
     const unpaidInvoices = tenantInvoices.filter(inv => inv.status !== "PAID");
     const unpaidCount = unpaidInvoices.length;
     const totalDebt = unpaidInvoices.reduce((sum, inv) => sum + (inv.totalAmount - (inv.paidAmount || 0)), 0);
-    const myRoom = tenantInvoices.length > 0 ? `Phòng #${tenantInvoices[0].roomId}` : "Chưa xác định";
+    const myRoom = tenantInvoices.length > 0
+      ? (tenantInvoices[0].roomNumber ? `Phòng P.${tenantInvoices[0].roomNumber}` : `Phòng #${tenantInvoices[0].roomId}`)
+      : "Chưa xác định";
 
     return (
       <div className="space-y-6">

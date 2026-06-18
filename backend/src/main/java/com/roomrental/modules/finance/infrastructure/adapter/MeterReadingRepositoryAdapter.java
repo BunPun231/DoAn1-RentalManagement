@@ -30,6 +30,12 @@ public class MeterReadingRepositoryAdapter implements MeterReadingRepository {
     @Override
     public MeterReading save(MeterReading reading) {
         MeterReadingEntity entity = mapper.toEntity(reading);
+        if (entity.getSubmittedBy() == null && reading.getSubmittedBy() != null) {
+            entity.setSubmittedBy(reading.getSubmittedBy());
+        }
+        if (entity.getApprovedBy() == null && reading.getApprovedBy() != null) {
+            entity.setApprovedBy(reading.getApprovedBy());
+        }
         return mapper.toDomain(jpaRepository.save(entity));
     }
 
@@ -37,7 +43,14 @@ public class MeterReadingRepositoryAdapter implements MeterReadingRepository {
     public List<MeterReading> saveAll(Iterable<MeterReading> readings) {
         List<MeterReadingEntity> entities = new java.util.ArrayList<>();
         for (MeterReading r : readings) {
-            entities.add(mapper.toEntity(r));
+            MeterReadingEntity entity = mapper.toEntity(r);
+            if (entity.getSubmittedBy() == null && r.getSubmittedBy() != null) {
+                entity.setSubmittedBy(r.getSubmittedBy());
+            }
+            if (entity.getApprovedBy() == null && r.getApprovedBy() != null) {
+                entity.setApprovedBy(r.getApprovedBy());
+            }
+            entities.add(entity);
         }
         return jpaRepository.saveAll(entities).stream()
                 .map(mapper::toDomain).collect(Collectors.toList());
