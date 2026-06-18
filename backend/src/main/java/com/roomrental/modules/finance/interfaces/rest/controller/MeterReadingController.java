@@ -1,0 +1,87 @@
+package com.roomrental.modules.finance.interfaces.rest.controller;
+
+import com.roomrental.modules.finance.application.dto.*;
+import com.roomrental.modules.finance.application.service.MeterReadingService;
+import com.roomrental.modules.finance.interfaces.rest.dto.MeterReadingOcrRequest;
+import com.roomrental.modules.finance.interfaces.rest.dto.MeterReadingRequest;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Base64;
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/v1/meter-readings")
+@Tag(name = "Finance - Meter Readings", description = "UC70, UC71, UC72")
+public class MeterReadingController {
+
+    private final MeterReadingService service;
+
+    public MeterReadingController(MeterReadingService service) {
+        this.service = service;
+    }
+
+    @PostMapping
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN', 'RESIDENT')")
+    @Operation(summary = "Submit a meter reading manually (UC70)")
+    public ResponseEntity<MeterReadingResult> submit(@RequestBody @Valid MeterReadingRequest request) {
+        MeterReadingSubmitCommand cmd = new MeterReadingSubmitCommand(
+            request.roomId(), request.serviceUsageId(), request.billingMonth(),
+            request.newReading(), request.readingImageUrl()
+        );
+        return ResponseEntity.ok(service.submit(cmd));
+    }
+
+    @PostMapping("/ocr")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN', 'RESIDENT')")
+    @Operation(summary = "Extract reading using OCR and return suggestion (UC71)")
+    public ResponseEntity<MeterReadingResult> submitWithOcr(@RequestBody @Valid MeterReadingOcrRequest request) {
+        byte[] imageBytes = Base64.getDecoder().decode(request.base64Image());
+        MeterReadingOcrCommand cmd = new MeterReadingOcrCommand(
+            request.roomId(), request.serviceUsageId(), request.billingMonth(),
+            imageBytes, request.mimeType()
+        );
+        return ResponseEntity.ok(service.submitWithOcr(cmd));
+    }
+
+    @PostMapping("/{id}/approve")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
+    @Operation(summary = "Approve a reading (UC70)")
+    public ResponseEntity<MeterReadingResult> approve(@PathVariable Long id) {
+        return ResponseEntity.ok(service.approve(id));
+    }
+
+    @PostMapping("/bulk-approve")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
+    @Operation(summary = "Bulk approve readings (UC70)")
+    public ResponseEntity<List<MeterReadingResult>> bulkApprove(@RequestBody List<Long> ids) {
+        return ResponseEntity.ok(service.bulkApprove(new MeterReadingBulkApproveCommand(ids)));
+    }
+
+    @PostMapping("/{id}/reject")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
+    @Operation(summary = "Reject a reading (UC70)")
+    public ResponseEntity<MeterReadingResult> reject(@PathVariable Long id, @RequestParam String reason) {
+        return ResponseEntity.ok(service.reject(id, reason));
+    }
+
+    @GetMapping("/rooms/{roomId}/history")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN', 'RESIDENT')")
+    @Operation(summary = "Get reading history for a room (UC72)")
+    public ResponseEntity<List<MeterReadingResult>> getHistory(@PathVariable Long roomId) {
+        return ResponseEntity.ok(service.getHistory(roomId));
+    }
+
+    @GetMapping("/rooms/{roomId}/trend")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN', 'RESIDENT')")
+    @Operation(summary = "Get reading trend chart data (UC72)")
+    public ResponseEntity<List<MeterReadingResult>> getConsumptionTrend(
+            @PathVariable Long roomId, 
+            @RequestParam(defaultValue = "6") int months) {
+        return ResponseEntity.ok(service.getConsumptionTrend(roomId, months));
+    }
+}

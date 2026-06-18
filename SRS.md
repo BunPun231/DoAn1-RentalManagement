@@ -4103,47 +4103,115 @@ Business Rules
 
 **UC76 - Điều chỉnh Hóa đơn**
 
-| **Mã use case**      | **UC76**                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Tên use case**     | Điều chỉnh Hóa đơn                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| ---                  | ---                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| **Mô tả**            | Quản lý sửa lại các khoản tiền trên hóa đơn trong trường hợp ghi sai số điện/nước hoặc muốn thêm phụ phí/giảm giá cho khách.                                                                                                                                                                                                                                                                                                                                                          |
-| ---                  | ---                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| **Actors**           | Quản lý                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| ---                  | ---                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| **Pre-Conditions**   | Quản lý đang ở màn hình Quản lý Hóa đơn<br><br>Hóa đơn đang ở trạng thái PENDING (Chờ thanh toán).                                                                                                                                                                                                                                                                                                                                                                                    |
-| ---                  | ---                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| **Post-Conditions**  | Hóa đơn được cập nhật lại tổng tiền. Cập nhật thời gian updated_at.                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| ---                  | ---                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| **Main flow**        | 1\. Quản lý mở chi tiết hóa đơn PENDING và chọn "Điều chỉnh".<br><br>2\. Hệ thống hiển thị form cho phép chỉnh sửa số lượng, đơn giá của từng dịch vụ hoặc nhập thêm số tiền custom_deduction (Giảm trừ/Phụ phí).<br><br>3\. Quản lý thay đổi số liệu, ghi chú lý do điều chỉnh và nhấn "Lưu".<br><br>4\. Hệ thống tính toán lại Tổng tiền dựa trên số liệu mới.<br><br>5\. Hệ thống cập nhật bảng invoices và invoice_details, sau đó gửi thông báo hóa đơn cập nhật cho Khách thuê. |
-| ---                  | ---                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| **Alternative Flow** | Không có.                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| ---                  | ---                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| **Exception**        | **1a. Hóa đơn đã phát sinh giao dịch:** Nếu trạng thái là PARTIAL hoặc PAID, hệ thống ẩn nút "Điều chỉnh" hoặc báo lỗi "Không thể sửa hóa đơn đã có giao dịch thanh toán".                                                                                                                                                                                                                                                                                                            |
-| ---                  | ---                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| **Business Rules**   | **BR108:** Tuyệt đối không cho phép điều chỉnh hóa đơn đã được thanh toán một phần hoặc toàn bộ để đảm bảo tính toàn vẹn của lịch sử giao dịch.<br><br>**BR_ActivityLog:** Thao tác này tác động trực tiếp đến tài chính hoặc tính pháp lý của khu trọ. Hệ thống bắt buộc phải ghi vết hành động này vào Activity Log (UC13) của Quản lý sở hữu, bao gồm: Thời gian, Đối tượng bị tác động (Hợp đồng/Hóa đơn/Khách), Hành động và Giá trị thay đổi.                                   |
-| ---                  | ---                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+**Mã use case**
+
+UC76
+
+**Tên use case**
+
+**Hủy và Tái cấp Hóa đơn sai sót** 
+
+**Mô tả**
+
+Cho phép Quản lý xử lý các hóa đơn bị tính sai (sai số điện/nước, thiếu phụ phí, giảm giá) bằng cách hủy bỏ hóa đơn lỗi và tự động sinh ra một hóa đơn mới tinh dựa trên số liệu đã hiệu chỉnh, đảm bảo tính bất biến của dữ liệu kế toán.
+
+**Actors**
+
+Quản lý
+
+**Pre-Conditions**
+
+1\. Quản lý đang ở màn hình Chi tiết Hóa đơn.
+
+2\. Hóa đơn đang ở trạng thái PENDING (Chờ thanh toán).
+
+**Post-Conditions**
+
+1\. Hóa đơn cũ chuyển sang trạng thái VOID (Hủy bỏ).
+
+2\. Hệ thống sinh ra một hóa đơn mới ở trạng thái PENDING với số dư chính xác.
+
+3\. Chỉ số điện nước gốc được đồng bộ lại.
+
+**Main flow**
+
+1\. Quản lý mở chi tiết hóa đơn PENDING bị sai sót và nhấn nút "Yêu cầu Hủy & Lập mới".
+
+2\. Hệ thống hiển thị form yêu cầu nhập: Lý do hủy, chỉ số điện/nước chính xác mới, hoặc số tiền điều chỉnh custom (Phụ phí/Giảm trừ).
+
+3\. Quản lý nhập đầy đủ số liệu mới, ghi chú lý do và nhấn "Xác nhận Tái cấp".
+
+4\. Hệ thống thực hiện lệnh chuyển trạng thái hóa đơn cũ sang VOID.
+
+5\. Hệ thống tự động đồng bộ số điện/nước mới vào bảng chốt số (meter\_readings).
+
+6\. Hệ thống chạy logic tính tiền để tạo một hóa đơn mới hoàn toàn (New Invoice\_ID) mang trạng thái PENDING với số tiền chính xác.
+
+7\. Hệ thống bắn sự kiện ngầm để ghi log và gửi thông báo cho Khách thuê.
+
+**Alternative Flow**
+
+Không có.
+
+**Exception**
+
+1a. Hóa đơn đã phát sinh thanh toán: Nếu trạng thái hóa đơn là PARTIAL hoặc PAID, hệ thống ẩn nút "Yêu cầu Hủy & Lập mới" và báo lỗi: "Không thể hủy hóa đơn đã có giao dịch. Vui lòng sử dụng tính năng Khấu trừ vào kỳ sau (UC78)".
 
 Business Rules
 
-| Activity | BR Code | Description                                                                                                                                                                                                                                                              |
-| -------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| (1)      | BR76.1  | Security & Ownership Rule: Hệ thống xác thực quyền hạn. Quản lý chỉ được điều chỉnh hóa đơn của những khu trọ thuộc quyền sở hữu của mình.                                                                                                                               |
-| ---      | ---     | ---                                                                                                                                                                                                                                                                      |
-| (1, 1a)  | BR76.2  | Immutability Rule (BR108): Hệ thống thực hiện kiểm tra trạng thái hóa đơn. Tuyệt đối chặn quyền "Điều chỉnh" nếu status là PARTIAL hoặc PAID. Đối với các hóa đơn này, nếu sai sót, Quản lý phải thực hiện "Hoàn tiền" hoặc "Khấu trừ vào kỳ sau" thay vì sửa trực tiếp. |
-| ---      | ---     | ---                                                                                                                                                                                                                                                                      |
-| (2)      | BR76.3  | Recalculation Logic: Khi số lượng hoặc đơn giá thay đổi, hệ thống phải tính toán lại theo công thức: LineTotal = Quantity \* UnitPrice. Đối với dịch vụ bậc thang, phải tính lại toàn bộ các dòng chi tiết tương ứng.                                                    |
-| ---      | ---     | ---                                                                                                                                                                                                                                                                      |
-| (2)      | BR76.4  | Custom Deduction Rule: Trường custom_deduction (Giảm trừ/Phụ phí) chấp nhận cả giá trị âm (giảm tiền) và giá trị dương (tăng tiền). Tuy nhiên, TotalAmount cuối cùng sau khi điều chỉnh không được phép nhỏ hơn 0.                                                       |
-| ---      | ---     | ---                                                                                                                                                                                                                                                                      |
-| (3)      | BR76.5  | Reason Requirement: Trường \[Lý do điều chỉnh\] là bắt buộc. Thông tin này phải được lưu vào bảng invoices và hiển thị công khai trên giao diện của Khách thuê để tránh thắc mắc/khiếu nại.                                                                              |
-| ---      | ---     | ---                                                                                                                                                                                                                                                                      |
-| (5)      | BR76.6  | Consistency Rule: Nếu điều chỉnh liên quan đến số điện/nước, hệ thống phải thực hiện đồng bộ ngược lại (Update) vào bảng meter_readings tương ứng để đảm bảo dữ liệu lịch sử chỉ số luôn khớp với hóa đơn.                                                               |
-| ---      | ---     | ---                                                                                                                                                                                                                                                                      |
-| (5)      | BR76.7  | Notification & Versioning: Hệ thống tự động đẩy thông báo (Push/Zalo) cho Khách thuê với nội dung: "Hóa đơn tháng \[X\] đã được cập nhật số liệu mới. Vui lòng kiểm tra lại".                                                                                            |
-| ---      | ---     | ---                                                                                                                                                                                                                                                                      |
-| (N/A)    | BR76.8  | Activity Log Rule (BR_ActivityLog): Hệ thống ghi nhật ký chi tiết thay đổi (Snapshot cũ vs Snapshot mới) vào activityLogRepository: \[ActorId\], \[InvoiceId\], \[ChangedFields\], \[OldTotal\], \[NewTotal\], \[Reason\], \[Timestamp\].                                |
-| ---      | ---     | ---                                                                                                                                                                                                                                                                      |
+Activity
+
+BR Code
+
+Description
+
+(1)
+
+BR76.1
+
+Security & Ownership Rule: Hệ thống xác thực quyền hạn. Quản lý chỉ được xử lý hủy và lập mới hóa đơn của những khu trọ thuộc quyền sở hữu (tenantId) của mình.
+
+(1, 1a)
+
+BR76.2
+
+Immutability Protection: Hệ thống tuyệt đối KHÔNG cho phép dùng lệnh UPDATE để sửa đè lên các trường tiền của hóa đơn hiện tại. Hóa đơn gốc phải được giữ nguyên trạng để làm bằng chứng kiểm toán (Audit).
+
+(3)
+
+BR76.3
+
+Reason Requirement: Trường \[Lý do hủy và tái cấp\] là bắt buộc. Hệ thống sẽ lưu lý do này vào trường cancel\_reason của hóa đơn cũ để hiển thị công khai cho Khách thuê xem, tránh tranh chấp.
+
+(4)
+
+BR76.4
+
+Status Transition: Khi Quản lý xác nhận, hóa đơn cũ phải chuyển sang trạng thái VOID. Hóa đơn VOID sẽ bị loại bỏ khỏi tất cả báo cáo "Dòng tiền dự kiến" nhưng vẫn nằm trong hệ thống để phục vụ đối soát lịch sử.
+
+(5)
+
+BR76.5
+
+Meter Sync Consistency: Nếu lý do hủy liên quan đến việc nhập sai số điện/nước, hệ thống bắt buộc phải cập nhật (Update) lại chỉ số đúng vào bảng meter\_readings trước khi tiến hành sinh hóa đơn mới.
+
+(6)
+
+BR76.6
+
+Automatic Reissue Logic: Hóa đơn mới được sinh ra phải là một bản ghi độc lập (INSERT mới), có mã hóa đơn mới (Invoice\_ID mới) để tránh trùng lặp mã VietQR cũ. Công thức tính tiền áp dụng theo công thức chuẩn: Total = Tiền phòng + Điện nước mới + Phụ ph} - Giảm trừ.
+
+(7)
+
+BR76.7
+
+Notification Rule: Hệ thống tự động gửi thông báo cho Khách thuê: "Hóa đơn cũ số #\[X\] đã được hủy do có sai sót. Hóa đơn mới số #\[Y\] đã được cấp phát, vui lòng kiểm tra và thanh toán".
+
+(7)
+
+BR76.8
+
+Security Audit Log Rule: Vì hành động hủy hóa đơn can thiệp sâu vào tài chính, hệ thống sẽ bắn ra InvoiceCancelledEvent. Lớp SecurityAuditLogListener bắt buộc phải ghi một dòng vào bảng system\_audit\_logs bao gồm: \[ActorId\], \[OldInvoiceId\], \[NewInvoiceId\], \[OldTotal\], \[NewTotal\], \[IP\], \[Device\] nhằm chống gian lận nội bộ.                                                                                                                                        |
 
 **UC77 - Xóa Hóa đơn**
 
