@@ -21,7 +21,9 @@ const NAV_ITEMS = [
   { name: "Hóa đơn", path: "/invoices", icon: Receipt },
   { name: "Dịch vụ", path: "/services", icon: Settings },
   { name: "Ghi chỉ số", path: "/meter", icon: Gauge },
-  { name: "Thống kê", path: "/reports", icon: BarChart3 }
+  { name: "Thống kê", path: "/reports", icon: BarChart3 },
+  { name: "Nhật ký", path: "/audit-log", icon: FileText },
+  { name: "Cấu hình", path: "/settings", icon: Settings }
 ];
 
 export function Sidebar() {

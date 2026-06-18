@@ -5,6 +5,15 @@ import { LoginPage } from "@/features/auth/pages/LoginPage";
 import { RegisterPage } from "@/features/auth/pages/RegisterPage";
 import { ForgotPasswordPage } from "@/features/auth/pages/ForgotPasswordPage";
 import { DashboardPage } from "@/features/dashboard/pages/DashboardPage";
+import { MotelListPage } from "@/features/motels/pages/MotelListPage";
+import { ServiceListPage } from "@/features/services/pages/ServiceListPage";
+import { ResidentListPage } from "@/features/residents/pages/ResidentListPage";
+import { ContractListPage } from "@/features/contracts/pages/ContractListPage";
+import { MeterReadingPage } from "@/features/meter/pages/MeterReadingPage";
+import { InvoiceListPage } from "@/features/invoices/pages/InvoiceListPage";
+import { ReportPage } from "@/features/reports/pages/ReportPage";
+import { AuditLogPage } from "@/features/reports/pages/AuditLogPage";
+import { SettingsPage } from "@/features/settings/pages/SettingsPage";
 
 export const router = createBrowserRouter([
   {
@@ -27,34 +36,41 @@ export const router = createBrowserRouter([
         path: "dashboard",
         element: <DashboardPage />
       },
-      // Placeholders for next phases
       {
         path: "motels",
-        element: <div>Motels Page Placeholder</div>
-      },
-      {
-        path: "residents",
-        element: <div>Residents Page Placeholder</div>
-      },
-      {
-        path: "contracts",
-        element: <div>Contracts Page Placeholder</div>
-      },
-      {
-        path: "invoices",
-        element: <div>Invoices Page Placeholder</div>
+        element: <MotelListPage />
       },
       {
         path: "services",
-        element: <div>Services Page Placeholder</div>
+        element: <ServiceListPage />
+      },
+      {
+        path: "residents",
+        element: <ResidentListPage />
+      },
+      {
+        path: "contracts",
+        element: <ContractListPage />
       },
       {
         path: "meter",
-        element: <div>Meter Reading Page Placeholder</div>
+        element: <MeterReadingPage />
+      },
+      {
+        path: "invoices",
+        element: <InvoiceListPage />
       },
       {
         path: "reports",
-        element: <div>Reports Page Placeholder</div>
+        element: <ReportPage />
+      },
+      {
+        path: "audit-log",
+        element: <AuditLogPage />
+      },
+      {
+        path: "settings",
+        element: <SettingsPage />
       }
     ]
   }
