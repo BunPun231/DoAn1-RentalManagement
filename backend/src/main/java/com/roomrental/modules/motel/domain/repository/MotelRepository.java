@@ -1,15 +1,20 @@
 package com.roomrental.modules.motel.domain.repository;
 
 import com.roomrental.modules.motel.domain.model.Motel;
-import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * Port for Motel persistence — implemented by infrastructure adapter.
+ */
 public interface MotelRepository {
 
     Motel save(Motel motel);
 
-    List<Motel> findByTenantIdAndDeletedFalse(UUID tenantId);
+    Optional<Motel> findByIdAndTenantId(Long id, UUID tenantId);
 
-    Optional<Motel> findByIdAndTenantIdAndDeletedFalse(Long id, UUID tenantId);
+    Page<Motel> findByTenantId(UUID tenantId, Pageable pageable);
 }

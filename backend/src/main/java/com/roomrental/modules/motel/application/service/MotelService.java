@@ -1,17 +1,23 @@
 package com.roomrental.modules.motel.application.service;
 
-import com.roomrental.common.exception.ApiException;
-import com.roomrental.common.util.TenantContext;
+import com.roomrental.common.dto.PageResponse;
+import com.roomrental.common.exception.BaseException;
+import com.roomrental.common.util.SecurityUtils;
 import com.roomrental.modules.motel.application.dto.MotelResult;
 import com.roomrental.modules.motel.application.dto.MotelUpsertCommand;
 import com.roomrental.modules.motel.domain.model.Motel;
 import com.roomrental.modules.motel.domain.repository.MotelRepository;
-import java.util.List;
-import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.UUID;
+
+/**
+ * Application service for Motel management (UC20-UC25).
+ */
 @Service
 public class MotelService {
 
@@ -21,9 +27,12 @@ public class MotelService {
         this.motelRepository = motelRepository;
     }
 
+    /**
+     * UC20: Create a new motel.
+     */
     @Transactional
     public MotelResult create(MotelUpsertCommand command) {
-        UUID tenantId = requireTenantId();
+        UUID tenantId = SecurityUtils.requireTenantId();
 
         Motel motel = new Motel();
         motel.setTenantId(tenantId);
@@ -35,46 +44,43 @@ public class MotelService {
         return toResult(motelRepository.save(motel));
     }
 
+    /**
+     * UC21: List motels with pagination.
+     */
     @Transactional(readOnly = true)
-    public List<MotelResult> list() {
-        UUID tenantId = requireTenantId();
-        return motelRepository.findByTenantIdAndDeletedFalse(tenantId).stream().map(this::toResult).toList();
+    public PageResponse<MotelResult> list(Pageable pageable) {
+        UUID tenantId = SecurityUtils.requireTenantId();
+        Page<Motel> page = motelRepository.findByTenantId(tenantId, pageable);
+        return PageResponse.from(page, this::toResult);
     }
 
+    /**
+     * UC22: Get motel detail.
+     */
     @Transactional(readOnly = true)
     public MotelResult get(Long id) {
-        UUID tenantId = requireTenantId();
-        Motel motel = motelRepository.findByIdAndTenantIdAndDeletedFalse(id, tenantId)
-                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "MSG05", "Motel not found"));
-        return toResult(motel);
+        return toResult(findMotel(id));
     }
 
+    /**
+     * UC23: Update motel info (partial update).
+     */
     @Transactional
-    public MotelResult patch(Long id, MotelUpsertCommand command) {
-        UUID tenantId = requireTenantId();
-        Motel motel = motelRepository.findByIdAndTenantIdAndDeletedFalse(id, tenantId)
-                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "MSG05", "Motel not found"));
+    public MotelResult update(Long id, MotelUpsertCommand command) {
+        Motel motel = findMotel(id);
 
-        // Validate and update only fields that are provided (not null)
         if (command.name() != null && !command.name().isBlank()) {
             motel.setName(command.name());
-        } else if (command.name() != null) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "MSG01", "name: must not be blank");
         }
-        
         if (command.address() != null && !command.address().isBlank()) {
             motel.setAddress(command.address());
-        } else if (command.address() != null) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "MSG01", "address: must not be blank");
         }
-        
         if (command.totalFloors() != null) {
             if (command.totalFloors() < 1) {
-                throw new ApiException(HttpStatus.BAD_REQUEST, "MSG01", "totalFloors: must be at least 1");
+                throw BaseException.badRequest("totalFloors must be at least 1");
             }
             motel.setTotalFloors(command.totalFloors());
         }
-        
         if (command.description() != null) {
             motel.setDescription(command.description());
         }
@@ -82,21 +88,20 @@ public class MotelService {
         return toResult(motelRepository.save(motel));
     }
 
+    /**
+     * UC25: Soft-delete motel.
+     */
     @Transactional
     public void delete(Long id) {
-        UUID tenantId = requireTenantId();
-        Motel motel = motelRepository.findByIdAndTenantIdAndDeletedFalse(id, tenantId)
-                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "MSG05", "Motel not found"));
+        Motel motel = findMotel(id);
         motel.setDeleted(true);
         motelRepository.save(motel);
     }
 
-    private UUID requireTenantId() {
-        String tenantId = TenantContext.getCurrentTenantId();
-        if (tenantId == null || tenantId.isBlank()) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "MSG06", "Missing tenant context");
-        }
-        return UUID.fromString(tenantId);
+    private Motel findMotel(Long id) {
+        UUID tenantId = SecurityUtils.requireTenantId();
+        return motelRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> BaseException.notFound("Motel", id));
     }
 
     private MotelResult toResult(Motel motel) {
