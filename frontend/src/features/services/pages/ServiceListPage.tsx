@@ -53,21 +53,25 @@ function ServiceFormModal({
   const [useTiered, setUseTiered] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  
+
   const [suggestions, setSuggestions] = useState<{ name: string; chargeType: string; unit: string; mandatory: boolean }[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   useEffect(() => {
     if (editing) {
+      let initialChargeType = editing.chargeType;
+      if (editing.chargeType === "TIERED") {
+        initialChargeType = "PER_INDEX";
+      }
       setForm({
         name: editing.name,
-        chargeType: editing.chargeType === "TIERED" ? "PER_INDEX" : editing.chargeType,
+        chargeType: initialChargeType,
         unit: editing.unit ?? "",
         mandatory: editing.mandatory,
         basePrice: editing.basePrice ?? 0,
         pricingTiers: editing.pricingTiers ?? [],
       });
-      setUseTiered(editing.chargeType === "TIERED" || (editing.pricingTiers && editing.pricingTiers.length > 0) || false);
+      setUseTiered(editing.chargeType === "PER_INDEX" || editing.chargeType === "TIERED" || (editing.pricingTiers && editing.pricingTiers.length > 0) || false);
     } else {
       setForm({ name: "", chargeType: "FIXED", unit: "", mandatory: false, basePrice: 0, pricingTiers: [] });
       setUseTiered(false);
@@ -83,12 +87,12 @@ function ServiceFormModal({
           const allServicesPromises = motelList.content.map(m => serviceService.list(m.id));
           const allServicesNested = await Promise.all(allServicesPromises);
           const allServices = allServicesNested.flat();
-          
+
           const uniqueMap = new Map<string, { name: string; chargeType: string; unit: string; mandatory: boolean }>();
-          
+
           const defaults = [
-            { name: "Điện", chargeType: "PER_INDEX", unit: "kWh", mandatory: true },
-            { name: "Nước sinh hoạt", chargeType: "PER_INDEX", unit: "m³", mandatory: true },
+            { name: "Điện", chargeType: "METERED", unit: "kWh", mandatory: true },
+            { name: "Nước sinh hoạt", chargeType: "METERED", unit: "m³", mandatory: true },
             { name: "Mạng Wifi / Internet", chargeType: "FIXED", unit: "tháng", mandatory: false },
             { name: "Rác thải", chargeType: "FIXED", unit: "tháng", mandatory: true },
             { name: "Phí dịch vụ chung", chargeType: "FIXED", unit: "tháng", mandatory: false },
@@ -98,9 +102,10 @@ function ServiceFormModal({
 
           allServices.forEach(s => {
             if (s.name) {
+              const chargeType = s.chargeType === "TIERED" ? "PER_INDEX" : s.chargeType;
               uniqueMap.set(s.name.toLowerCase(), {
                 name: s.name,
-                chargeType: s.chargeType === "TIERED" ? "PER_INDEX" : s.chargeType,
+                chargeType,
                 unit: s.unit ?? "",
                 mandatory: s.mandatory,
               });
@@ -116,12 +121,13 @@ function ServiceFormModal({
     }
   }, [isOpen]);
 
-  const filteredSuggestions = suggestions.filter(s => 
-    s.name.toLowerCase().includes(form.name.toLowerCase()) && 
+  const filteredSuggestions = suggestions.filter(s =>
+    s.name.toLowerCase().includes(form.name.toLowerCase()) &&
     s.name.toLowerCase() !== form.name.toLowerCase()
   );
 
   const handleSelectSuggestion = (s: typeof suggestions[0]) => {
+    const isTiered = s.chargeType === "PER_INDEX";
     setForm(prev => ({
       ...prev,
       name: s.name,
@@ -129,7 +135,7 @@ function ServiceFormModal({
       unit: s.unit,
       mandatory: s.mandatory,
     }));
-    setUseTiered(false);
+    setUseTiered(isTiered);
     setShowSuggestions(false);
   };
 
@@ -163,10 +169,11 @@ function ServiceFormModal({
     setError("");
     setLoading(true);
     try {
+      const isIndexBased = form.chargeType === "PER_INDEX" || form.chargeType === "METERED";
       const payload: ServiceCreateRequest = {
         ...form,
-        pricingTiers: (useTiered && form.chargeType === "PER_INDEX") ? form.pricingTiers : [],
-        basePrice: (useTiered && form.chargeType === "PER_INDEX") ? 0 : form.basePrice,
+        pricingTiers: (useTiered && isIndexBased) ? form.pricingTiers : [],
+        basePrice: (useTiered && isIndexBased) ? 0 : form.basePrice,
       };
 
       if (editing) {
@@ -233,13 +240,22 @@ function ServiceFormModal({
             <select
               id="service-charge-type"
               value={form.chargeType}
-              onChange={(e) => setForm({ ...form, chargeType: e.target.value })}
+              onChange={(e) => {
+                const val = e.target.value;
+                setForm({ ...form, chargeType: val });
+                if (val === "PER_INDEX") {
+                  setUseTiered(true);
+                } else if (val === "METERED") {
+                  setUseTiered(false);
+                }
+              }}
               className={inputClass}
             >
               <option value="FIXED">Cố định (phí hàng tháng)</option>
               <option value="PER_PERSON">Theo người</option>
-              <option value="PER_INDEX">Theo chỉ số (Điện/Nước)</option>
               <option value="PER_QUANTITY">Theo số lượng</option>
+              <option value="PER_INDEX">Tính điện nước theo chỉ số bậc thang</option>
+              <option value="METERED">Tính điện nước theo giá cố định</option>
             </select>
           </div>
           <div className="space-y-1">
@@ -255,13 +271,17 @@ function ServiceFormModal({
           </div>
         </div>
 
-        {form.chargeType === "PER_INDEX" && (
+        {(form.chargeType === "PER_INDEX" || form.chargeType === "METERED") && (
           <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
             <input
               id="service-use-tiered"
               type="checkbox"
-              checked={useTiered}
-              onChange={(e) => setUseTiered(e.target.checked)}
+              checked={form.chargeType === "PER_INDEX"}
+              onChange={(e) => {
+                const isChecked = e.target.checked;
+                setForm(prev => ({ ...prev, chargeType: isChecked ? "PER_INDEX" : "METERED" }));
+                setUseTiered(isChecked);
+              }}
               className="w-4 h-4 text-brand-deep rounded border-slate-300"
             />
             <div>
@@ -273,7 +293,7 @@ function ServiceFormModal({
           </div>
         )}
 
-        {(!useTiered || form.chargeType !== "PER_INDEX") ? (
+        {!useTiered ? (
           <div className="space-y-1">
             <label className="text-sm font-medium text-slate-700">
               {form.chargeType === "FIXED" ? "Phí cố định (đ/tháng)" : "Đơn giá cơ bản (đ/đơn vị)"} *
@@ -554,7 +574,7 @@ function ServiceCard({
   onDelete: () => void;
   onAssign: () => void;
 }) {
-  const isTieredPricing = service.pricingTiers && service.pricingTiers.length > 0;
+  const isTieredPricing = service.chargeType === "PER_INDEX" || (service.pricingTiers && service.pricingTiers.length > 0);
 
   return (
     <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm hover:shadow-md transition-all group">
@@ -566,13 +586,12 @@ function ServiceCard({
               <span className="text-xs bg-rose-100 text-rose-600 px-2 py-0.5 rounded-full flex-shrink-0">Bắt buộc</span>
             )}
           </div>
-          <span className={`text-xs px-2 py-0.5 rounded-lg font-medium ${
-            isTieredPricing 
-              ? CHARGE_TYPE_COLOR["TIERED"] 
+          <span className={`text-xs px-2 py-0.5 rounded-lg font-medium ${isTieredPricing
+              ? CHARGE_TYPE_COLOR["TIERED"]
               : (CHARGE_TYPE_COLOR[service.chargeType] ?? "bg-slate-100 text-slate-500")
-          }`}>
-            {isTieredPricing 
-              ? CHARGE_TYPE_LABEL["TIERED"] 
+            }`}>
+            {isTieredPricing
+              ? CHARGE_TYPE_LABEL["TIERED"]
               : (CHARGE_TYPE_LABEL[service.chargeType] ?? service.chargeType)}
           </span>
         </div>

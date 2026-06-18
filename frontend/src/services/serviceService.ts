@@ -11,7 +11,7 @@ export interface ServiceResult {
   id: number;
   motelId: number;
   name: string;
-  chargeType: "FIXED" | "METERED" | "TIERED" | "PER_PERSON" | "PER_INDEX" | "PER_QUANTITY";
+  chargeType: "FIXED" | "METERED" | "PER_PERSON" | "PER_INDEX" | "PER_QUANTITY" | "TIERED";
   unit?: string;
   mandatory: boolean;
   basePrice?: number;

@@ -233,7 +233,7 @@ export function InvoiceDetailModal({ isOpen, onClose, invoice, onCollectPayment,
                   const newReading = item.newReading || 0;
                   const consumption = Math.max(0, newReading - oldReading);
 
-                  if (item.hasTiers && item.pricingTiers && item.pricingTiers.length > 0) {
+                  if (item.chargeType === "PER_INDEX" || (item.pricingTiers && item.pricingTiers.length > 0)) {
                     let remaining = consumption;
                     const steps: string[] = [];
                     let totalCost = 0;
