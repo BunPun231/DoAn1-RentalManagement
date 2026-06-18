@@ -40,7 +40,7 @@ public class SettlementController {
     public ResponseEntity<SettlementResult> calculate(@RequestBody @Valid SettlementRequest request) {
         SettlementCommand cmd = new SettlementCommand(
             request.contractId(), request.moveOutDate(), request.finalElectricReading(), request.finalWaterReading(),
-            request.damageItems(), request.damageImageUrls()
+            request.damages()
         );
         return ResponseEntity.ok(service.calculate(cmd));
     }
@@ -48,13 +48,12 @@ public class SettlementController {
     @PostMapping("/{contractId}/confirm")
     @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     @Operation(summary = "Confirm settlement and liquidate contract (UC80)")
-    public ResponseEntity<Void> confirmSettlement(
+    public ResponseEntity<SettlementConfirmationResult> confirmSettlement(
             @PathVariable Long contractId,
             @RequestBody @Valid com.roomrental.modules.finance.interfaces.rest.dto.SettlementConfirmRequest request) {
         SettlementConfirmCommand cmd = new SettlementConfirmCommand(
-            contractId, request.finalElectricityIndex(), request.finalWaterIndex(), request.repairFees()
+            contractId, request.moveOutDate(), request.finalElectricReading(), request.finalWaterReading(), request.damages()
         );
-        service.confirmSettlement(cmd);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(service.confirmSettlement(cmd));
     }
 }

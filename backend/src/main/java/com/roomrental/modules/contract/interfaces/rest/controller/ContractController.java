@@ -68,7 +68,7 @@ public class ContractController {
             body.residentUserIds(),
             body.serviceItems() != null
                 ? body.serviceItems().stream()
-                .map(item -> new ContractServiceItemCommand(item.serviceId(), item.quantity()))
+                .map(item -> new ContractServiceItemCommand(item.serviceId(), item.quantity(), null))
                 .toList()
                 : List.of()
         );

@@ -27,7 +27,6 @@ public class Contract {
     private String pdfUrl;
     private String cancelReason;
     private String moveOutReason;
-    private BigDecimal creditBalance;
     private List<ContractAppendix> appendixes = new ArrayList<>();
     private UUID createdBy;
     private LocalDateTime createdAt;
@@ -187,14 +186,6 @@ public class Contract {
 
     public void setMoveOutReason(String moveOutReason) {
         this.moveOutReason = moveOutReason;
-    }
-
-    public BigDecimal getCreditBalance() {
-        return creditBalance;
-    }
-
-    public void setCreditBalance(BigDecimal creditBalance) {
-        this.creditBalance = creditBalance;
     }
 
     public List<ContractAppendix> getAppendixes() {

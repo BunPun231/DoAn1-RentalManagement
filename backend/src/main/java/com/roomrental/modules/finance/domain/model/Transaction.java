@@ -17,6 +17,7 @@ public class Transaction {
     private String rawWebhookData;
     private OffsetDateTime createdAt;
     private BigDecimal overpaidAmount;
+    private BigDecimal creditBalanceSnapshot;
 
     public Transaction() {}
 
@@ -53,5 +54,6 @@ public class Transaction {
     public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
     public BigDecimal getOverpaidAmount() { return overpaidAmount; }
     public void setOverpaidAmount(BigDecimal overpaidAmount) { this.overpaidAmount = overpaidAmount; }
+    public BigDecimal getCreditBalanceSnapshot() { return creditBalanceSnapshot; }
+    public void setCreditBalanceSnapshot(BigDecimal creditBalanceSnapshot) { this.creditBalanceSnapshot = creditBalanceSnapshot; }
 }
-

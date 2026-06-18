@@ -34,6 +34,16 @@ public class MeterReadingRepositoryAdapter implements MeterReadingRepository {
     }
 
     @Override
+    public List<MeterReading> saveAll(Iterable<MeterReading> readings) {
+        List<MeterReadingEntity> entities = new java.util.ArrayList<>();
+        for (MeterReading r : readings) {
+            entities.add(mapper.toEntity(r));
+        }
+        return jpaRepository.saveAll(entities).stream()
+                .map(mapper::toDomain).collect(Collectors.toList());
+    }
+
+    @Override
     public Optional<MeterReading> findById(Long id) {
         return jpaRepository.findById(id).map(mapper::toDomain);
     }

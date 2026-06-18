@@ -37,6 +37,8 @@ import com.roomrental.modules.room.domain.repository.RoomRepository;
 import com.roomrental.modules.finance.domain.model.ServiceUsage;
 import com.roomrental.modules.finance.domain.model.ServiceUsage.ServiceUsageStatus;
 import com.roomrental.modules.finance.domain.repository.ServiceUsageRepository;
+import com.roomrental.modules.finance.domain.model.MeterReading;
+import com.roomrental.modules.finance.domain.repository.MeterReadingRepository;
 import com.roomrental.modules.service.domain.model.ChargeType;
 import com.roomrental.modules.service.domain.model.RentalService;
 import com.roomrental.modules.service.domain.repository.RentalServiceRepository;
@@ -66,9 +68,10 @@ public class ContractService {
     private final ContractServiceItemRepository contractServiceItemRepository;
     private final RoomRepository roomRepository;
     private final MotelRepository motelRepository;
-    private final ResidentService residentService;
+    private final com.roomrental.modules.resident.application.service.ResidentService residentService;
     private final ServiceUsageRepository serviceUsageRepository;
     private final RentalServiceRepository rentalServiceRepository;
+    private final MeterReadingRepository meterReadingRepository;
     private final ContractAdjustmentStrategyFactory strategyFactory;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -79,9 +82,10 @@ public class ContractService {
             ContractServiceItemRepository contractServiceItemRepository,
             RoomRepository roomRepository,
             MotelRepository motelRepository,
-            ResidentService residentService,
-                ServiceUsageRepository serviceUsageRepository,
+            com.roomrental.modules.resident.application.service.ResidentService residentService,
+            ServiceUsageRepository serviceUsageRepository,
             RentalServiceRepository rentalServiceRepository,
+            MeterReadingRepository meterReadingRepository,
             ContractAdjustmentStrategyFactory strategyFactory,
             ApplicationEventPublisher eventPublisher
     ) {
@@ -94,6 +98,7 @@ public class ContractService {
         this.residentService = residentService;
         this.serviceUsageRepository = serviceUsageRepository;
         this.rentalServiceRepository = rentalServiceRepository;
+        this.meterReadingRepository = meterReadingRepository;
         this.strategyFactory = strategyFactory;
         this.eventPublisher = eventPublisher;
 
@@ -643,6 +648,7 @@ public class ContractService {
             serviceItem.setContractId(contractId);
             serviceItem.setServiceId(item.serviceId());
             serviceItem.setQuantity(quantity != null ? quantity : 1);
+            serviceItem.setStartIndex(item.startIndex());
             items.add(serviceItem);
         }
 
@@ -654,7 +660,6 @@ public class ContractService {
             return;
         }
 
-        List<ServiceUsage> usages = new ArrayList<>();
         for (ContractServiceItem item : serviceItems) {
             if (serviceUsageRepository.findActiveByRoomIdAndServiceId(roomId, item.getServiceId()).isPresent()) {
                 continue;
@@ -667,11 +672,23 @@ public class ContractService {
             usage.setStatus(ServiceUsageStatus.ACTIVE);
             usage.setRegisteredAt(OffsetDateTime.now());
             usage.setUpdatedAt(OffsetDateTime.now());
-            usages.add(usage);
-        }
-
-        if (!usages.isEmpty()) {
-            serviceUsageRepository.saveAll(usages);
+            ServiceUsage savedUsage = serviceUsageRepository.save(usage);
+            
+            if (item.getStartIndex() != null) {
+                MeterReading reading = new MeterReading();
+                reading.setTenantId(SecurityUtils.requireTenantId());
+                reading.setRoomId(roomId);
+                reading.setServiceUsageId(savedUsage.getId());
+                reading.setBillingMonth(LocalDate.now().withDayOfMonth(1));
+                reading.setOldReading(item.getStartIndex());
+                reading.setNewReading(item.getStartIndex());
+                reading.setConsumption(BigDecimal.ZERO);
+                reading.setStatus(MeterReading.MeterReadingStatus.APPROVED);
+                reading.setApprovedBy(SecurityUtils.getCurrentUserId());
+                reading.setCreatedAt(OffsetDateTime.now());
+                reading.setUpdatedAt(OffsetDateTime.now());
+                meterReadingRepository.save(reading);
+            }
         }
     }
 

@@ -11,6 +11,7 @@ import java.util.UUID;
 
 public interface MeterReadingRepository {
     MeterReading save(MeterReading reading);
+    List<MeterReading> saveAll(Iterable<MeterReading> readings);
     Optional<MeterReading> findById(Long id);
     Optional<MeterReading> findByIdAndTenantId(Long id, UUID tenantId);
     List<MeterReading> findByRoomIdAndTenantId(Long roomId, UUID tenantId);

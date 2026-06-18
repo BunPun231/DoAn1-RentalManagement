@@ -7,6 +7,8 @@ import com.roomrental.modules.motel.domain.model.Motel;
 import com.roomrental.modules.motel.domain.repository.MotelRepository;
 import com.roomrental.modules.finance.domain.model.ServiceUsage;
 import com.roomrental.modules.finance.domain.repository.ServiceUsageRepository;
+import com.roomrental.modules.finance.domain.model.MeterReading;
+import com.roomrental.modules.finance.domain.repository.MeterReadingRepository;
 import com.roomrental.modules.room.domain.model.Room;
 import com.roomrental.modules.room.domain.model.RoomStatus;
 import com.roomrental.modules.room.domain.repository.RoomRepository;
@@ -43,6 +45,7 @@ public class RentalServiceService {
     private final MotelRepository motelRepository;
     private final RoomRepository roomRepository;
     private final ServiceUsageRepository serviceUsageRepository;
+    private final MeterReadingRepository meterReadingRepository;
     private final ApplicationEventPublisher eventPublisher;
 
     public RentalServiceService(
@@ -51,12 +54,14 @@ public class RentalServiceService {
             MotelRepository motelRepository,
             RoomRepository roomRepository,
             ServiceUsageRepository serviceUsageRepository,
+            MeterReadingRepository meterReadingRepository,
             ApplicationEventPublisher eventPublisher) {
         this.serviceRepository = serviceRepository;
         this.servicePricingRepository = servicePricingRepository;
         this.motelRepository = motelRepository;
         this.roomRepository = roomRepository;
         this.serviceUsageRepository = serviceUsageRepository;
+        this.meterReadingRepository = meterReadingRepository;
         this.eventPublisher = eventPublisher;
     }
 
@@ -144,7 +149,8 @@ public class RentalServiceService {
         requireMotel(motelId); // Validates tenantId owns motelId
         RentalService svc = findService(motelId, serviceId);
 
-        for (Long roomId : command.roomIds()) {
+        for (ServiceAssignCommand.RoomAssignInput roomInput : command.rooms()) {
+            Long roomId = roomInput.roomId();
             Room room = roomRepository.findById(roomId)
                     .orElseThrow(() -> BaseException.notFound("Room", roomId));
             
@@ -164,11 +170,27 @@ public class RentalServiceService {
                 ServiceUsage usage = new ServiceUsage();
                 usage.setRoomId(roomId);
                 usage.setServiceId(serviceId);
-                usage.setRegisteredQuantity(1);
+                usage.setRegisteredQuantity(roomInput.quantity() != null ? roomInput.quantity() : 1);
                 usage.setStatus(ServiceUsage.ServiceUsageStatus.ACTIVE);
                 usage.setRegisteredAt(OffsetDateTime.now());
                 usage.setUpdatedAt(OffsetDateTime.now());
-                serviceUsageRepository.save(usage);
+                ServiceUsage savedUsage = serviceUsageRepository.save(usage);
+                
+                if (roomInput.startIndex() != null) {
+                    MeterReading reading = new MeterReading();
+                    reading.setTenantId(SecurityUtils.requireTenantId());
+                    reading.setRoomId(roomId);
+                    reading.setServiceUsageId(savedUsage.getId());
+                    reading.setBillingMonth(LocalDate.now().withDayOfMonth(1));
+                    reading.setOldReading(roomInput.startIndex());
+                    reading.setNewReading(roomInput.startIndex());
+                    reading.setConsumption(BigDecimal.ZERO);
+                    reading.setStatus(MeterReading.MeterReadingStatus.APPROVED);
+                    reading.setApprovedBy(SecurityUtils.getCurrentUserId());
+                    reading.setCreatedAt(OffsetDateTime.now());
+                    reading.setUpdatedAt(OffsetDateTime.now());
+                    meterReadingRepository.save(reading);
+                }
             }
         }
     }

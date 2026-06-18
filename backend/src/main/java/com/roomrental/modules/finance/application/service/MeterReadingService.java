@@ -7,9 +7,15 @@ import com.roomrental.modules.finance.application.event.*;
 import com.roomrental.modules.finance.domain.model.MeterReading;
 import com.roomrental.modules.finance.domain.model.MeterReading.MeterReadingStatus;
 import com.roomrental.modules.finance.domain.repository.ServiceUsageRepository;
+import com.roomrental.modules.finance.domain.model.ServiceUsage;
 import com.roomrental.modules.finance.domain.port.OcrPort;
 import com.roomrental.modules.finance.domain.port.OcrResult;
 import com.roomrental.modules.finance.domain.repository.MeterReadingRepository;
+import com.roomrental.modules.room.domain.model.Room;
+import com.roomrental.modules.room.domain.model.RoomStatus;
+import com.roomrental.modules.room.domain.repository.RoomRepository;
+import com.roomrental.modules.service.domain.model.RentalService;
+import com.roomrental.modules.service.domain.repository.RentalServiceRepository;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -31,24 +37,36 @@ public class MeterReadingService {
     private final OcrPort ocrPort;
     private final ApplicationEventPublisher eventPublisher;
     private final CloudinaryService cloudinaryService;
+    private final RoomRepository roomRepository;
+    private final RentalServiceRepository rentalServiceRepository;
 
     public MeterReadingService(
             MeterReadingRepository meterReadingRepository,
             ServiceUsageRepository serviceUsageRepository,
             OcrPort ocrPort,
             ApplicationEventPublisher eventPublisher,
-            CloudinaryService cloudinaryService) {
+            CloudinaryService cloudinaryService,
+            RoomRepository roomRepository,
+            RentalServiceRepository rentalServiceRepository) {
         this.meterReadingRepository = meterReadingRepository;
         this.serviceUsageRepository = serviceUsageRepository;
         this.ocrPort = ocrPort;
         this.eventPublisher = eventPublisher;
         this.cloudinaryService = cloudinaryService;
+        this.roomRepository = roomRepository;
+        this.rentalServiceRepository = rentalServiceRepository;
     }
 
     @Transactional
     public MeterReadingResult submit(MeterReadingSubmitCommand command) {
         UUID tenantId = SecurityUtils.requireTenantId();
         UUID actorId = SecurityUtils.getCurrentUserId();
+
+        Room room = roomRepository.findById(command.roomId())
+                .orElseThrow(() -> BaseException.notFound("Room", command.roomId()));
+        if (room.getStatus() == RoomStatus.EMPTY || room.getStatus() == RoomStatus.OUT_OF_BUSINESS) {
+            throw BaseException.badRequest("Cannot submit reading for EMPTY or OUT_OF_BUSINESS room");
+        }
 
         // 1. Validate only 1 APPROVED per billingMonth per service
         Long serviceUsageId = resolveActiveServiceUsageId(command.roomId(), command.serviceId());
@@ -97,7 +115,13 @@ public class MeterReadingService {
 
     @Transactional(readOnly = true)
     public MeterReadingResult submitWithOcr(MeterReadingOcrCommand command) {
-        resolveActiveServiceUsageId(command.roomId(), command.serviceId());
+        Room room = roomRepository.findById(command.roomId())
+                .orElseThrow(() -> BaseException.notFound("Room", command.roomId()));
+        if (room.getStatus() == RoomStatus.EMPTY || room.getStatus() == RoomStatus.OUT_OF_BUSINESS) {
+            throw BaseException.badRequest("Cannot submit reading for EMPTY or OUT_OF_BUSINESS room");
+        }
+
+        Long serviceUsageId = resolveActiveServiceUsageId(command.roomId(), command.serviceId());
 
         // UC71 - Just return suggested result, do not save and do not upload to Cloudinary at this step
         OcrResult ocrResult = ocrPort.extractReading(command.imageBytes(), command.mimeType());
@@ -108,13 +132,20 @@ public class MeterReadingService {
 
         String imageUrl = null;
 
-        // Fake old reading for suggestion
-        BigDecimal oldReading = BigDecimal.ZERO; 
+        // Fetch old reading from DB
+        List<MeterReading> prevReadings = meterReadingRepository.findApprovedByRoomIdAndBillingMonth(
+                command.roomId(), command.billingMonth().minusMonths(1));
+        BigDecimal oldReading = prevReadings.isEmpty() ? BigDecimal.ZERO : prevReadings.get(0).getNewReading();
         BigDecimal consumption = ocrResult.extractedValue().subtract(oldReading).max(BigDecimal.ZERO);
+
+        RentalService svc = rentalServiceRepository.findById(command.serviceId()).orElse(null);
+        String serviceName = svc != null ? svc.getName() : null;
 
         return new MeterReadingResult(
             null,
             command.roomId(),
+            command.serviceId(),
+            serviceName,
             command.billingMonth(),
             oldReading,
             ocrResult.extractedValue(),
@@ -213,9 +244,24 @@ public class MeterReadingService {
     }
 
     private MeterReadingResult toResult(MeterReading reading, Double confidence) {
+        Long serviceId = null;
+        String serviceName = null;
+        if (reading.getServiceUsageId() != null) {
+            ServiceUsage usage = serviceUsageRepository.findById(reading.getServiceUsageId()).orElse(null);
+            if (usage != null) {
+                serviceId = usage.getServiceId();
+                if (serviceId != null) {
+                    RentalService svc = rentalServiceRepository.findById(serviceId).orElse(null);
+                    serviceName = svc != null ? svc.getName() : null;
+                }
+            }
+        }
+
         return new MeterReadingResult(
             reading.getId(),
             reading.getRoomId(),
+            serviceId,
+            serviceName,
             reading.getBillingMonth(),
             reading.getOldReading(),
             reading.getNewReading(),

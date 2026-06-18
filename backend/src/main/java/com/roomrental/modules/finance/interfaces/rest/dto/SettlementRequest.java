@@ -9,6 +9,5 @@ public record SettlementRequest(
     @NotNull java.time.LocalDate moveOutDate,
     BigDecimal finalElectricReading,
     BigDecimal finalWaterReading,
-    List<String> damageItems,
-    List<String> damageImageUrls
+    List<com.roomrental.modules.finance.application.dto.DamageItemInput> damages
 ) {}

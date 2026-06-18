@@ -11,6 +11,8 @@ public interface RentalServiceRepository {
     RentalService save(RentalService service);
 
     Optional<RentalService> findByIdAndMotelId(Long id, Long motelId);
+    
+    Optional<RentalService> findById(Long id);
 
     Page<RentalService> findByMotelId(Long motelId, Pageable pageable);
 

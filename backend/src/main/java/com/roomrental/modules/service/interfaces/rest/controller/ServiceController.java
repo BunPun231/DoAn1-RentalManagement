@@ -90,7 +90,9 @@ public class ServiceController {
     public ResponseEntity<ApiResponse<Void>> assignToRooms(
             @PathVariable Long motelId, @PathVariable Long serviceId,
             @Valid @RequestBody ServiceAssignRequest body) {
-        svc.assignToRooms(motelId, serviceId, new ServiceAssignCommand(body.roomIds()));
+        svc.assignToRooms(motelId, serviceId, new ServiceAssignCommand(
+            body.roomIds().stream().map(id -> new ServiceAssignCommand.RoomAssignInput(id, 1, null)).toList()
+        ));
         return ResponseEntity.ok(ApiResponse.ok("Service assigned to rooms"));
     }
 }

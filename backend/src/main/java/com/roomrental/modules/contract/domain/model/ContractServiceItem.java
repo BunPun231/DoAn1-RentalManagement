@@ -10,6 +10,7 @@ public class ContractServiceItem {
     private Long contractId;
     private Long serviceId;
     private Integer quantity;
+    private java.math.BigDecimal startIndex;
 
     public UUID getTenantId() {
         return tenantId;
@@ -41,5 +42,13 @@ public class ContractServiceItem {
 
     public void setQuantity(Integer quantity) {
         this.quantity = quantity;
+    }
+
+    public java.math.BigDecimal getStartIndex() {
+        return startIndex;
+    }
+
+    public void setStartIndex(java.math.BigDecimal startIndex) {
+        this.startIndex = startIndex;
     }
 }

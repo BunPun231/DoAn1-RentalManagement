@@ -5,6 +5,7 @@ package com.roomrental.modules.contract.application.dto;
  */
 public record ContractServiceItemCommand(
         Long serviceId,
-        Integer quantity
+        Integer quantity,
+        java.math.BigDecimal startIndex
 ) {
 }

@@ -85,6 +85,7 @@ public class PaymentService {
                 
                 BigDecimal overpaidAmount = handleInvoicePayment(invoice, command.amount());
                 tx.setOverpaidAmount(overpaidAmount);
+                tx.setCreditBalanceSnapshot(getCurrentResidentBalance(invoice.getContractId()));
                 
                 // If overpaid, ideally add to resident balance.
             }, () -> {
@@ -131,6 +132,7 @@ public class PaymentService {
 
         BigDecimal overpaidAmount = handleInvoicePayment(invoice, command.amount());
         tx.setOverpaidAmount(overpaidAmount);
+        tx.setCreditBalanceSnapshot(getCurrentResidentBalance(invoice.getContractId()));
 
         Transaction saved = transactionRepository.save(tx);
 
@@ -174,6 +176,7 @@ public class PaymentService {
 
         BigDecimal overpaidAmount = handleInvoicePayment(invoice, tx.getAmount());
         tx.setOverpaidAmount(overpaidAmount);
+        tx.setCreditBalanceSnapshot(getCurrentResidentBalance(invoice.getContractId()));
         Transaction saved = transactionRepository.save(tx);
 
         eventPublisher.publishEvent(new PaymentReceivedEvent(
@@ -195,29 +198,26 @@ public class PaymentService {
     }
 
     private TransactionResult toResult(Transaction tx) {
-        BigDecimal[] snapshot = new BigDecimal[]{BigDecimal.ZERO};
-        if (tx.getInvoiceId() != null) {
-            invoiceRepository.findById(tx.getInvoiceId()).ifPresent(inv -> {
-                contractRepository.findById(inv.getContractId()).ifPresent(contract -> {
-                    snapshot[0] = residentBalanceRepository.findById(contract.getPrimaryResidentUserId())
-                        .map(b -> b.getBalance())
-                        .orElse(BigDecimal.ZERO);
-                });
-            });
-        }
-
         return new TransactionResult(
             tx.getId(),
             tx.getInvoiceId(),
             tx.getAmount(),
             tx.getOverpaidAmount(),
-            snapshot[0],
+            tx.getCreditBalanceSnapshot() != null ? tx.getCreditBalanceSnapshot() : BigDecimal.ZERO,
             tx.getTransactionRef(),
             tx.getPaymentMethod() != null ? tx.getPaymentMethod().name() : null,
             tx.getBankCode(),
             tx.getStatus() != null ? tx.getStatus().name() : null,
             tx.getPaidAt()
         );
+    }
+
+    private BigDecimal getCurrentResidentBalance(Long contractId) {
+        return contractRepository.findById(contractId)
+            .map(c -> residentBalanceRepository.findById(c.getPrimaryResidentUserId())
+                .map(rb -> rb.getBalance())
+                .orElse(BigDecimal.ZERO))
+            .orElse(BigDecimal.ZERO);
     }
 
     private BigDecimal handleInvoicePayment(Invoice invoice, BigDecimal amount) {

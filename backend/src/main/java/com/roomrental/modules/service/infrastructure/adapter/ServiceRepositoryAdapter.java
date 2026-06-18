@@ -32,6 +32,11 @@ public class ServiceRepositoryAdapter implements RentalServiceRepository {
     }
 
     @Override
+    public Optional<RentalService> findById(Long id) {
+        return jpa.findById(id).map(mapper::toDomain);
+    }
+
+    @Override
     public Page<RentalService> findByMotelId(Long motelId, Pageable pageable) {
         return jpa.findByMotelId(motelId, pageable).map(mapper::toDomain);
     }

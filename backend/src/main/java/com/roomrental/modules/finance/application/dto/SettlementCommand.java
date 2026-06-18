@@ -8,6 +8,5 @@ public record SettlementCommand(
     java.time.LocalDate moveOutDate,
     BigDecimal finalElectricReading,
     BigDecimal finalWaterReading,
-    List<String> damageItems,
-    List<String> damageImageUrls
+    List<DamageItemInput> damages
 ) {}
