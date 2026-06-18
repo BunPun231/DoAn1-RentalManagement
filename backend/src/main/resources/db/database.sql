@@ -287,8 +287,7 @@ CREATE TABLE contracts (
                             CHECK (deposit_status IN ('UNPAID','PAID','REFUNDED','DEDUCTED')),
     status                  VARCHAR(20) NOT NULL DEFAULT 'DRAFT'
                             CHECK (status IN ('DRAFT','ACTIVE','LIQUIDATED','CANCELED','PENDING_LIQUIDATION')),
-    billing_cycle           VARCHAR(20) NOT NULL DEFAULT 'MONTHLY'
-                            CHECK (billing_cycle IN ('MONTHLY','QUARTERLY','YEARLY')),
+    billing_date            DATE,
     intended_move_out_date  DATE,
     cancel_reason           TEXT,
     pdf_url                 TEXT,
@@ -320,7 +319,7 @@ CREATE TABLE contract_appendixes (
     effective_date    DATE NOT NULL,
     new_rent_price    DECIMAL(12,2),
     appendix_type     VARCHAR(30) NOT NULL,
-    metadata          JSONB,
+    metadata          TEXT,
     created_by        UUID NOT NULL REFERENCES users(id),
     created_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

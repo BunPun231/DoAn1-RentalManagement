@@ -31,7 +31,7 @@ public class ContractAppendixEntity {
     @Column(name = "appendix_type", nullable = false)
     private String appendixType;
 
-    @Column(name = "metadata", columnDefinition = "jsonb")
+    @Column(name = "metadata", columnDefinition = "TEXT")
     private String metadata;
 
     @Column(name = "created_by", nullable = false)

@@ -22,7 +22,7 @@ public class Contract {
     private BigDecimal depositAmount;
     private DepositStatus depositStatus;
     private ContractStatus status;
-    private BillingCycle billingCycle;
+    private LocalDate billingDate;
     private LocalDate intendedMoveOutDate;
     private String pdfUrl;
     private String cancelReason;
@@ -56,12 +56,6 @@ public class Contract {
         LIQUIDATED,               // Đã tất toán
         CANCELED,                 // Đã hủy
         PENDING_LIQUIDATION       // Chờ tất toán
-    }
-
-    public enum BillingCycle {
-        MONTHLY,
-        QUARTERLY,
-        YEARLY
     }
 
     // Enum for deposit status
@@ -153,12 +147,12 @@ public class Contract {
         this.status = status;
     }
 
-    public BillingCycle getBillingCycle() {
-        return billingCycle;
+    public LocalDate getBillingDate() {
+        return billingDate;
     }
 
-    public void setBillingCycle(BillingCycle billingCycle) {
-        this.billingCycle = billingCycle;
+    public void setBillingDate(LocalDate billingDate) {
+        this.billingDate = billingDate;
     }
 
     public LocalDate getIntendedMoveOutDate() {

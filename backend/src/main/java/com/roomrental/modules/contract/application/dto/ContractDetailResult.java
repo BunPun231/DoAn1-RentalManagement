@@ -19,7 +19,7 @@ public record ContractDetailResult(
         BigDecimal depositAmount,
         String depositStatus,
         String status,
-        String billingCycle,
+        LocalDate billingDate,
         LocalDate intendedMoveOutDate,
         String pdfUrl,
         LocalDateTime createdAt,

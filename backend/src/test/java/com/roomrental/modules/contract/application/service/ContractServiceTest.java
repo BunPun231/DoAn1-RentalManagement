@@ -107,7 +107,7 @@ class ContractServiceTest {
                 LocalDate.of(2025, 1, 1),
                 new BigDecimal("5000000"),
                 "UNPAID",
-                "MONTHLY",
+                null,
                 List.of(),
                 List.of()
         ));
@@ -141,7 +141,7 @@ class ContractServiceTest {
                 LocalDate.of(2024, 1, 1),
                 new BigDecimal("5000000"),
             "UNPAID",
-            "MONTHLY",
+            null,
             List.of(),
             List.of()
         ))).isInstanceOf(BaseException.class);
@@ -169,7 +169,7 @@ class ContractServiceTest {
         c.setEndDate(LocalDate.of(2025, 1, 1));
         c.setDepositAmount(new BigDecimal("5000000"));
         c.setDepositStatus(Contract.DepositStatus.UNPAID);
-        c.setBillingCycle(Contract.BillingCycle.MONTHLY);
+        c.setBillingDate(null);
         c.setStatus(status);
         c.setCreatedBy(userId);
         return c;

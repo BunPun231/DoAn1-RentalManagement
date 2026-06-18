@@ -15,12 +15,4 @@ public interface ContractMapper {
 
     @Mapping(target = "cancelReason", source = "cancelReason")
     ContractEntity toEntity(Contract domain);
-
-    default String map(Contract.BillingCycle billingCycle) {
-        return billingCycle != null ? billingCycle.name() : null;
-    }
-
-    default Contract.BillingCycle map(String billingCycle) {
-        return billingCycle != null ? Contract.BillingCycle.valueOf(billingCycle) : null;
-    }
 }

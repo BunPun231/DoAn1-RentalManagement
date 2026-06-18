@@ -8,7 +8,6 @@ import com.roomrental.modules.contract.application.dto.ContractCreateCommand;
 import com.roomrental.modules.contract.application.dto.ContractDetailResult;
 import com.roomrental.modules.contract.application.dto.ContractResult;
 import com.roomrental.modules.contract.application.dto.ContractServiceItemCommand;
-import com.roomrental.modules.contract.application.service.ContractAdjustmentService;
 import com.roomrental.modules.contract.application.service.ContractService;
 import com.roomrental.modules.contract.interfaces.rest.dto.ContractAdjustmentRequestBody;
 import com.roomrental.modules.contract.interfaces.rest.dto.ContractCreateRequestBody;
@@ -39,12 +38,9 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "Contract Management", description = "Quản lý hợp đồng thuê phòng")
 public class ContractController {
     private final ContractService contractService;
-    private final ContractAdjustmentService adjustmentService;
 
-    public ContractController(ContractService contractService,
-                              ContractAdjustmentService adjustmentService) {
+    public ContractController(ContractService contractService) {
         this.contractService = contractService;
-        this.adjustmentService = adjustmentService;
     }
 
     /**
@@ -68,7 +64,7 @@ public class ContractController {
                 body.endDate(),
                 body.depositAmount(),
                 body.depositStatus(),
-            body.billingCycle(),
+            body.billingDate(),
             body.residentUserIds(),
             body.serviceItems() != null
                 ? body.serviceItems().stream()
@@ -173,11 +169,11 @@ public class ContractController {
      * Kích hoạt hợp đồng (chuyển từ DRAFT → ACTIVE).
      * POST /api/contracts/{id}/activate
      */
-    @PostMapping("/{id}/activate")
-    @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
-    public ResponseEntity<ApiResponse<ContractResult>> activate(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.ok(contractService.activate(id)));
-    }
+    // @PostMapping("/{id}/activate")
+    // @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
+    // public ResponseEntity<ApiResponse<ContractResult>> activate(@PathVariable Long id) {
+    //     return ResponseEntity.ok(ApiResponse.ok(contractService.activate(id)));
+    // }
 
 
     /**
@@ -218,7 +214,7 @@ public class ContractController {
                 body.intendedMoveOutDate(),
                 body.metadata()
         );
-        ContractAppendixResult result = adjustmentService.adjust(contractId, request);
+        ContractAppendixResult result = contractService.adjust(contractId, request);
         return ResponseEntity.ok(ApiResponse.ok(result, "Contract adjusted"));
     }
 

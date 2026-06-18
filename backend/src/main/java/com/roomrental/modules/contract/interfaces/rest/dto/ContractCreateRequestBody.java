@@ -23,7 +23,7 @@ public record ContractCreateRequestBody(
         @NotNull @Schema(description = "Ngày kết thúc hợp đồng", example = "2025-01-01") LocalDate endDate,
         @NotNull @Schema(description = "Số tiền cọc", example = "5000000") BigDecimal depositAmount,
         @Schema(description = "Trạng thái cọc", example = "UNPAID", allowableValues = {"UNPAID", "PAID", "REFUNDED", "DEDUCTED"}) String depositStatus,
-        @NotNull @Schema(description = "Ky dong tien", example = "MONTHLY", allowableValues = {"MONTHLY", "QUARTERLY", "YEARLY"}) String billingCycle,
+        @NotNull @Schema(description = "Ngay bat dau ky dong tien", example = "2026-06-01") LocalDate billingDate,
         @Schema(description = "Danh sách cư dân phụ", example = "[\"550e8400-e29b-41d4-a716-446655440111\"]") List<String> residentUserIds,
         @Schema(description = "Danh sach dich vu di kem") List<ContractServiceItemRequestBody> serviceItems
 ) {

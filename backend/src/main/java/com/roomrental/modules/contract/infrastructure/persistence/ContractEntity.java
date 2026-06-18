@@ -43,8 +43,8 @@ public class ContractEntity {
     @Column(name = "status", nullable = false)
     private String status;
 
-    @Column(name = "billing_cycle", nullable = false)
-    private String billingCycle;
+    @Column(name = "billing_date")
+    private LocalDate billingDate;
 
     @Column(name = "intended_move_out_date")
     private LocalDate intendedMoveOutDate;
@@ -149,12 +149,12 @@ public class ContractEntity {
         this.status = status;
     }
 
-    public String getBillingCycle() {
-        return billingCycle;
+    public LocalDate getBillingDate() {
+        return billingDate;
     }
 
-    public void setBillingCycle(String billingCycle) {
-        this.billingCycle = billingCycle;
+    public void setBillingDate(LocalDate billingDate) {
+        this.billingDate = billingDate;
     }
 
     public LocalDate getIntendedMoveOutDate() {

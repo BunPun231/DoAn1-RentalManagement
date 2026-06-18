@@ -2,12 +2,17 @@ package com.roomrental.modules.contract.application.service;
 
 import com.roomrental.common.exception.BaseException;
 import com.roomrental.common.util.SecurityUtils;
+import com.roomrental.modules.contract.application.adjustment.ContractAdjustmentStrategy;
+import com.roomrental.modules.contract.application.adjustment.ContractAdjustmentStrategyFactory;
+import com.roomrental.modules.contract.application.dto.ContractAdjustmentRequest;
+import com.roomrental.modules.contract.application.dto.ContractAdjustmentType;
 import com.roomrental.modules.contract.application.dto.ContractAppendixResult;
 import com.roomrental.modules.contract.application.dto.ContractCreateCommand;
 import com.roomrental.modules.contract.application.dto.ContractDetailResult;
 import com.roomrental.modules.contract.application.dto.ContractResult;
 import com.roomrental.modules.contract.application.dto.ContractServiceItemCommand;
 import com.roomrental.modules.contract.application.dto.ContractServiceItemResult;
+import com.roomrental.modules.contract.application.event.ContractAdjustmentEvent;
 import com.roomrental.modules.contract.domain.model.Contract;
 import com.roomrental.modules.contract.domain.model.ContractAppendix;
 import com.roomrental.modules.contract.domain.model.ContractResident;
@@ -25,6 +30,7 @@ import com.roomrental.modules.room.domain.repository.RoomRepository;
 import com.roomrental.modules.service.domain.model.ChargeType;
 import com.roomrental.modules.service.domain.model.RentalService;
 import com.roomrental.modules.service.domain.repository.RentalServiceRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,6 +56,8 @@ public class ContractService {
     private final MotelRepository motelRepository;
     private final ResidentService residentService;
     private final RentalServiceRepository rentalServiceRepository;
+    private final ContractAdjustmentStrategyFactory strategyFactory;
+    private final ApplicationEventPublisher eventPublisher;
 
     public ContractService(
             ContractRepository contractRepository,
@@ -59,7 +67,9 @@ public class ContractService {
             RoomRepository roomRepository,
             MotelRepository motelRepository,
             ResidentService residentService,
-            RentalServiceRepository rentalServiceRepository
+            RentalServiceRepository rentalServiceRepository,
+            ContractAdjustmentStrategyFactory strategyFactory,
+            ApplicationEventPublisher eventPublisher
     ) {
         this.contractRepository = contractRepository;
         this.contractResidentRepository = contractResidentRepository;
@@ -69,6 +79,8 @@ public class ContractService {
         this.motelRepository = motelRepository;
         this.residentService = residentService;
         this.rentalServiceRepository = rentalServiceRepository;
+        this.strategyFactory = strategyFactory;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -96,7 +108,6 @@ public class ContractService {
         if (command.depositAmount() == null || command.depositAmount().compareTo(BigDecimal.ZERO) <= 0) {
             throw BaseException.badRequest("depositAmount: must be positive");
         }
-        Contract.BillingCycle billingCycle = parseBillingCycle(command.billingCycle());
 
         Room room = roomRepository.findById(command.roomId())
                 .orElseThrow(() -> BaseException.notFound("Room", command.roomId()));
@@ -126,7 +137,7 @@ public class ContractService {
         contract.setDepositAmount(command.depositAmount());
         contract.setDepositStatus(depositStatus);
         contract.setStatus(depositPaid ? Contract.ContractStatus.ACTIVE : Contract.ContractStatus.DRAFT);
-        contract.setBillingCycle(billingCycle);
+        contract.setBillingDate(command.billingDate());
         contract.setCreatedAt(LocalDateTime.now());
         contract.setCreatedBy(currentUserId);
 
@@ -233,7 +244,7 @@ public class ContractService {
                     contract.getDepositAmount(),
                     contract.getDepositStatus().toString(),
                     contract.getStatus().toString(),
-                    contract.getBillingCycle().toString(),
+                    contract.getBillingDate(),
                     contract.getIntendedMoveOutDate(),
                     contract.getPdfUrl(),
                     contract.getCreatedAt(),
@@ -278,6 +289,53 @@ public class ContractService {
         return contractRepository.findByResidentUserId(tenantId, residentId).stream()
                 .map(this::toResult)
                 .toList();
+    }
+
+    // ========================
+    // UC66: Contract Adjustments
+    // ========================
+
+    @Transactional
+    public ContractAppendixResult adjust(Long contractId, ContractAdjustmentRequest request) {
+        UUID tenantId = SecurityUtils.requireTenantId();
+        UUID actorId = SecurityUtils.getCurrentUserId();
+        Contract contract = contractRepository.findByIdAndTenantId(contractId, tenantId)
+                .orElseThrow(() -> BaseException.notFound("Contract", contractId));
+
+        if (contract.getStatus() != Contract.ContractStatus.ACTIVE) {
+            throw BaseException.badRequest("Only ACTIVE contracts can be adjusted");
+        }
+
+        ContractAdjustmentType type = parseAdjustmentType(request.type());
+        ContractAdjustmentStrategy strategy = strategyFactory.getStrategy(type);
+        Long appendixId = strategy.process(contract, request);
+
+        contract.setUpdatedAt(LocalDateTime.now());
+        contractRepository.save(contract);
+
+        eventPublisher.publishEvent(new ContractAdjustmentEvent(
+                contract.getId(),
+                contract.getTenantId(),
+                actorId,
+                type,
+                LocalDateTime.now()
+        ));
+
+        // Build result from the created appendix, or return minimal result
+        if (appendixId != null) {
+            ContractAppendix appendix = contractAppendixRepository.findByContractId(contractId).stream()
+                    .filter(a -> a.getId().equals(appendixId))
+                    .findFirst()
+                    .orElse(null);
+            if (appendix != null) {
+                return toAppendixResult(appendix);
+            }
+        }
+        return new ContractAppendixResult(
+                null, contract.getId(), null, null,
+                type.name(), null,
+                actorId.toString(), LocalDateTime.now()
+        );
     }
 
     // ========================
@@ -387,6 +445,17 @@ public class ContractService {
         return SecurityUtils.requireTenantId();
     }
 
+    private ContractAdjustmentType parseAdjustmentType(String type) {
+        if (type == null || type.isBlank()) {
+            throw BaseException.badRequest("type: required");
+        }
+        try {
+            return ContractAdjustmentType.valueOf(type);
+        } catch (IllegalArgumentException ex) {
+            throw BaseException.badRequest("type: invalid value");
+        }
+    }
+
     private UUID resolvePrimaryResident(UUID tenantId, ContractCreateCommand command) {
         if (command.primaryResidentUserId() != null && !command.primaryResidentUserId().isBlank()) {
             UUID residentId = UUID.fromString(command.primaryResidentUserId());
@@ -454,17 +523,6 @@ public class ContractService {
             return Contract.DepositStatus.valueOf(status);
         } catch (IllegalArgumentException ex) {
             throw BaseException.badRequest("depositStatus: invalid value");
-        }
-    }
-
-    private Contract.BillingCycle parseBillingCycle(String cycle) {
-        if (cycle == null || cycle.isBlank()) {
-            throw BaseException.badRequest("billingCycle: required");
-        }
-        try {
-            return Contract.BillingCycle.valueOf(cycle);
-        } catch (IllegalArgumentException ex) {
-            throw BaseException.badRequest("billingCycle: invalid value");
         }
     }
 
@@ -570,7 +628,7 @@ public class ContractService {
                 contract.getDepositAmount(),
                 contract.getDepositStatus().toString(),
                 contract.getStatus().toString(),
-                contract.getBillingCycle().toString(),
+                contract.getBillingDate(),
                 contract.getIntendedMoveOutDate(),
                 contract.getPdfUrl(),
                 contract.getCreatedAt(),
