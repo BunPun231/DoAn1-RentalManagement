@@ -43,6 +43,7 @@ public class ActivityLogEntity {
     @Column(nullable = false)
     private OffsetDateTime timestamp;
 
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     private String metadata;
 }
