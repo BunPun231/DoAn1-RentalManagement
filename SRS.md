@@ -2305,47 +2305,32 @@ Business Rules
 
 **UC41 - Xem danh sách Thiết bị**
 
-| **Mã use case**      | **UC41**                                                                                                                                                                                                                                                 |
-| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Tên use case**     | Xem danh sách Thiết bị                                                                                                                                                                                                                                   |
-| ---                  | ---                                                                                                                                                                                                                                                      |
-| **Mô tả**            | Tra cứu toàn bộ kho tài sản và trang thiết bị hiện có của chủ nhà quản lý.                                                                                                                                                                               |
-| ---                  | ---                                                                                                                                                                                                                                                      |
-| **Actors**           | Quản lý.                                                                                                                                                                                                                                                 |
-| ---                  | ---                                                                                                                                                                                                                                                      |
-| **Pre-Conditions**   | Người dùng đã đăng nhập và truy cập module quản lý thiết bị.                                                                                                                                                                                             |
-| ---                  | ---                                                                                                                                                                                                                                                      |
-| **Post-Conditions**  | Danh sách các loại thiết bị hiện có trong kho được hiển thị đầy đủ.                                                                                                                                                                                      |
-| ---                  | ---                                                                                                                                                                                                                                                      |
-| **Main flow**        | 1\. Quản lý chọn menu "Quản lý thiết bị".<br><br>2\. Hệ thống truy xuất danh sách thiết bị từ CSDL.<br><br>3\. Hệ thống hiển thị: Tên, Hãng, Đơn giá mua, và số lượng khả dụng trong kho.<br><br>4\. Quản lý có thể lọc hoặc tìm kiếm theo tên thiết bị. |
-| ---                  | ---                                                                                                                                                                                                                                                      |
-| **Alternative Flow** | Không có.                                                                                                                                                                                                                                                |
-| ---                  | ---                                                                                                                                                                                                                                                      |
-| **Exception**        | Không có.                                                                                                                                                                                                                                                |
-| ---                  | ---                                                                                                                                                                                                                                                      |
-| **Business Rules**   | **BR66**: Số lượng thiết bị khả dụng phải được cập nhật thời gian thực dựa trên tổng nhập trừ đi số lượng đã gán vào các phòng (UC36).                                                                                                                   |
-| ---                  | ---                                                                                                                                                                                                                                                      |
+| Mã use case | UC41 |
+| --- | --- |
+| Tên use case | Xem danh sách Thiết bị |
+| Mô tả | Tra cứu toàn bộ kho tài sản và trang thiết bị hiện có của khu trọ. |
+| Actors | Quản lý, Kỹ thuật viên (KTV). |
+| Pre-Conditions | Người dùng đã đăng nhập và đang ở giao diện Quản lý thiết bị. |
+| Post-Conditions | Danh sách các loại thiết bị hiện có trong kho được hiển thị tương ứng với quyền hạn của từng Actor. |
+| Main flow | 1\. Người dùng chọn menu "Quản lý thiết bị".2. Hệ thống kiểm tra vai trò (Role) của người dùng và truy xuất danh sách thiết bị chưa bị xóa (is\_deleted = false) từ CSDL.3. Hệ thống hiển thị danh sách gồm: Tên thiết bị, Hãng sản xuất, và số lượng khả dụng trong kho.4. (Riêng đối với Quản lý): Hệ thống hiển thị thêm cột Đơn giá mua.5. Người dùng có thể thực hiện lọc hoặc tìm kiếm theo tên thiết bị. |
+| Alternative Flow | Không có. |
+| Exception | Không có. |
+| Business Rules | BR66 (Real-time Availability): Số lượng khả dụng = Tổng nhập - Số lượng đang gán tại các phòng.BR\_Visibility: KTV không được quyền xem các thông tin nhạy cảm về tài chính (Đơn giá mua, Tổng giá trị kho). |
+
+  
 
 Business Rules
 
-| Activity | BR Code | Description                                                                                                                                                                                                                           |
-| -------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| (1)      | BR41.1  | Security Rule: Hệ thống xác thực Access Token để đảm bảo người dùng có vai trò MANAGER. Chỉ Quản lý mới có quyền truy cập vào kho thiết bị tổng của khu trọ.                                                                          |
-| ---      | ---     | ---                                                                                                                                                                                                                                   |
-| (2)      | BR41.2  | Data Isolation Rule: Hệ thống thực hiện truy vấn deviceRepository.findAllByMotelIdAndIsDeletedFalse(\[motelId\]). motelId phải thuộc quyền sở hữu của tenantId đang đăng nhập để ngăn chặn truy cập trái phép dữ liệu của người khác. |
-| ---      | ---     | ---                                                                                                                                                                                                                                   |
-| (3)      | BR41.3  | Real-time Calculation Rule (BR66): Với mỗi loại thiết bị, hệ thống thực hiện tính toán số lượng khả dụng (availableQuantity) bằng công thức: \$Total - \\text{count}(deviceUsage \\text{ where } status = 'IN\\\_USE')\$.             |
-| ---      | ---     | ---                                                                                                                                                                                                                                   |
-| (3)      | BR41.4  | Displaying Rule: Thông tin \[purchasePrice\] phải được định dạng theo tiền tệ VNĐ. Các thiết bị có số lượng khả dụng bằng 0 phải được đánh dấu nhãn "Hết hàng trong kho" hoặc hiển thị cảnh báo màu đỏ.                               |
-| ---      | ---     | ---                                                                                                                                                                                                                                   |
-| (4)      | BR41.5  | Processing Rule (Search): Hệ thống hỗ trợ tìm kiếm gần đúng (Like query) theo trường \[deviceName\] hoặc \[brand\]. Kết quả trả về phải được xử lý không phân biệt chữ hoa, chữ thường.                                               |
-| ---      | ---     | ---                                                                                                                                                                                                                                   |
-| (N/A)    | BR41.6  | Pagination Rule: Nếu danh sách thiết bị vượt quá 20 loại, hệ thống bắt buộc áp dụng phân trang để đảm bảo tốc độ tải trang và tối ưu hiệu năng API.                                                                                   |
-| ---      | ---     | ---                                                                                                                                                                                                                                   |
-| (N/A)    | BR41.7  | Empty State Handling: Nếu kho thiết bị trống hoặc không tìm thấy kết quả phù hợp với bộ lọc, hệ thống hiển thị thông báo MSG87 ("Không có dữ liệu phù hợp").                                                                          |
-| ---      | ---     | ---                                                                                                                                                                                                                                   |
-| (N/A)    | BR41.8  | Exception Handling: Trong trường hợp lỗi kết nối đến dịch vụ quản lý tài sản, hệ thống hiển thị thông báo MSG101 và cho phép người dùng nhấn "Thử lại".                                                                               |
-| ---      | ---     | ---                                                                                                                                                                                                                                   |
+| Activity | BR Code | Description |
+| --- | --- | --- |
+| (1) | BR41.1 | Security Rule: Hệ thống xác thực Access Token để đảm bảo người dùng có vai trò MANAGER hoặc TECHNICIAN.  |
+| (2) | BR41.2 | Data Isolation Rule: Hệ thống truy vấn theo motelId (đối với KTV) hoặc tenantId (đối với Quản lý) để ngăn chặn truy cập trái phép dữ liệu của khu trọ khác.  |
+| (3) | BR41.3 | Real-time Calculation Rule (BR66): Với mỗi loại thiết bị, hệ thống thực hiện tính toán số lượng khả dụng (availableQuantity) bằng công thức: Tổng nhập - Số lượng đang gán tại các phòng |
+| (3) | BR41.4 | Displaying Rule: Thông tin \[purchasePrice\] phải được định dạng theo tiền tệ VNĐ và chỉ hiển thị nếu Actor là Quản lý . Các thiết bị có số lượng khả dụng bằng 0 phải được đánh dấu nhãn "Hết hàng trong kho" hoặc hiển thị cảnh báo màu đỏ. |
+| (4) | BR41.5 | Processing Rule (Search): Hệ thống hỗ trợ tìm kiếm gần đúng (Like query) theo trường \[deviceName\] hoặc \[brand\]. Kết quả trả về phải được xử lý không phân biệt chữ hoa, chữ thường. |
+| (N/A) | BR41.6 | Pagination Rule: Nếu danh sách thiết bị vượt quá 20 loại, hệ thống bắt buộc áp dụng phân trang để đảm bảo tốc độ tải trang và tối ưu hiệu năng API. |
+| (N/A) | BR41.7 | Empty State Handling: Nếu kho thiết bị trống hoặc không tìm thấy kết quả phù hợp với bộ lọc, hệ thống hiển thị thông báo MSG87 (“Không có dữ liệu phù hợp”). |
+| (N/A) | BR41.8 | Exception Handling: Trong trường hợp lỗi kết nối đến dịch vụ quản lý tài sản, hệ thống hiển thị thông báo MSG101 và cho phép người dùng nhấn "Thử lại". |                                                                                                                                                                                                                            |
 
 **UC42 - Xem chi tiết Thiết bị**
 
@@ -3287,6 +3272,47 @@ Business Rules
 | ---      | ---     | ---                                                                                                                                                                                                                                               |
 
 - - - 1. **Module Quản lý Hợp đồng**
+
+UC63:Lập hợp gồng mới
+Mã use case
+UC63
+Tên use case
+Lập hợp đồng mới & Tự động cấp tài khoản
+Mô tả
+Quản lý thực hiện ký kết hợp đồng điện tử cho khách thuê. Hệ thống sẽ tự động kích hoạt tài khoản cho khách dựa trên thông tin hồ sơ.
+Actors
+Quản lý.
+Pre-Conditions
+Quản lý đã đăng nhập vào hệ thống.
+Quản lý đang ở màn hình Danh sách Hợp đồng.
+Phòng thuê đang ở trạng thái "Trống" hoặc "Đã cọc".
+Thông tin khách thuê đã được lưu trữ hoặc nhập mới.
+Post-Conditions
+Hợp đồng mới được lưu vào CSDL.
+Trạng thái phòng chuyển sang "Đang thuê".
+Tài khoản khách thuê được khởi tạo tự động và gửi thông tin đăng nhập qua Email/Zalo.
+Main flow
+1. Quản lý chọn phòng và chọn/nhập thông tin khách thuê.
+2. Quản lý nhập các thông tin chi tiết của hợp đồng bao gồm:
+Ngày bắt đầu, Ngày kết thúc, Tiền cọc, Kỳ đóng tiền.
+Thêm danh sách Khách thuê sẽ ở phòng này (Hệ thống sẽ dùng danh sách này để tính phí dịch vụ "Theo đầu người").
+Chọn các dịch vụ đi kèm. Nếu chọn dịch vụ tính phí "Theo số lượng", Quản lý phải nhập số lượng tương ứng (Ví dụ: Số lượng xe máy).
+3. Hệ thống kiểm tra Ngày bắt đầu, nếu không trùng với ngày đầu kỳ thu tiền, hệ thống tự động tính và gợi ý "Tiền phòng kỳ đầu tiên (Lẻ ngày)"
+4. Hệ thống kiểm tra tính hợp lệ và lưu hợp đồng.
+5. Hệ thống tự động tạo tài khoản cho khách và chuyển trạng thái phòng.
+6. Hệ thống thông báo lập hợp đồng thành công và hiển thị tùy chọn Xuất PDF.
+7. Hệ thống gửi file hợp động mới cho Khách thuê qua Email/Zalo
+Alternative Flow
+2a. Quản lý chọn sử dụng mẫu hợp đồng có sẵn để điền nhanh thông tin.
+Exception
+4a. Nếu phòng đã có hợp đồng khác trùng thời gian, hệ thống báo lỗi.
+Business Rules
+BR88: Một phòng tại một thời điểm chỉ có duy nhất một hợp đồng hiệu lực.
+BR89: Số điện thoại khách thuê dùng để tạo tài khoản phải là duy nhất.
+BR90 (Pro-rated Rent): Tiền phòng tháng đầu tiên = (Giá thuê cơ bản / 30) * Số ngày ở thực tế.
+BR_ActivityLog: Thao tác này tác động trực tiếp đến tài chính hoặc tính pháp lý của khu trọ. Hệ thống bắt buộc phải ghi vết hành động này vào Activity Log (UC13) của Quản lý sở hữu, bao gồm: Thời gian, Đối tượng bị tác động (Hợp đồng/Hóa đơn/Khách), Hành động và Giá trị thay đổi.
+
+
 
 Business Rules
 
