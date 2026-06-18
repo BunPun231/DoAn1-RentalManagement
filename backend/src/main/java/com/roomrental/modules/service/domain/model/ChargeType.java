@@ -4,5 +4,6 @@ public enum ChargeType {
     FIXED,
     PER_PERSON,
     PER_INDEX,
+    METERED,
     PER_QUANTITY
 }

@@ -29,6 +29,6 @@ public class MeteredBillingStrategy implements BillingStrategy {
 
     @Override
     public boolean supports(String chargeType, boolean hasTiers) {
-        return "PER_INDEX".equals(chargeType) && !hasTiers;
+        return "METERED".equals(chargeType) || ("PER_INDEX".equals(chargeType) && !hasTiers);
     }
 }

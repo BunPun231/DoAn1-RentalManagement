@@ -126,12 +126,14 @@ public class InvoiceService {
 
             boolean missingIndexReading = billableUsages.stream().anyMatch(usage -> {
                 RentalService service = rentalServiceRepository.findByIdAndMotelId(usage.getServiceId(), room.getMotelId()).orElse(null);
-                return service != null && service.getChargeType() == com.roomrental.modules.service.domain.model.ChargeType.PER_INDEX
+                return service != null && (
+                    service.getChargeType() == com.roomrental.modules.service.domain.model.ChargeType.PER_INDEX
+                    || service.getChargeType() == com.roomrental.modules.service.domain.model.ChargeType.METERED)
                         && !approvedReadings.containsKey(usage.getId());
             });
             if (missingIndexReading) {
                 skippedRooms.add(new SkippedInvoiceRoomResult(
-                        room.getId(), room.getRoomNumber(), "Missing APPROVED meter reading for at least one PER_INDEX service"));
+                    room.getId(), room.getRoomNumber(), "Missing APPROVED meter reading for at least one meter-based service"));
                 continue;
             }
 
@@ -158,7 +160,8 @@ public class InvoiceService {
             for (ServiceUsage usage : billableUsages) {
                 RentalService service = rentalServiceRepository.findByIdAndMotelId(usage.getServiceId(), room.getMotelId())
                         .orElseThrow(() -> BaseException.notFound("Service", usage.getServiceId()));
-                ServicePricing pricing = servicePricingRepository.findCurrentByServiceId(service.getId(), command.billingMonth()).orElse(null);
+                LocalDate pricingDate = command.billingMonth().withDayOfMonth(command.billingMonth().lengthOfMonth());
+                ServicePricing pricing = servicePricingRepository.findCurrentByServiceId(service.getId(), pricingDate).orElse(null);
                 List<ServiceTierPricing> tiers = pricing != null ? pricing.getTierPrices() : List.of();
                 boolean hasTiers = tiers != null && !tiers.isEmpty();
 
@@ -363,14 +366,22 @@ public class InvoiceService {
         BigDecimal quantity = usage.getRegisteredQuantity() != null ? BigDecimal.valueOf(usage.getRegisteredQuantity()) : BigDecimal.ONE;
         BigDecimal oldReading = approvedReading != null ? approvedReading.getOldReading() : BigDecimal.ZERO;
         BigDecimal newReading = approvedReading != null ? approvedReading.getNewReading() : oldReading;
+        BigDecimal consumption = approvedReading != null ? approvedReading.getConsumption() : null;
+        if (consumption == null && approvedReading != null) {
+            consumption = newReading.subtract(oldReading);
+        }
+        boolean meterBasedWithoutTiers = service.getChargeType() == com.roomrental.modules.service.domain.model.ChargeType.METERED
+                || (service.getChargeType() == com.roomrental.modules.service.domain.model.ChargeType.PER_INDEX && (tiers == null || tiers.isEmpty()));
+
         if (service.getChargeType() == com.roomrental.modules.service.domain.model.ChargeType.PER_QUANTITY && approvedReading != null) {
-            BigDecimal consumption = approvedReading.getConsumption();
             if (consumption == null) {
                 consumption = newReading.subtract(oldReading);
             }
             if (consumption != null) {
                 quantity = consumption.max(BigDecimal.ZERO);
             }
+        } else if (meterBasedWithoutTiers && consumption != null) {
+            quantity = consumption.max(BigDecimal.ZERO);
         }
 
         List<BillingContext.PricingTier> billingTiers = tiers == null ? List.of() : tiers.stream()

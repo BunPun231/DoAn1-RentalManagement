@@ -314,7 +314,8 @@ public class SettlementService {
             RentalService service = rentalServiceRepository.findByIdAndMotelId(usage.getServiceId(), motelId).orElse(null);
             if (service == null) continue;
 
-            if (service.getChargeType() == com.roomrental.modules.service.domain.model.ChargeType.PER_INDEX) {
+            if (service.getChargeType() == com.roomrental.modules.service.domain.model.ChargeType.PER_INDEX
+                    || service.getChargeType() == com.roomrental.modules.service.domain.model.ChargeType.METERED) {
                 BigDecimal finalReading = null;
                 if (service.getName().toLowerCase().contains("điện")) {
                     finalReading = finalElectricReading;
@@ -346,9 +347,10 @@ public class SettlementService {
                     generatedReadings.add(newMr);
 
                     BillingStrategy strategy = strategyFactory.getStrategy(service.getChargeType().name(), tiers != null && !tiers.isEmpty());
+                    BigDecimal meterQuantity = finalReading.subtract(oldReading).max(BigDecimal.ZERO);
                     BillingContext ctx = new BillingContext(
                         service.getId(), service.getName(), service.getChargeType().name(),
-                        oldReading, finalReading, BigDecimal.ONE, 1,
+                        oldReading, finalReading, meterQuantity, 1,
                         pricing != null ? pricing.getBasePrice() : BigDecimal.ZERO,
                         tiers.stream().map(t -> new BillingContext.PricingTier(t.getTierStart(), t.getTierEnd(), t.getPricePerUnit())).toList()
                     );
