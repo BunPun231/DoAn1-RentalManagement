@@ -1,0 +1,77 @@
+import { api } from "@/lib/api";
+
+export interface LoginRequest {
+  phone: string;
+  password: string;
+}
+
+export interface RegisterRequest {
+  phone: string;
+  email?: string;
+  fullName: string;
+  password: string;
+}
+
+export interface AuthResponse {
+  accessToken: string;
+  refreshToken?: string;
+  user: {
+    id: string;
+    phone: string;
+    email?: string;
+    fullName: string;
+    role: string;
+    status: string;
+    tenantId?: string;
+  };
+}
+
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ResetPasswordRequest {
+  token: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
+export const authService = {
+  /** UC02: Login */
+  async login(data: LoginRequest): Promise<AuthResponse> {
+    const res = await api.post<{ data: AuthResponse }>("/api/public/auth/login", data);
+    return res.data.data;
+  },
+
+  /** UC01: Register (Manager SaaS) */
+  async register(data: RegisterRequest): Promise<void> {
+    await api.post("/api/public/auth/register", data);
+  },
+
+  /** UC05: Change password */
+  async changePassword(data: ChangePasswordRequest): Promise<void> {
+    await api.post("/api/v1/auth/change-password", data);
+  },
+
+  /** UC06: Forgot password — request reset email */
+  async forgotPassword(data: ForgotPasswordRequest): Promise<void> {
+    await api.post("/api/public/auth/forgot-password", data);
+  },
+
+  /** UC06: Reset password with token */
+  async resetPassword(data: ResetPasswordRequest): Promise<void> {
+    await api.post("/api/public/auth/reset-password", data);
+  },
+
+  /** Refresh token */
+  async refresh(refreshToken: string): Promise<AuthResponse> {
+    const res = await api.post<{ data: AuthResponse }>("/api/public/auth/refresh", { refreshToken });
+    return res.data.data;
+  },
+};

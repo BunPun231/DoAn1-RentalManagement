@@ -1,143 +1,373 @@
-import { useState } from "react";
-import { Plus, Search, FileText, Send, CreditCard } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Plus, Search, FileText, CreditCard, RefreshCw, AlertCircle, Zap } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
-import { mockInvoices, mockRooms } from "@/data/mock";
-import { formatCurrency, formatDate } from "@/lib/utils";
-import { Invoice } from "@/types";
-import { InvoiceDetailModal } from "../components/InvoiceDetailModal";
+import { formatCurrency } from "@/lib/utils";
+import { invoiceService, type InvoiceResult } from "@/services/invoiceService";
+import { motelService, type MotelResult } from "@/services/motelService";
+import { extractError } from "@/lib/api";
+import { Modal } from "@/components/ui/Modal";
+
+const STATUS_BADGE: Record<string, React.ReactNode> = {
+  PENDING: <Badge variant="warning">Chưa thanh toán</Badge>,
+  PARTIAL: <Badge variant="warning">Thanh toán một phần</Badge>,
+  PAID: <Badge variant="success">Đã thanh toán</Badge>,
+  VOID: <Badge variant="default">Đã hủy</Badge>,
+};
+
+function GenerateInvoiceModal({
+  isOpen,
+  onClose,
+  onSuccess,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [motels, setMotels] = useState<MotelResult[]>([]);
+  const [motelId, setMotelId] = useState("");
+  const [billingMonth, setBillingMonth] = useState(
+    new Date().toISOString().slice(0, 7)
+  );
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [result, setResult] = useState<{ generatedCount: number } | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      motelService.list().then((res) => {
+        setMotels(res.content);
+        if (res.content.length > 0) setMotelId(String(res.content[0].id));
+      });
+    }
+  }, [isOpen]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const res = await invoiceService.generate({
+        motelId: parseInt(motelId, 10),
+        billingMonth,
+      });
+      setResult({ generatedCount: res.generatedCount });
+    } catch (err) {
+      setError(extractError(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const inputClass =
+    "w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-deep/30 focus:border-brand-deep transition-all";
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Tạo hóa đơn loạt">
+      {result ? (
+        <div className="text-center py-6">
+          <div className="p-4 bg-emerald-50 rounded-2xl inline-block mb-4">
+            <Zap size={32} className="text-emerald-500" />
+          </div>
+          <h3 className="text-lg font-bold text-brand-ink mb-2">Tạo thành công!</h3>
+          <p className="text-slate-600">
+            Đã tạo <span className="font-bold text-brand-deep">{result.generatedCount}</span> hóa đơn
+          </p>
+          <Button className="mt-6" onClick={() => { setResult(null); onSuccess(); }}>
+            Xem danh sách hóa đơn
+          </Button>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <div className="rounded-xl bg-red-50 border border-red-100 p-3 text-sm text-red-700">{error}</div>
+          )}
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-slate-700">Khu trọ</label>
+            <select
+              id="invoice-generate-motel"
+              value={motelId}
+              onChange={(e) => setMotelId(e.target.value)}
+              required
+              className={inputClass}
+            >
+              {motels.map((m) => (
+                <option key={m.id} value={m.id}>{m.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-slate-700">Tháng lập hóa đơn</label>
+            <input
+              id="invoice-generate-month"
+              type="month"
+              value={billingMonth}
+              onChange={(e) => setBillingMonth(e.target.value)}
+              required
+              className={inputClass}
+            />
+          </div>
+          <p className="text-xs text-slate-400 bg-slate-50 p-3 rounded-xl">
+            💡 Hệ thống sẽ tự động tạo hóa đơn cho tất cả phòng đang có hợp đồng hoạt động.
+          </p>
+          <div className="pt-4 border-t border-slate-100 flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={onClose}>Hủy</Button>
+            <Button type="submit" disabled={loading}>
+              {loading ? "Đang tạo..." : "Tạo hóa đơn"}
+            </Button>
+          </div>
+        </form>
+      )}
+    </Modal>
+  );
+}
 
 export function InvoiceListPage() {
-  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [invoices, setInvoices] = useState<InvoiceResult[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [isGenerateOpen, setIsGenerateOpen] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<InvoiceResult | null>(null);
 
-  const unpaidTotal = mockInvoices
-    .filter(i => i.status === "UNPAID" || i.status === "OVERDUE")
-    .reduce((sum, inv) => sum + inv.totalAmount, 0);
+  const fetchInvoices = useCallback(async () => {
+    setLoading(true);
+    try {
+      const result = await invoiceService.list(statusFilter || undefined, page, 20);
+      setInvoices(result.content);
+      setTotalPages(result.totalPages);
+      setError(null);
+    } catch (err) {
+      setError(extractError(err));
+    } finally {
+      setLoading(false);
+    }
+  }, [page, statusFilter]);
+
+  useEffect(() => {
+    fetchInvoices();
+  }, [fetchInvoices]);
+
+  const filtered = invoices.filter((inv) => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return String(inv.id).includes(q) || String(inv.roomId).includes(q);
+  });
+
+  const totalAmount = invoices.reduce((s, i) => s + (i.totalAmount ?? 0), 0);
+  const paidAmount = invoices.reduce((s, i) => s + (i.paidAmount ?? 0), 0);
+  const debtAmount = totalAmount - paidAmount;
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px]">
+        <AlertCircle size={40} className="text-red-400 mb-3" />
+        <p className="text-slate-600 mb-4">{error}</p>
+        <Button onClick={fetchInvoices}>Thử lại</Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold font-display text-brand-ink">Hóa đơn</h1>
+        <div>
+          <h1 className="text-2xl font-bold font-display text-brand-ink">Hóa đơn</h1>
+          <p className="text-sm text-slate-500 mt-1">Quản lý hóa đơn tiền phòng</p>
+        </div>
         <div className="flex gap-2">
-          <Button variant="outline">Tạo hóa đơn loạt</Button>
-          <Button>
-            <Plus size={16} className="mr-2" />
-            Tạo hóa đơn lẻ
+          <Button variant="outline" onClick={() => fetchInvoices()} disabled={loading}>
+            <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
+          </Button>
+          <Button
+            id="generate-invoices-btn"
+            variant="outline"
+            onClick={() => setIsGenerateOpen(true)}
+          >
+            <Zap size={16} className="mr-2" />
+            Tạo hóa đơn loạt
           </Button>
         </div>
       </div>
 
+      {/* Stats */}
       <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-xl bg-white p-5 shadow-sm border border-slate-100 flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-slate-500">Tổng thu dự kiến</p>
-            <h3 className="text-2xl font-bold text-brand-ink mt-1">{formatCurrency(45000000)}</h3>
+        {[
+          { label: "Tổng dự kiến", value: totalAmount, color: "text-brand-ink" },
+          { label: "Đã thu", value: paidAmount, color: "text-emerald-600" },
+          { label: "Còn nợ", value: debtAmount, color: "text-rose-600", border: true },
+        ].map((item) => (
+          <div
+            key={item.label}
+            className={`rounded-2xl bg-white p-5 shadow-sm border border-slate-100 ${
+              item.border ? "border-l-4 border-l-rose-400" : ""
+            }`}
+          >
+            <p className="text-sm font-medium text-slate-500">{item.label}</p>
+            <h3 className={`text-2xl font-bold mt-1 font-display ${item.color}`}>
+              {formatCurrency(item.value)}
+            </h3>
           </div>
-        </div>
-        <div className="rounded-xl bg-white p-5 shadow-sm border border-slate-100 flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-slate-500">Đã thu</p>
-            <h3 className="text-2xl font-bold text-green-600 mt-1">{formatCurrency(30000000)}</h3>
-          </div>
-        </div>
-        <div className="rounded-xl bg-white p-5 shadow-sm border border-slate-100 flex items-center justify-between border-l-4 border-l-red-500">
-          <div>
-            <p className="text-sm font-medium text-slate-500">Còn nợ</p>
-            <h3 className="text-2xl font-bold text-red-600 mt-1">{formatCurrency(unpaidTotal)}</h3>
-          </div>
-        </div>
+        ))}
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200">
+      {/* Table */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="relative w-full sm:w-96">
+          <div className="relative w-full sm:w-80">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input 
+            <input
+              id="invoice-search"
               type="text"
-              placeholder="Tìm theo phòng, mã HĐ..." 
-              className="h-10 w-full rounded-lg border border-slate-300 bg-white pl-10 pr-4 text-sm focus:border-brand-deep focus:outline-none focus:ring-1 focus:ring-brand-deep"
+              placeholder="Tìm theo phòng, mã HĐ..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm focus:border-brand-deep focus:outline-none focus:ring-2 focus:ring-brand-deep/20 transition-all"
             />
           </div>
-          <div className="flex gap-2">
-            <input 
-              type="month" 
-              className="h-10 rounded-lg border border-slate-300 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-brand-deep"
-              defaultValue="2026-05"
-            />
-            <select className="h-10 rounded-lg border border-slate-300 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-brand-deep">
-              <option value="ALL">Tất cả trạng thái</option>
-              <option value="UNPAID">Chưa thanh toán</option>
-              <option value="PAID">Đã thanh toán</option>
-              <option value="OVERDUE">Quá hạn</option>
-            </select>
-          </div>
+          <select
+            id="invoice-status-filter"
+            value={statusFilter}
+            onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
+            className="h-10 rounded-xl border border-slate-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-deep/20 bg-white"
+          >
+            <option value="">Tất cả trạng thái</option>
+            <option value="PENDING">Chưa thanh toán</option>
+            <option value="PARTIAL">Một phần</option>
+            <option value="PAID">Đã thanh toán</option>
+            <option value="VOID">Đã hủy</option>
+          </select>
         </div>
 
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Mã HĐ & Phòng</TableHead>
-              <TableHead>Kỳ HĐ</TableHead>
-              <TableHead>Tổng tiền</TableHead>
-              <TableHead>Trạng thái</TableHead>
-              <TableHead className="text-right">Thao tác</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {mockInvoices.map((invoice) => {
-              const room = mockRooms.find(r => r.id === invoice.roomId);
-              
-              const statusBadge = {
-                PAID: <Badge variant="success">Đã thanh toán</Badge>,
-                UNPAID: <Badge variant="warning">Chưa thanh toán</Badge>,
-                OVERDUE: <Badge variant="danger">Quá hạn</Badge>,
-                CANCELLED: <Badge variant="default">Đã hủy</Badge>
-              };
-
-              return (
-                <TableRow key={invoice.id}>
+        {loading ? (
+          <div className="p-12 flex justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-2 border-brand-deep border-t-transparent" />
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="p-16 flex flex-col items-center text-center">
+            <FileText size={40} className="text-slate-200 mb-3" />
+            <p className="text-slate-500 font-medium">Chưa có hóa đơn nào</p>
+            <p className="text-sm text-slate-400 mt-1 mb-4">Tạo hóa đơn loạt để bắt đầu</p>
+            <Button onClick={() => setIsGenerateOpen(true)}>
+              <Zap size={16} className="mr-2" />
+              Tạo hóa đơn
+            </Button>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Mã HĐ & Phòng</TableHead>
+                <TableHead>Kỳ HĐ</TableHead>
+                <TableHead>Tổng tiền</TableHead>
+                <TableHead>Đã thu</TableHead>
+                <TableHead>Trạng thái</TableHead>
+                <TableHead className="text-right">Thao tác</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((invoice) => (
+                <TableRow key={invoice.id} className="hover:bg-slate-50/50 transition-colors">
                   <TableCell>
-                    <div className="font-medium text-brand-ink">{invoice.id.toUpperCase()}</div>
-                    <div className="text-sm font-semibold text-brand-deep">Phòng {room?.name}</div>
+                    <div className="font-mono text-xs text-slate-400">#{invoice.id}</div>
+                    <div className="font-medium text-brand-deep">Phòng {invoice.roomId}</div>
                   </TableCell>
                   <TableCell>
-                    <div className="text-sm text-slate-700">Tháng {invoice.month}</div>
-                    <div className="text-xs text-slate-500">Tạo: {formatDate(invoice.createdAt)}</div>
+                    <div className="text-sm text-slate-700">
+                      {invoice.billingMonth
+                        ? new Date(invoice.billingMonth).toLocaleDateString("vi-VN", { month: "long", year: "numeric" })
+                        : "-"}
+                    </div>
+                    {invoice.dueDate && (
+                      <div className="text-xs text-slate-400">
+                        Hạn: {new Date(invoice.dueDate).toLocaleDateString("vi-VN")}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell>
-                    <div className="text-sm font-bold text-brand-ink">{formatCurrency(invoice.totalAmount)}</div>
+                    <div className="font-bold text-brand-ink">{formatCurrency(invoice.totalAmount)}</div>
                   </TableCell>
                   <TableCell>
-                    {statusBadge[invoice.status]}
+                    <div className="text-sm text-emerald-700 font-medium">{formatCurrency(invoice.paidAmount)}</div>
                   </TableCell>
+                  <TableCell>{STATUS_BADGE[invoice.status] ?? <Badge>{invoice.status}</Badge>}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      {invoice.status === "UNPAID" && (
-                        <Button variant="outline" size="sm" className="text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200">
+                      {(invoice.status === "PENDING" || invoice.status === "PARTIAL") && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 border-emerald-200"
+                          onClick={() => alert(`Thu tiền HĐ #${invoice.id}`)}
+                        >
                           <CreditCard size={14} className="mr-1.5" />
                           Thu tiền
                         </Button>
                       )}
-                      <Button variant="outline" size="sm" onClick={() => setSelectedInvoice(invoice)}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSelectedInvoice(invoice)}
+                      >
                         Chi tiết
                       </Button>
                     </div>
                   </TableCell>
                 </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+
+        {totalPages > 1 && (
+          <div className="p-4 border-t border-slate-100 flex justify-center gap-2">
+            <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
+              Trước
+            </Button>
+            <span className="px-4 py-1.5 text-sm text-slate-600">{page + 1} / {totalPages}</span>
+            <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage((p) => p + 1)}>
+              Sau
+            </Button>
+          </div>
+        )}
       </div>
 
+      {/* Invoice Detail Modal */}
       {selectedInvoice && (
-        <InvoiceDetailModal
-          isOpen={!!selectedInvoice}
-          onClose={() => setSelectedInvoice(null)}
-          invoice={selectedInvoice}
-        />
+        <Modal isOpen={!!selectedInvoice} onClose={() => setSelectedInvoice(null)} title={`Chi tiết hóa đơn #${selectedInvoice.id}`}>
+          <div className="space-y-3">
+            {[
+              { label: "Phòng", value: `Phòng ${selectedInvoice.roomId}` },
+              { label: "Kỳ hóa đơn", value: selectedInvoice.billingMonth ? new Date(selectedInvoice.billingMonth).toLocaleDateString("vi-VN", { month: "long", year: "numeric" }) : "-" },
+              { label: "Tổng tiền", value: formatCurrency(selectedInvoice.totalAmount) },
+              { label: "Đã thanh toán", value: formatCurrency(selectedInvoice.paidAmount) },
+              { label: "Còn lại", value: formatCurrency(selectedInvoice.totalAmount - selectedInvoice.paidAmount) },
+            ].map(({ label, value }) => (
+              <div key={label} className="flex justify-between py-2 border-b border-slate-100">
+                <span className="text-slate-500 text-sm">{label}</span>
+                <span className="font-medium text-sm">{value}</span>
+              </div>
+            ))}
+            <div className="flex justify-between py-2">
+              <span className="text-slate-500 text-sm">Trạng thái</span>
+              <span>{STATUS_BADGE[selectedInvoice.status]}</span>
+            </div>
+          </div>
+          <div className="pt-4 border-t border-slate-100 flex justify-end mt-4">
+            <Button variant="outline" onClick={() => setSelectedInvoice(null)}>Đóng</Button>
+          </div>
+        </Modal>
       )}
+
+      <GenerateInvoiceModal
+        isOpen={isGenerateOpen}
+        onClose={() => setIsGenerateOpen(false)}
+        onSuccess={() => { setIsGenerateOpen(false); fetchInvoices(); }}
+      />
     </div>
   );
 }

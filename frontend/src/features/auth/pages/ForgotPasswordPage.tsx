@@ -1,52 +1,130 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
+import { Building2, Mail, ArrowLeft, CheckCircle2, Send } from "lucide-react";
+import { authService } from "@/services/authService";
+import { extractError } from "@/lib/api";
 
 export function ForgotPasswordPage() {
+  const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSent, setIsSent] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
     setIsLoading(true);
-
-    // Mock reset password
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      await authService.forgotPassword({ email });
       setIsSent(true);
-    }, 500);
+    } catch (err) {
+      setError(extractError(err));
+    } finally {
+      setIsLoading(false);
+    }
   };
 
+  const inputClass = "w-full px-4 py-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-deep/30 focus:border-brand-deep transition-all";
+
   return (
-    <div className="flex min-h-screen bg-brand-sand items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white rounded-2xl p-8 shadow-sm border border-slate-100">
-        <div className="mb-6 text-center">
-          <h2 className="mb-2 font-display text-2xl font-bold text-brand-ink">Khôi phục mật khẩu</h2>
-          <p className="text-slate-600 text-sm">
-            {!isSent ? "Nhập email của bạn để nhận liên kết đặt lại mật khẩu" : "Kiểm tra email của bạn"}
-          </p>
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
+      <div className="w-full max-w-md">
+        {/* Logo */}
+        <div className="flex items-center justify-center gap-2 mb-8">
+          <div className="p-2.5 bg-brand-deep rounded-xl">
+            <Building2 size={24} className="text-white" />
+          </div>
+          <span className="font-bold text-xl font-display text-brand-ink">SmartBoarding</span>
         </div>
 
-        {!isSent ? (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <Input label="Email" type="email" placeholder="example@gmail.com" required />
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Đang gửi..." : "Gửi liên kết"}
-            </Button>
-          </form>
-        ) : (
-          <div className="text-center space-y-4">
-            <div className="p-4 bg-green-50 text-green-700 rounded-lg text-sm">
-              Chúng tôi đã gửi một liên kết đặt lại mật khẩu đến email của bạn. Vui lòng kiểm tra hộp thư đến.
-            </div>
-          </div>
-        )}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8">
+          {!isSent ? (
+            <>
+              <div className="text-center mb-8">
+                <div className="p-4 bg-brand-deep/10 rounded-2xl inline-block mb-4">
+                  <Mail size={32} className="text-brand-deep" />
+                </div>
+                <h1 className="font-display text-2xl font-bold text-brand-ink mb-2">Quên mật khẩu?</h1>
+                <p className="text-slate-500 text-sm">
+                  Nhập email đăng ký của bạn. Chúng tôi sẽ gửi liên kết đặt lại mật khẩu.
+                </p>
+              </div>
 
-        <div className="mt-6 text-center">
-          <Link to="/login" className="text-sm font-medium text-brand-deep hover:underline">
-            Quay lại Đăng nhập
-          </Link>
+              {error && (
+                <div className="rounded-xl bg-red-50 border border-red-100 p-3 text-sm text-red-700 mb-4">
+                  {error}
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-slate-700">Địa chỉ email</label>
+                  <div className="relative">
+                    <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      id="forgot-email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="email@example.com"
+                      required
+                      className={`${inputClass} pl-12`}
+                    />
+                  </div>
+                </div>
+
+                <button
+                  id="forgot-submit"
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full py-3 px-6 bg-brand-deep text-white rounded-xl font-semibold text-sm hover:bg-brand-deep/90 active:scale-[0.98] transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+                >
+                  {isLoading ? (
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                  ) : <Send size={16} />}
+                  {isLoading ? "Đang gửi..." : "Gửi liên kết đặt lại"}
+                </button>
+              </form>
+            </>
+          ) : (
+            <div className="text-center py-4">
+              <div className="p-5 bg-emerald-50 rounded-2xl inline-block mb-5">
+                <CheckCircle2 size={40} className="text-emerald-500" />
+              </div>
+              <h2 className="font-display text-2xl font-bold text-brand-ink mb-2">Kiểm tra email!</h2>
+              <p className="text-slate-500 text-sm mb-2">
+                Chúng tôi đã gửi liên kết đặt lại mật khẩu đến:
+              </p>
+              <p className="font-semibold text-brand-deep mb-6">{email}</p>
+              <div className="bg-amber-50 rounded-xl p-4 text-sm text-amber-700 text-left">
+                <p className="font-medium mb-1">💡 Lưu ý:</p>
+                <ul className="space-y-1 text-xs">
+                  <li>• Kiểm tra cả hộp thư Spam/Junk</li>
+                  <li>• Liên kết có hiệu lực trong 15 phút</li>
+                  <li>• Chỉ nhận được nếu email đã đăng ký</li>
+                </ul>
+              </div>
+              <button
+                onClick={() => { setIsSent(false); setEmail(""); }}
+                className="mt-5 text-sm text-brand-deep font-medium hover:underline"
+              >
+                Gửi lại liên kết
+              </button>
+            </div>
+          )}
+
+          <div className="mt-6 pt-4 border-t border-slate-100 text-center">
+            <Link
+              to="/login"
+              className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-brand-deep transition-colors"
+            >
+              <ArrowLeft size={14} />
+              Quay lại đăng nhập
+            </Link>
+          </div>
         </div>
       </div>
     </div>

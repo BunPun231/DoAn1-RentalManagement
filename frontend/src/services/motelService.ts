@@ -1,0 +1,161 @@
+import { api } from "@/lib/api";
+
+// ============ TYPES ============
+
+export interface PageResponse<T> {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+}
+
+export interface ApiResponse<T> {
+  data: T;
+  message?: string;
+}
+
+export interface MotelResult {
+  id: number;
+  tenantId: string;
+  name: string;
+  address: string;
+  totalFloors: number;
+  description?: string;
+  createdAt: string;
+}
+
+export interface MotelCreateRequest {
+  name: string;
+  address: string;
+  totalFloors: number;
+  description?: string;
+}
+
+export interface MotelUpdateRequest {
+  name?: string;
+  address?: string;
+  totalFloors?: number;
+  description?: string;
+}
+
+export interface RoomResult {
+  id: number;
+  motelId: number;
+  roomNumber: string;
+  floor: number;
+  area?: number;
+  basePrice: number;
+  status: "AVAILABLE" | "RENTED" | "DEPOSITED" | "REPAIRING" | "OUT_OF_BUSINESS";
+  currentResidentsCount: number;
+  description?: string;
+}
+
+export interface RoomCreateRequest {
+  roomNumber: string;
+  floor: number;
+  area?: number;
+  basePrice: number;
+  description?: string;
+}
+
+export interface RoomUpdateRequest {
+  roomNumber?: string;
+  floor?: number;
+  area?: number;
+  basePrice?: number;
+  description?: string;
+}
+
+export interface RoomStatusUpdateRequest {
+  status: string;
+  reason?: string;
+}
+
+// ============ MOTEL APIs ============
+
+export const motelService = {
+  /** UC21: List motels */
+  async list(page = 0, size = 20): Promise<PageResponse<MotelResult>> {
+    const res = await api.get<ApiResponse<PageResponse<MotelResult>>>("/api/motels", {
+      params: { page, size },
+    });
+    return res.data.data;
+  },
+
+  /** UC22: Get motel detail */
+  async get(id: number): Promise<MotelResult> {
+    const res = await api.get<ApiResponse<MotelResult>>(`/api/motels/${id}`);
+    return res.data.data;
+  },
+
+  /** UC20: Create motel */
+  async create(data: MotelCreateRequest): Promise<MotelResult> {
+    const res = await api.post<ApiResponse<MotelResult>>("/api/motels", data);
+    return res.data.data;
+  },
+
+  /** UC23: Update motel */
+  async update(id: number, data: MotelUpdateRequest): Promise<MotelResult> {
+    const res = await api.patch<ApiResponse<MotelResult>>(`/api/motels/${id}`, data);
+    return res.data.data;
+  },
+
+  /** UC25: Delete motel */
+  async delete(id: number): Promise<void> {
+    await api.delete(`/api/motels/${id}`);
+  },
+};
+
+// ============ ROOM APIs ============
+
+export const roomService = {
+  /** UC27: List rooms in a motel */
+  async list(motelId: number, page = 0, size = 100): Promise<PageResponse<RoomResult>> {
+    const res = await api.get<ApiResponse<PageResponse<RoomResult>>>(
+      `/api/motels/${motelId}/rooms`,
+      { params: { page, size } }
+    );
+    return res.data.data;
+  },
+
+  /** UC28: Get room detail */
+  async get(motelId: number, roomId: number): Promise<RoomResult> {
+    const res = await api.get<ApiResponse<RoomResult>>(
+      `/api/motels/${motelId}/rooms/${roomId}`
+    );
+    return res.data.data;
+  },
+
+  /** UC26: Create room */
+  async create(motelId: number, data: RoomCreateRequest): Promise<RoomResult> {
+    const res = await api.post<ApiResponse<RoomResult>>(
+      `/api/motels/${motelId}/rooms`,
+      data
+    );
+    return res.data.data;
+  },
+
+  /** UC29: Update room */
+  async update(motelId: number, roomId: number, data: RoomUpdateRequest): Promise<RoomResult> {
+    const res = await api.patch<ApiResponse<RoomResult>>(
+      `/api/motels/${motelId}/rooms/${roomId}`,
+      data
+    );
+    return res.data.data;
+  },
+
+  /** UC30: Change room status */
+  async updateStatus(motelId: number, roomId: number, data: RoomStatusUpdateRequest): Promise<RoomResult> {
+    const res = await api.patch<ApiResponse<RoomResult>>(
+      `/api/motels/${motelId}/rooms/${roomId}/status`,
+      data
+    );
+    return res.data.data;
+  },
+
+  /** UC31: Delete room */
+  async delete(motelId: number, roomId: number): Promise<void> {
+    await api.delete(`/api/motels/${motelId}/rooms/${roomId}`);
+  },
+};
