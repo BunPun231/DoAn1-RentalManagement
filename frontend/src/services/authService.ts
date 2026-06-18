@@ -1,11 +1,12 @@
 import { api } from "@/lib/api";
 
 export interface LoginRequest {
-  phone: string;
+  identity: string;
   password: string;
 }
 
 export interface RegisterRequest {
+  tenantName: string;
   phone: string;
   email?: string;
   fullName: string;
@@ -15,29 +16,26 @@ export interface RegisterRequest {
 export interface AuthResponse {
   accessToken: string;
   refreshToken?: string;
-  user: {
-    id: string;
-    phone: string;
-    email?: string;
-    fullName: string;
-    role: string;
-    status: string;
-    tenantId?: string;
-  };
+  tokenType?: string;
+  userId: string;
+  tenantId?: string;
+  role: string;
+  fullName: string;
 }
 
 export interface ChangePasswordRequest {
-  currentPassword: string;
+  oldPassword: string;
   newPassword: string;
   confirmPassword: string;
 }
 
 export interface ForgotPasswordRequest {
-  email: string;
+  identity: string;
 }
 
 export interface ResetPasswordRequest {
-  token: string;
+  identity: string;
+  otp: string;
   newPassword: string;
   confirmPassword: string;
 }
@@ -61,12 +59,12 @@ export const authService = {
 
   /** UC06: Forgot password — request reset email */
   async forgotPassword(data: ForgotPasswordRequest): Promise<void> {
-    await api.post("/api/public/auth/forgot-password", data);
+    await api.post("/api/v1/auth/forgot-password", data);
   },
 
   /** UC06: Reset password with token */
   async resetPassword(data: ResetPasswordRequest): Promise<void> {
-    await api.post("/api/public/auth/reset-password", data);
+    await api.post("/api/v1/auth/reset-password", data);
   },
 
   /** Refresh token */

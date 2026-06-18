@@ -47,6 +47,8 @@ export interface MeterReadingResult {
   id: number;
   tenantId: string;
   roomId: number;
+  serviceId: number;
+  serviceName: string;
   serviceUsageId: number;
   billingMonth: string;
   oldReading: number;
@@ -58,14 +60,17 @@ export interface MeterReadingResult {
 }
 
 export interface MeterReadingSubmitRequest {
+  roomId: number;
+  serviceId: number;
+  billingMonth: string;
   newReading: number;
-  imageUrl?: string;
+  readingImageUrl?: string;
 }
 
 export interface PaymentRequest {
+  invoiceId: number;
   amount: number;
-  method: "CASH" | "BANK_TRANSFER" | "E_WALLET";
-  notes?: string;
+  paymentMethod: string;
 }
 
 export interface InvoiceAdjustRequest {
@@ -124,46 +129,48 @@ export const invoiceService = {
 // ============ METER READING APIs ============
 
 export const meterReadingService = {
-  /** List meter readings for a motel */
-  async listByMotel(motelId: number, billingMonth?: string): Promise<MeterReadingResult[]> {
-    const res = await api.get<{ data: MeterReadingResult[] }>("/api/v1/meter-readings", {
-      params: { motelId, billingMonth },
+  /** List meter readings (UC72) */
+  async list(roomId?: number, status?: string, page = 0, size = 100): Promise<PageResponse<MeterReadingResult>> {
+    const res = await api.get<PageResponse<MeterReadingResult>>("/api/v1/meter-readings", {
+      params: { roomId, status, page, size },
     });
-    return res.data.data;
+    return res.data;
   },
 
-  /** UC71: Submit meter reading */
-  async submit(readingId: number, data: MeterReadingSubmitRequest): Promise<MeterReadingResult> {
-    const res = await api.post<{ data: MeterReadingResult }>(
-      `/api/v1/meter-readings/${readingId}/submit`,
-      data
-    );
-    return res.data.data;
+  /** UC70: Submit meter reading */
+  async submit(data: MeterReadingSubmitRequest): Promise<MeterReadingResult> {
+    const res = await api.post<MeterReadingResult>("/api/v1/meter-readings", data);
+    return res.data;
   },
 
-  /** UC71: Approve meter reading */
+  /** UC72: Get reading history for a room */
+  async getHistory(roomId: number): Promise<MeterReadingResult[]> {
+    const res = await api.get<MeterReadingResult[]>(`/api/v1/meter-readings/rooms/${roomId}/history`);
+    return res.data;
+  },
+
+  /** UC70: Approve meter reading */
   async approve(readingId: number): Promise<MeterReadingResult> {
-    const res = await api.post<{ data: MeterReadingResult }>(
-      `/api/v1/meter-readings/${readingId}/approve`
-    );
-    return res.data.data;
+    const res = await api.post<MeterReadingResult>(`/api/v1/meter-readings/${readingId}/approve`);
+    return res.data;
   },
 
-  /** UC71: Reject meter reading */
+  /** UC70: Reject meter reading */
   async reject(readingId: number, reason?: string): Promise<MeterReadingResult> {
-    const res = await api.post<{ data: MeterReadingResult }>(
+    const res = await api.post<MeterReadingResult>(
       `/api/v1/meter-readings/${readingId}/reject`,
-      { reason }
+      null,
+      { params: { reason } }
     );
-    return res.data.data;
+    return res.data;
   },
 };
 
 // ============ PAYMENT APIs ============
 
 export const paymentService = {
-  /** UC78: Process payment for invoice */
-  async pay(invoiceId: number, data: PaymentRequest): Promise<void> {
-    await api.post(`/api/v1/payments/invoices/${invoiceId}`, data);
+  /** UC78: Process manual payment for invoice */
+  async pay(data: PaymentRequest): Promise<void> {
+    await api.post(`/api/v1/payments/manual`, data);
   },
 };

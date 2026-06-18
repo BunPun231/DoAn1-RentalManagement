@@ -25,20 +25,20 @@ export function LoginPage() {
     setIsLoading(true);
 
     try {
-      const result = await authService.login({ phone, password });
+      const result = await authService.login({ identity: phone, password });
 
       // Store tenant if present
-      if (result.user.tenantId) {
-        setTenantId(result.user.tenantId);
+      if (result.tenantId) {
+        setTenantId(result.tenantId);
       }
 
       // Login with token and user
       login(result.accessToken, {
-        id: result.user.id,
-        name: result.user.fullName,
-        email: result.user.email ?? "",
-        phone: result.user.phone,
-        role: result.user.role as "ADMIN" | "MANAGER" | "TENANT" | "TECHNICIAN",
+        id: result.userId,
+        name: result.fullName,
+        email: "",
+        phone: phone, // We know the phone because they used it to login
+        role: result.role as "ADMIN" | "MANAGER" | "TENANT" | "TECHNICIAN",
       });
 
       navigate("/dashboard");

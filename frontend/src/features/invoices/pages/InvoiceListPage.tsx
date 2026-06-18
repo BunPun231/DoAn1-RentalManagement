@@ -8,6 +8,7 @@ import { invoiceService, type InvoiceResult } from "@/services/invoiceService";
 import { motelService, type MotelResult } from "@/services/motelService";
 import { extractError } from "@/lib/api";
 import { Modal } from "@/components/ui/Modal";
+import { PaymentModal } from "../components/PaymentModal";
 
 const STATUS_BADGE: Record<string, React.ReactNode> = {
   PENDING: <Badge variant="warning">Chưa thanh toán</Badge>,
@@ -133,6 +134,7 @@ export function InvoiceListPage() {
   const [totalPages, setTotalPages] = useState(0);
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceResult | null>(null);
+  const [paymentInvoice, setPaymentInvoice] = useState<InvoiceResult | null>(null);
 
   const fetchInvoices = useCallback(async () => {
     setLoading(true);
@@ -302,7 +304,7 @@ export function InvoiceListPage() {
                           variant="outline"
                           size="sm"
                           className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 border-emerald-200"
-                          onClick={() => alert(`Thu tiền HĐ #${invoice.id}`)}
+                          onClick={() => setPaymentInvoice(invoice)}
                         >
                           <CreditCard size={14} className="mr-1.5" />
                           Thu tiền
@@ -368,6 +370,16 @@ export function InvoiceListPage() {
         onClose={() => setIsGenerateOpen(false)}
         onSuccess={() => { setIsGenerateOpen(false); fetchInvoices(); }}
       />
+      
+      {paymentInvoice && (
+        <PaymentModal
+          isOpen={!!paymentInvoice}
+          onClose={() => setPaymentInvoice(null)}
+          invoiceId={paymentInvoice.id}
+          totalDebt={paymentInvoice.totalAmount - (paymentInvoice.paidAmount || 0)}
+          onSuccess={() => { setPaymentInvoice(null); fetchInvoices(); }}
+        />
+      )}
     </div>
   );
 }

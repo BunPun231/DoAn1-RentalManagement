@@ -24,7 +24,7 @@ function ChangePasswordSection() {
     setLoading(true);
     try {
       await authService.changePassword({
-        currentPassword: form.currentPassword,
+        oldPassword: form.currentPassword,
         newPassword: form.newPassword,
         confirmPassword: form.confirmPassword,
       });

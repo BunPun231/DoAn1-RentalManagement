@@ -3,6 +3,8 @@ import { Plus, Edit2, Trash2, Building2, AlertCircle, RefreshCw, Layers } from "
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { AddMotelModal } from "../components/AddMotelModal";
+import { AddRoomModal } from "../components/AddRoomModal";
+import { RoomDetailModal } from "../components/RoomDetailModal";
 import { motelService, roomService, type MotelResult, type RoomResult } from "@/services/motelService";
 import { extractError } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
@@ -38,7 +40,9 @@ export function MotelListPage() {
   const [loading, setLoading] = useState(true);
   const [roomsLoading, setRoomsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isAddMotelOpen, setIsAddMotelOpen] = useState(false);
+  const [isMotelModalOpen, setIsMotelModalOpen] = useState(false);
+  const [isAddRoomOpen, setIsAddRoomOpen] = useState(false);
+  const [editingMotel, setEditingMotel] = useState<MotelResult | undefined>();
   const [selectedRoom, setSelectedRoom] = useState<RoomResult | null>(null);
 
   const fetchMotels = useCallback(async () => {
@@ -78,6 +82,18 @@ export function MotelListPage() {
       fetchRooms(selectedMotelId);
     }
   }, [selectedMotelId, fetchRooms]);
+
+  const handleDeleteMotel = async () => {
+    if (!activeMotel) return;
+    if (!confirm(`Bạn có chắc chắn muốn xóa khu trọ "${activeMotel.name}" không? Toàn bộ phòng và dữ liệu liên quan sẽ bị xóa.`)) return;
+    try {
+      await motelService.delete(activeMotel.id);
+      setSelectedMotelId(null);
+      fetchMotels();
+    } catch (err) {
+      alert(extractError(err));
+    }
+  };
 
   const activeMotel = motels.find((m) => m.id === selectedMotelId);
   const floors = Array.from(new Set(rooms.map((r) => r.floor))).sort((a, b) => a - b);
@@ -125,11 +141,11 @@ export function MotelListPage() {
           <p className="text-sm text-slate-500 mt-1">{motels.length} khu trọ</p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => setIsAddMotelOpen(true)} variant="outline">
+          <Button onClick={() => { setEditingMotel(undefined); setIsMotelModalOpen(true); }} variant="outline">
             <Plus size={16} className="mr-2" />
             Thêm khu trọ
           </Button>
-          <Button onClick={() => alert("Chức năng thêm phòng")}>
+          <Button onClick={() => setIsAddRoomOpen(true)} disabled={!activeMotel}>
             <Plus size={16} className="mr-2" />
             Thêm phòng
           </Button>
@@ -186,11 +202,11 @@ export function MotelListPage() {
                   ))}
                 </div>
                 <div className="flex gap-2 ml-2">
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" onClick={() => { setEditingMotel(activeMotel); setIsMotelModalOpen(true); }}>
                     <Edit2 size={14} className="mr-1.5" />
                     Sửa
                   </Button>
-                  <Button variant="danger" size="sm">
+                  <Button variant="danger" size="sm" onClick={handleDeleteMotel}>
                     <Trash2 size={14} className="mr-1.5" />
                     Xóa
                   </Button>
@@ -211,7 +227,7 @@ export function MotelListPage() {
               <Building2 size={40} className="text-slate-300 mb-3" />
               <p className="text-slate-500 font-medium">Chưa có phòng nào</p>
               <p className="text-sm text-slate-400 mt-1 mb-4">Thêm phòng để bắt đầu quản lý</p>
-              <Button>
+              <Button onClick={() => setIsAddRoomOpen(true)}>
                 <Plus size={16} className="mr-2" />
                 Thêm phòng đầu tiên
               </Button>
@@ -273,76 +289,44 @@ export function MotelListPage() {
           <p className="text-sm text-slate-400 mb-6 max-w-sm">
             Tạo khu trọ đầu tiên để bắt đầu quản lý phòng, khách thuê và hóa đơn.
           </p>
-          <Button onClick={() => setIsAddMotelOpen(true)}>
+          <Button onClick={() => { setEditingMotel(undefined); setIsMotelModalOpen(true); }}>
             <Plus size={16} className="mr-2" />
             Tạo khu trọ đầu tiên
           </Button>
         </div>
       )}
 
-      {/* Room Detail Modal */}
-      {selectedRoom && (
-        <div
-          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          onClick={() => setSelectedRoom(null)}
-        >
-          <div
-            className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <h2 className="text-xl font-bold text-brand-ink">Phòng {selectedRoom.roomNumber}</h2>
-                <p className="text-sm text-slate-500">Tầng {selectedRoom.floor}</p>
-              </div>
-              <span
-                className={`text-xs px-3 py-1 rounded-full border font-medium ${
-                  ROOM_STATUS_COLOR[selectedRoom.status] ?? ""
-                }`}
-              >
-                {ROOM_STATUS_LABEL[selectedRoom.status] ?? selectedRoom.status}
-              </span>
-            </div>
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between py-2 border-b border-slate-100">
-                <span className="text-slate-500">Giá thuê</span>
-                <span className="font-semibold text-brand-deep">{formatCurrency(selectedRoom.basePrice)}/tháng</span>
-              </div>
-              {selectedRoom.area && (
-                <div className="flex justify-between py-2 border-b border-slate-100">
-                  <span className="text-slate-500">Diện tích</span>
-                  <span className="font-medium">{selectedRoom.area} m²</span>
-                </div>
-              )}
-              <div className="flex justify-between py-2 border-b border-slate-100">
-                <span className="text-slate-500">Số người ở</span>
-                <span className="font-medium">{selectedRoom.currentResidentsCount}</span>
-              </div>
-              {selectedRoom.description && (
-                <div className="py-2 border-b border-slate-100">
-                  <span className="text-slate-500">Ghi chú</span>
-                  <p className="mt-1 text-slate-700">{selectedRoom.description}</p>
-                </div>
-              )}
-            </div>
-            <div className="flex gap-2 mt-6">
-              <Button className="flex-1" variant="outline" onClick={() => setSelectedRoom(null)}>
-                Đóng
-              </Button>
-              <Button className="flex-1">
-                <Edit2 size={14} className="mr-2" />
-                Chỉnh sửa
-              </Button>
-            </div>
-          </div>
-        </div>
+      {/* Modals */}
+      {selectedRoom && activeMotel && (
+        <RoomDetailModal
+          isOpen={!!selectedRoom}
+          room={selectedRoom}
+          onClose={() => setSelectedRoom(null)}
+          onSuccess={() => {
+            setSelectedRoom(null);
+            fetchRooms(activeMotel.id);
+          }}
+        />
+      )}
+
+      {activeMotel && (
+        <AddRoomModal
+          isOpen={isAddRoomOpen}
+          onClose={() => setIsAddRoomOpen(false)}
+          motelId={activeMotel.id}
+          onSuccess={() => {
+            setIsAddRoomOpen(false);
+            fetchRooms(activeMotel.id);
+          }}
+        />
       )}
 
       <AddMotelModal
-        isOpen={isAddMotelOpen}
-        onClose={() => setIsAddMotelOpen(false)}
+        isOpen={isMotelModalOpen}
+        onClose={() => setIsMotelModalOpen(false)}
+        motel={editingMotel}
         onSuccess={() => {
-          setIsAddMotelOpen(false);
+          setIsMotelModalOpen(false);
           fetchMotels();
         }}
       />

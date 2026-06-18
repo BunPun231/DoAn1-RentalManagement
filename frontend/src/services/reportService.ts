@@ -154,8 +154,8 @@ export const auditService = {
     filters?: {
       action?: string;
       entityType?: string;
-      from?: string;
-      to?: string;
+      fromDate?: string;
+      toDate?: string;
     }
   ): Promise<PageResponse<AuditLogResult>> {
     const res = await api.get<ApiResponse<PageResponse<AuditLogResult>>>("/api/v1/audit-logs", {

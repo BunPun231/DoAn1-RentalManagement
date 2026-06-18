@@ -43,6 +43,13 @@ export function extractError(error: unknown): string {
     const data = error.response?.data as { message?: string; error?: string } | undefined;
     return data?.message ?? data?.error ?? error.message ?? "Đã xảy ra lỗi";
   }
-  if (error instanceof Error) return error.message;
+  if (error instanceof Error) {
+    // Hide raw JS technical errors from the user UI
+    if (error.name === 'TypeError' || error.name === 'ReferenceError') {
+      console.error("Technical Error:", error);
+      return "Đã xảy ra lỗi hệ thống cục bộ. Vui lòng thử lại hoặc tải lại trang.";
+    }
+    return error.message;
+  }
   return "Đã xảy ra lỗi không xác định";
 }

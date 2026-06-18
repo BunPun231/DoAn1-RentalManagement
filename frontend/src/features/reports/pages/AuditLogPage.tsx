@@ -39,7 +39,7 @@ export function AuditLogPage() {
     setLoading(true);
     try {
       const result = await auditService.list(page, 20, {
-        from: fromDate || undefined,
+        fromDate: fromDate || undefined,
       });
       setLogs(result.content);
       setTotalPages(result.totalPages);

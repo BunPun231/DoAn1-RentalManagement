@@ -15,8 +15,36 @@ export function ForgotPasswordPage() {
     setError("");
     setIsLoading(true);
     try {
-      await authService.forgotPassword({ email });
+      await authService.forgotPassword({ identity: email });
       setIsSent(true);
+    } catch (err) {
+      setError(extractError(err));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const [otp, setOtp] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isResetSuccess, setIsResetSuccess] = useState(false);
+
+  const handleResetSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      setError("Mật khẩu xác nhận không khớp");
+      return;
+    }
+    setError("");
+    setIsLoading(true);
+    try {
+      await authService.resetPassword({
+        identity: email,
+        otp,
+        newPassword,
+        confirmPassword
+      });
+      setIsResetSuccess(true);
     } catch (err) {
       setError(extractError(err));
     } finally {
@@ -90,29 +118,91 @@ export function ForgotPasswordPage() {
               </form>
             </>
           ) : (
-            <div className="text-center py-4">
-              <div className="p-5 bg-emerald-50 rounded-2xl inline-block mb-5">
-                <CheckCircle2 size={40} className="text-emerald-500" />
-              </div>
-              <h2 className="font-display text-2xl font-bold text-brand-ink mb-2">Kiểm tra email!</h2>
-              <p className="text-slate-500 text-sm mb-2">
-                Chúng tôi đã gửi liên kết đặt lại mật khẩu đến:
-              </p>
-              <p className="font-semibold text-brand-deep mb-6">{email}</p>
-              <div className="bg-amber-50 rounded-xl p-4 text-sm text-amber-700 text-left">
-                <p className="font-medium mb-1">💡 Lưu ý:</p>
-                <ul className="space-y-1 text-xs">
-                  <li>• Kiểm tra cả hộp thư Spam/Junk</li>
-                  <li>• Liên kết có hiệu lực trong 15 phút</li>
-                  <li>• Chỉ nhận được nếu email đã đăng ký</li>
-                </ul>
-              </div>
-              <button
-                onClick={() => { setIsSent(false); setEmail(""); }}
-                className="mt-5 text-sm text-brand-deep font-medium hover:underline"
-              >
-                Gửi lại liên kết
-              </button>
+            <div>
+              {isResetSuccess ? (
+                <div className="text-center py-4">
+                  <div className="p-5 bg-emerald-50 rounded-2xl inline-block mb-5">
+                    <CheckCircle2 size={40} className="text-emerald-500" />
+                  </div>
+                  <h2 className="font-display text-2xl font-bold text-brand-ink mb-2">Đổi mật khẩu thành công!</h2>
+                  <p className="text-slate-500 text-sm mb-6">
+                    Mật khẩu của bạn đã được đặt lại. Vui lòng đăng nhập bằng mật khẩu mới.
+                  </p>
+                  <Link
+                    to="/login"
+                    className="w-full py-3 px-6 bg-brand-deep text-white rounded-xl font-semibold text-sm hover:bg-brand-deep/90 flex items-center justify-center"
+                  >
+                    Đăng nhập ngay
+                  </Link>
+                </div>
+              ) : (
+                <>
+                  <div className="text-center mb-6">
+                    <div className="p-4 bg-emerald-50 rounded-2xl inline-block mb-4">
+                      <CheckCircle2 size={32} className="text-emerald-500" />
+                    </div>
+                    <h2 className="font-display text-xl font-bold text-brand-ink mb-2">Kiểm tra email / điện thoại</h2>
+                    <p className="text-slate-500 text-sm">
+                      Chúng tôi đã gửi mã xác thực (OTP) đến: <br/><span className="font-semibold text-brand-deep">{email}</span>
+                    </p>
+                  </div>
+                  
+                  {error && (
+                    <div className="rounded-xl bg-red-50 border border-red-100 p-3 text-sm text-red-700 mb-4">
+                      {error}
+                    </div>
+                  )}
+
+                  <form onSubmit={handleResetSubmit} className="space-y-4">
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-slate-700">Mã xác thực (OTP)</label>
+                      <input
+                        type="text"
+                        value={otp}
+                        onChange={(e) => setOtp(e.target.value)}
+                        placeholder="Nhập mã OTP"
+                        required
+                        className={inputClass}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-slate-700">Mật khẩu mới</label>
+                      <input
+                        type="password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="Tối thiểu 8 ký tự"
+                        required
+                        className={inputClass}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-slate-700">Xác nhận mật khẩu</label>
+                      <input
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Nhập lại mật khẩu mới"
+                        required
+                        className={inputClass}
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={isLoading}
+                      className="w-full py-3 px-6 bg-brand-deep text-white rounded-xl font-semibold text-sm hover:bg-brand-deep/90 active:scale-[0.98] transition-all disabled:opacity-60"
+                    >
+                      {isLoading ? "Đang xử lý..." : "Đặt lại mật khẩu"}
+                    </button>
+                  </form>
+                  <button
+                    onClick={() => { setIsSent(false); setError(""); }}
+                    className="w-full mt-4 text-sm text-brand-deep font-medium hover:underline text-center"
+                  >
+                    Sử dụng email/sdt khác
+                  </button>
+                </>
+              )}
             </div>
           )}
 

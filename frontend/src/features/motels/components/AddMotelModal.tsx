@@ -1,38 +1,59 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
-import { motelService } from "@/services/motelService";
+import { motelService, type MotelResult } from "@/services/motelService";
 import { extractError } from "@/lib/api";
 
 interface AddMotelModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+  motel?: MotelResult;
 }
 
-export function AddMotelModal({ isOpen, onClose, onSuccess }: AddMotelModalProps) {
-  const [name, setName] = useState("");
-  const [address, setAddress] = useState("");
-  const [totalFloors, setTotalFloors] = useState("1");
-  const [description, setDescription] = useState("");
+export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelModalProps) {
+  const [name, setName] = useState(motel?.name ?? "");
+  const [address, setAddress] = useState(motel?.address ?? "");
+  const [totalFloors, setTotalFloors] = useState(motel?.totalFloors?.toString() ?? "1");
+  const [description, setDescription] = useState(motel?.description ?? "");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (motel) {
+      setName(motel.name);
+      setAddress(motel.address);
+      setTotalFloors(motel.totalFloors.toString());
+      setDescription(motel.description ?? "");
+    } else {
+      setName("");
+      setAddress("");
+      setTotalFloors("1");
+      setDescription("");
+    }
+    setError("");
+  }, [motel, isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setIsLoading(true);
     try {
-      await motelService.create({
-        name: name.trim(),
-        address: address.trim(),
-        totalFloors: parseInt(totalFloors, 10),
-        description: description.trim() || undefined,
-      });
-      setName("");
-      setAddress("");
-      setTotalFloors("1");
-      setDescription("");
+      if (motel) {
+        await motelService.update(motel.id, {
+          name: name.trim(),
+          address: address.trim(),
+          totalFloors: parseInt(totalFloors, 10),
+          description: description.trim() || undefined,
+        });
+      } else {
+        await motelService.create({
+          name: name.trim(),
+          address: address.trim(),
+          totalFloors: parseInt(totalFloors, 10),
+          description: description.trim() || undefined,
+        });
+      }
       onSuccess?.();
     } catch (err) {
       setError(extractError(err));
@@ -44,7 +65,7 @@ export function AddMotelModal({ isOpen, onClose, onSuccess }: AddMotelModalProps
   const inputClass = "w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-deep/30 focus:border-brand-deep transition-all";
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Thêm khu trọ mới">
+    <Modal isOpen={isOpen} onClose={onClose} title={motel ? "Cập nhật khu trọ" : "Thêm khu trọ mới"}>
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
           <div className="rounded-xl bg-red-50 border border-red-100 p-3 text-sm text-red-700">
@@ -109,7 +130,7 @@ export function AddMotelModal({ isOpen, onClose, onSuccess }: AddMotelModalProps
             Hủy
           </Button>
           <Button type="submit" disabled={isLoading}>
-            {isLoading ? "Đang lưu..." : "Thêm khu trọ"}
+            {isLoading ? "Đang lưu..." : (motel ? "Cập nhật" : "Thêm khu trọ")}
           </Button>
         </div>
       </form>

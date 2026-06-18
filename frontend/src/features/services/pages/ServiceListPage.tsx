@@ -6,6 +6,7 @@ import { formatCurrency } from "@/lib/utils";
 import { serviceService, type ServiceResult, type ServiceCreateRequest, type ServiceUpdateRequest } from "@/services/serviceService";
 import { motelService, type MotelResult } from "@/services/motelService";
 import { extractError } from "@/lib/api";
+import { AssignServiceModal } from "../components/AssignServiceModal";
 
 const CHARGE_TYPE_LABEL: Record<string, string> = {
   FIXED: "Cố định",
@@ -173,6 +174,7 @@ export function ServiceListPage() {
   const [error, setError] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingService, setEditingService] = useState<ServiceResult | undefined>();
+  const [assigningService, setAssigningService] = useState<ServiceResult | undefined>();
 
   useEffect(() => {
     motelService.list().then((r) => {
@@ -304,6 +306,7 @@ export function ServiceListPage() {
                     service={svc}
                     onEdit={() => { setEditingService(svc); setIsFormOpen(true); }}
                     onDelete={() => handleDelete(svc)}
+                    onAssign={() => setAssigningService(svc)}
                   />
                 ))}
               </div>
@@ -324,6 +327,7 @@ export function ServiceListPage() {
                     service={svc}
                     onEdit={() => { setEditingService(svc); setIsFormOpen(true); }}
                     onDelete={() => handleDelete(svc)}
+                    onAssign={() => setAssigningService(svc)}
                   />
                 ))}
               </div>
@@ -339,6 +343,14 @@ export function ServiceListPage() {
         motelId={selectedMotelId!}
         editing={editingService}
       />
+      {assigningService && (
+        <AssignServiceModal
+          isOpen={!!assigningService}
+          onClose={() => setAssigningService(undefined)}
+          motelId={selectedMotelId!}
+          service={assigningService}
+        />
+      )}
     </div>
   );
 }
@@ -348,10 +360,12 @@ function ServiceCard({
   service,
   onEdit,
   onDelete,
+  onAssign,
 }: {
   service: ServiceResult;
   onEdit: () => void;
   onDelete: () => void;
+  onAssign: () => void;
 }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm hover:shadow-md transition-all group">
@@ -385,6 +399,9 @@ function ServiceCard({
       </div>
 
       <div className="flex gap-2">
+        <Button variant="outline" className="flex-1" size="sm" onClick={onAssign}>
+          Áp dụng
+        </Button>
         <Button variant="outline" className="flex-1" size="sm" onClick={onEdit}>
           <Edit2 size={14} className="mr-1.5" />
           Cập nhật

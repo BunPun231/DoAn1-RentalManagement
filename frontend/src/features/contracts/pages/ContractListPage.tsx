@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Search, FileSignature, AlertCircle, RefreshCw, ChevronDown, Clock, CheckCircle2, XCircle } from "lucide-react";
+import { Plus, Search, FileSignature, AlertCircle, RefreshCw, ChevronDown, Clock, CheckCircle2, XCircle, Ban } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
@@ -9,6 +9,7 @@ import { contractService, type ContractResult, type ContractCreateRequest } from
 import { motelService, roomService, type MotelResult, type RoomResult } from "@/services/motelService";
 import { residentService, type ResidentResult } from "@/services/residentService";
 import { extractError } from "@/lib/api";
+import { SettlementModal } from "../components/SettlementModal";
 
 // ============ STATUS HELPERS ============
 const STATUS_BADGE: Record<string, React.ReactNode> = {
@@ -281,6 +282,7 @@ function ContractDetailModal({
   onRefresh: () => void;
 }) {
   const [loading, setLoading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   const handleCancel = async () => {
     const reason = prompt("Lý do hủy hợp đồng:");
@@ -294,6 +296,38 @@ function ContractDetailModal({
       alert(extractError(err));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCollectDeposit = async () => {
+    if (!confirm(`Xác nhận thu cọc ${formatCurrency(contract.depositAmount)}?`)) return;
+    setLoading(true);
+    try {
+      await contractService.collectDeposit(contract.id, { amount: contract.depositAmount });
+      onRefresh();
+      onClose();
+    } catch (err) {
+      alert(extractError(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    setDownloading(true);
+    try {
+      const blob = await contractService.exportPdf(contract.id);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `HopDong_${contract.contractCode}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(extractError(err));
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -328,30 +362,64 @@ function ContractDetailModal({
             <p className="text-sm text-slate-700">{contract.notes}</p>
           </div>
         )}
+
+        {contract.appendices && contract.appendices.length > 0 && (
+          <div className="pt-2">
+            <h4 className="text-sm font-medium text-slate-700 mb-2">Phụ lục điều chỉnh</h4>
+            <div className="space-y-2">
+              {contract.appendices.map((app) => (
+                <div key={app.id} className="text-xs p-3 rounded-lg border border-slate-200 bg-slate-50 flex justify-between">
+                  <div>
+                    <span className="font-semibold">{app.type}</span>
+                    {app.newEndDate && <span> - Gia hạn đến: {app.newEndDate}</span>}
+                    {app.newMonthlyRent && <span> - Giá mới: {formatCurrency(app.newMonthlyRent)}</span>}
+                    {app.note && <p className="text-slate-500 mt-1">{app.note}</p>}
+                  </div>
+                  <span className="text-slate-400">{new Date(app.createdAt).toLocaleDateString('vi-VN')}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
-      <div className="flex justify-end gap-2 pt-4 border-t border-slate-100 mt-4">
-        {contract.status === "ACTIVE" && (
-          <>
+      <div className="flex justify-between items-center pt-4 border-t border-slate-100 mt-4">
+        <Button variant="outline" onClick={handleDownloadPdf} disabled={downloading}>
+          {downloading ? "Đang xuất PDF..." : "Xuất PDF"}
+        </Button>
+        <div className="flex gap-2">
+          {contract.depositStatus === "PENDING" && contract.status !== "CANCELLED" && (
             <Button
               variant="outline"
-              className="text-amber-600 border-amber-200 hover:bg-amber-50"
-              onClick={() => {
-                const newEndDate = prompt("Gia hạn đến ngày (YYYY-MM-DD):");
-                if (!newEndDate) return;
-                contractService.addAppendix(contract.id, { type: "EXTENSION", newEndDate })
-                  .then(() => { onClose(); onRefresh(); })
-                  .catch((err) => alert(extractError(err)));
-              }}
+              className="text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+              onClick={handleCollectDeposit}
+              disabled={loading}
             >
-              Gia hạn
+              Thu cọc
             </Button>
-            <Button variant="danger" onClick={handleCancel} disabled={loading}>
-              {loading ? "Đang xử lý..." : "Hủy hợp đồng"}
-            </Button>
-          </>
-        )}
-        <Button variant="outline" onClick={onClose}>Đóng</Button>
+          )}
+          {contract.status === "ACTIVE" && (
+            <>
+              <Button
+                variant="outline"
+                className="text-amber-600 border-amber-200 hover:bg-amber-50"
+                onClick={() => {
+                  const newEndDate = prompt("Gia hạn đến ngày (YYYY-MM-DD):");
+                  if (!newEndDate) return;
+                  contractService.addAppendix(contract.id, { type: "EXTENSION", newEndDate })
+                    .then(() => { onClose(); onRefresh(); })
+                    .catch((err) => alert(extractError(err)));
+                }}
+              >
+                Gia hạn
+              </Button>
+              <Button variant="danger" onClick={handleCancel} disabled={loading}>
+                {loading ? "Đang xử lý..." : "Hủy hợp đồng"}
+              </Button>
+            </>
+          )}
+          <Button variant="outline" onClick={onClose}>Đóng</Button>
+        </div>
       </div>
     </Modal>
   );
@@ -368,6 +436,7 @@ export function ContractListPage() {
   const [totalPages, setTotalPages] = useState(0);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedContract, setSelectedContract] = useState<ContractResult | null>(null);
+  const [settlementContractId, setSettlementContractId] = useState<number | null>(null);
 
   // For listing, we need a motelId — load first available motel
   const [motels, setMotels] = useState<MotelResult[]>([]);
@@ -567,7 +636,16 @@ export function ContractListPage() {
                       </div>
                     </TableCell>
                     <TableCell>{STATUS_BADGE[contract.status] ?? <Badge>{contract.status}</Badge>}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 border-amber-200"
+                        onClick={() => setSettlementContractId(contract.id)}
+                      >
+                        <Ban size={14} className="mr-1.5" />
+                        Thanh lý
+                      </Button>
                       <Button
                         variant="outline"
                         size="sm"
@@ -604,6 +682,18 @@ export function ContractListPage() {
           contract={selectedContract}
           onClose={() => setSelectedContract(null)}
           onRefresh={fetchContracts}
+        />
+      )}
+
+      {settlementContractId && (
+        <SettlementModal
+          isOpen={!!settlementContractId}
+          onClose={() => setSettlementContractId(null)}
+          contractId={settlementContractId}
+          onSuccess={() => {
+            setSettlementContractId(null);
+            fetchContracts();
+          }}
         />
       )}
     </div>

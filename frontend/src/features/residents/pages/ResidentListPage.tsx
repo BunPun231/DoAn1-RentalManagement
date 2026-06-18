@@ -11,10 +11,12 @@ function AddResidentModal({
   isOpen,
   onClose,
   onSuccess,
+  editing,
 }: {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  editing?: ResidentResult;
 }) {
   const [form, setForm] = useState<ResidentCreateRequest>({
     phone: "",
@@ -27,6 +29,29 @@ function AddResidentModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    if (editing) {
+      setForm({
+        phone: editing.phone,
+        email: editing.email || "",
+        fullName: editing.fullName,
+        idCardNumber: editing.idCardNumber || "",
+        idCardFrontUrl: editing.idCardFrontUrl || "",
+        idCardBackUrl: editing.idCardBackUrl || "",
+      });
+    } else {
+      setForm({
+        phone: "",
+        email: "",
+        fullName: "",
+        idCardNumber: "",
+        idCardFrontUrl: "",
+        idCardBackUrl: "",
+      });
+    }
+    setError("");
+  }, [editing, isOpen]);
+
   const inputClass =
     "w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-deep/30 focus:border-brand-deep transition-all";
 
@@ -35,12 +60,22 @@ function AddResidentModal({
     setError("");
     setLoading(true);
     try {
-      await residentService.create({
-        ...form,
-        email: form.email || undefined,
-        idCardFrontUrl: form.idCardFrontUrl || undefined,
-        idCardBackUrl: form.idCardBackUrl || undefined,
-      });
+      if (editing) {
+        await residentService.update(editing.userId, {
+          email: form.email || undefined,
+          fullName: form.fullName,
+          idCardNumber: form.idCardNumber || undefined,
+          idCardFrontUrl: form.idCardFrontUrl || undefined,
+          idCardBackUrl: form.idCardBackUrl || undefined,
+        });
+      } else {
+        await residentService.create({
+          ...form,
+          email: form.email || undefined,
+          idCardFrontUrl: form.idCardFrontUrl || undefined,
+          idCardBackUrl: form.idCardBackUrl || undefined,
+        });
+      }
       onSuccess();
     } catch (err) {
       setError(extractError(err));
@@ -50,7 +85,7 @@ function AddResidentModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Thêm khách thuê mới">
+    <Modal isOpen={isOpen} onClose={onClose} title={editing ? "Cập nhật khách thuê" : "Thêm khách thuê mới"}>
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
           <div className="rounded-xl bg-red-50 border border-red-100 p-3 text-sm text-red-700">{error}</div>
@@ -74,10 +109,11 @@ function AddResidentModal({
               id="resident-phone"
               type="tel"
               required
+              disabled={!!editing} // Không cho đổi SĐT vì dùng làm tài khoản đăng nhập (optional, tuỳ business rule)
               value={form.phone}
               onChange={(e) => setForm({ ...form, phone: e.target.value })}
               placeholder="0912 345 678"
-              className={inputClass}
+              className={`${inputClass} ${editing ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : ''}`}
             />
           </div>
         </div>
@@ -110,7 +146,7 @@ function AddResidentModal({
         <div className="pt-4 border-t border-slate-100 flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={onClose} disabled={loading}>Hủy</Button>
           <Button type="submit" disabled={loading}>
-            {loading ? "Đang lưu..." : "Thêm khách thuê"}
+            {loading ? "Đang lưu..." : (editing ? "Lưu thay đổi" : "Thêm khách thuê")}
           </Button>
         </div>
       </form>
@@ -126,7 +162,8 @@ export function ResidentListPage() {
   const [statusFilter, setStatusFilter] = useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL");
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
-  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingResident, setEditingResident] = useState<ResidentResult | undefined>();
   const [selectedResident, setSelectedResident] = useState<ResidentResult | null>(null);
 
   const fetchResidents = useCallback(async () => {
@@ -187,7 +224,7 @@ export function ResidentListPage() {
           <Button variant="outline" onClick={fetchResidents} disabled={loading}>
             <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
           </Button>
-          <Button id="add-resident-btn" onClick={() => setIsAddOpen(true)}>
+          <Button id="add-resident-btn" onClick={() => { setEditingResident(undefined); setIsFormOpen(true); }}>
             <Plus size={16} className="mr-2" />
             Thêm khách mới
           </Button>
@@ -398,16 +435,30 @@ export function ResidentListPage() {
                 Vô hiệu hóa
               </Button>
             )}
-            <Button variant="outline" onClick={() => setSelectedResident(null)}>Đóng</Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSelectedResident(null);
+                  setEditingResident(selectedResident);
+                  setIsFormOpen(true);
+                }}
+              >
+                Chỉnh sửa
+              </Button>
+              <Button variant="outline" onClick={() => setSelectedResident(null)}>Đóng</Button>
+            </div>
           </div>
         </Modal>
       )}
 
       <AddResidentModal
-        isOpen={isAddOpen}
-        onClose={() => setIsAddOpen(false)}
+        isOpen={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        editing={editingResident}
         onSuccess={() => {
-          setIsAddOpen(false);
+          setIsFormOpen(false);
           fetchResidents();
         }}
       />

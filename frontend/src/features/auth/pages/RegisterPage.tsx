@@ -8,6 +8,7 @@ export function RegisterPage() {
   const navigate = useNavigate();
 
   const [form, setForm] = useState({
+    tenantName: "",
     fullName: "",
     phone: "",
     email: "",
@@ -38,6 +39,7 @@ export function RegisterPage() {
     setIsLoading(true);
     try {
       await authService.register({
+        tenantName: form.tenantName,
         phone: form.phone,
         email: form.email || undefined,
         fullName: form.fullName,
@@ -134,6 +136,22 @@ export function RegisterPage() {
                     {error}
                   </div>
                 )}
+
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-slate-700">Tên doanh nghiệp / Khu trọ *</label>
+                  <div className="relative">
+                    <Building2 size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      id="register-tenantName"
+                      type="text"
+                      value={form.tenantName}
+                      onChange={(e) => setForm({ ...form, tenantName: e.target.value })}
+                      placeholder="Trọ ABC / Công ty XYZ"
+                      required
+                      className={`${inputClass} pl-12`}
+                    />
+                  </div>
+                </div>
 
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-slate-700">Họ và tên *</label>

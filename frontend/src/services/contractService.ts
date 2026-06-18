@@ -65,6 +65,19 @@ export interface DepositDeductRequest {
   reason: string;
 }
 
+export interface DamageItemInput {
+  description: string;
+  amount: number;
+}
+
+export interface SettlementRequest {
+  contractId: number;
+  moveOutDate: string;
+  finalElectricReading?: number;
+  finalWaterReading?: number;
+  damages?: DamageItemInput[];
+}
+
 export interface SettlementCalculateResult {
   contractId: number;
   unpaidInvoicesTotal: number;
@@ -76,8 +89,10 @@ export interface SettlementCalculateResult {
 }
 
 export interface SettlementConfirmRequest {
-  contractId: number;
-  notes?: string;
+  moveOutDate: string;
+  finalElectricReading?: number;
+  finalWaterReading?: number;
+  damages?: DamageItemInput[];
 }
 
 // ============ CONTRACT APIs ============
@@ -134,16 +149,22 @@ export const contractService = {
   },
 
   /** UC80: Calculate settlement */
-  async calculateSettlement(contractId: number): Promise<SettlementCalculateResult> {
-    const res = await api.post<ApiResponse<SettlementCalculateResult>>(
+  async calculateSettlement(data: SettlementRequest): Promise<SettlementCalculateResult> {
+    const res = await api.post<SettlementCalculateResult>(
       "/api/v1/settlements/calculate",
-      { contractId }
+      data
     );
-    return res.data.data;
+    return res.data;
   },
 
   /** UC80: Confirm settlement */
-  async confirmSettlement(data: SettlementConfirmRequest): Promise<void> {
-    await api.post("/api/v1/settlements/confirm", data);
+  async confirmSettlement(contractId: number, data: SettlementConfirmRequest): Promise<void> {
+    await api.post(`/api/v1/settlements/${contractId}/confirm`, data);
+  },
+
+  /** UC68: Export PDF */
+  async exportPdf(contractId: number): Promise<Blob> {
+    const res = await api.get(`/api/contracts/${contractId}/pdf`, { responseType: 'blob' });
+    return res.data;
   },
 };
