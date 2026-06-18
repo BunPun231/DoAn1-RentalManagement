@@ -8,11 +8,11 @@
 		<version>3.3.4</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
-	<groupId>com.rental</groupId>
-	<artifactId>rental-management</artifactId>
+	<groupId>com.roomrental</groupId>
+	<artifactId>smart-room-rental-saas</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>rental-management</name>
-	<description>Demo project for Spring Boot</description>
+	<name>smart-room-rental-saas</name>
+	<description>Smart Room Rental SaaS backend</description>
 	<url/>
 	<licenses>
 		<license/>

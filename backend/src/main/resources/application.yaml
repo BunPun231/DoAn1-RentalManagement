@@ -1,6 +1,6 @@
 spring:
   application:
-    name: rental-management
+    name: smart-room-rental-saas
   profiles:
     active: dev
 

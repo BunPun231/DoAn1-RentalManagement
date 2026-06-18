@@ -1,6 +1,6 @@
-package com.rental.rental_management.config;
+package com.roomrental.config;
 
-import com.rental.rental_management.common.config.AppProperties;
+import com.roomrental.common.config.AppProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 

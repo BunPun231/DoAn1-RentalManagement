@@ -31,7 +31,7 @@ It targets middle-aged landlords (Managers) with a **minimalist, step-by-step UI
 | Backend                | Spring Boot                    | QA22 (Team familiarity), QA15 (Modularity) |
 | Architecture           | Modular Monolith + Clean Architecture           | Decision 1 & 8                             |
 | Auth                   | Spring Security + Stateless JWT (custom)        | QA04 (No managed IAM)                      |
-| Database               | PostgreSQL 16 + Flyway                          | QA07 (ACID), QA24 (JSONB)                  |
+| Database               | Neon PostgreSQL-compatible DB + Flyway          | QA07 (ACID), QA24 (JSONB)                  |
 | Caching                | Redis                                       | QA01, QA02 (Performance)                   |
 | Media Storage          | Cloudinary                                      | QA25, C5 (20GB limit)                      |
 | OCR                    | Google Cloud Vision API + Adapter               | QA10 (Human-in-the-loop)                   |
@@ -73,7 +73,7 @@ or more, but you have to tell the user prior installing.
 
 5. Project Folder Structure
 Root
-textsmart-room-rental-saas/
+smart-room-rental-saas/
 ├── backend/                  # Spring Boot Modular Monolith
 ├── frontend/                 # React PWA
 ├── docker/                   # Docker Compose & production scripts
@@ -82,7 +82,7 @@ textsmart-room-rental-saas/
 ├── README.md
 └── PROJECT-SPEC.md           # This file
 └── .gitignore
-Backend structure (Clean Architecture):
+Backend structure (Clean Architecture + feature-based modular monolith):
 
 
 backend/
@@ -94,44 +94,54 @@ backend/
 │       │           ├── SmartRoomRentalApplication.java
 │       │           │
 │       │           ├── common/                  # Cross-cutting concerns
-│       │           │   ├── config/              # Redis, Flyway, Resilience4j, MapStruct
+│       │           │   ├── config/              # Framework configs, @ConfigurationProperties
 │       │           │   ├── exception/           # GlobalExceptionHandler, custom exceptions
-│       │           │   ├── security/            # JWT + Multi-tenancy filter (most important)
-│       │           │   ├── annotation/          # @TenantAware, @RateLimited...
-│       │           │   ├── util/                # TenantContext, JwtUtil, DateUtil...
-│       │           │   └── audit/               # AuditListener, AuditLogAspect
+│       │           │   ├── security/            # JWT + Multi-tenancy filter
+│       │           │   └── util/                # TenantContext, JwtUtils, helpers
 │       │           │
-│       │           ├── domain/                  # Core business (none dependant to Spring)
-│       │           │   ├── shared/              # Value Objects, Events, Enums
-│       │           │   ├── tenant/              # Tenant, Subscription, Quota,                                                                      
-│       │           │   │                                    WorkspaceConfig
-│       │           │   ├── user/                # User, Profile (Manager, Technician, Tenant)
-│       │           │   ├── motel/               # Motel, Room, Service
-│       │           │   ├── contract/            # Contract, ContractAppendix, ContractVersion
-│       │           │   ├── billing/             # Invoice, MeterReading, Transaction, 
-│       │           │   │                                   CalculationSnapshot
+│       │           ├── modules/                 # Business modules by bounded context
+│       │           │   ├── core/                # Shared business core: Tenant, User, Subscription
+│       │           │   │   ├── domain/
+│       │           │   │   ├── application/
+│       │           │   │   └── infrastructure/
+│       │           │   │       └── outbox/
+│       │           │   ├── billing/             # Invoice, MeterReading, CalculationSnapshot
+│       │           │   │   ├── domain/
+│       │           │   │   ├── application/
+│       │           │   │   └── infrastructure/
+│       │           │   │       └── outbox/
+│       │           │   ├── contract/            # Contract, ContractVersion, Appendix
+│       │           │   │   ├── domain/
+│       │           │   │   ├── application/
+│       │           │   │   └── infrastructure/
+│       │           │   │       └── outbox/
+│       │           │   ├── motel/                # Motel, Room, Service
+│       │           │   │   ├── domain/
+│       │           │   │   ├── application/
+│       │           │   │   └── infrastructure/
+│       │           │   │       └── outbox/
 │       │           │   ├── maintenance/         # MaintenanceTicket, MaintenanceDetail
+│       │           │   │   ├── domain/
+│       │           │   │   ├── application/
+│       │           │   │   └── infrastructure/
+│       │           │   │       └── outbox/
 │       │           │   ├── notification/        # NotificationEvent, Outbox
+│       │           │   │   ├── domain/
+│       │           │   │   ├── application/
+│       │           │   │   └── infrastructure/
+│       │           │   │       └── outbox/
 │       │           │   └── device/              # Device, DeviceUsage, DeviceMovementLog
+│       │           │       ├── domain/
+│       │           │       ├── application/
+│       │           │       └── infrastructure/
+│       │           │           └── outbox/
 │       │           │
-│       │           ├── application/             # Use Cases / Services
-│       │           │   ├── port/                # Outbound ports (interfaces)
-│       │           │   ├── service/             # Service implementations
-│       │           │   └── usecase/             # (optional) each UC detail
-│       │           │
-│       │           ├── infrastructure/          # Concrete implementations
-│       │           │   ├── persistence/         # JPA Repositories, Entity mappings
-│       │           │   ├── adapter/             # OCR Adapter, VietQR Adapter, Email                                                                                                                                                                                                                  
-│       │           │   │                                    Adapter, FCM Adapter 
-│       │           │   ├── outbox/              # Transactional Outbox Pattern
-│       │           │   └── scheduler/           # @Scheduled jobs (invoice generation,
-│       │           │                                            notification retry)
-│       │           │
-│       │           ├── interfaces/              # Web layer
-│       │           │   ├── controller/          # REST Controllers (domain-based)
-│       │           │   ├── dto/                 # Request/Response DTOs
-│       │           │   ├── mapper/              # MapStruct mappers
-│       │           │   └── api/                 # OpenAPI spec (if used)
+│       │           ├── interfaces/              # Outer interface layer
+│       │           │   └── rest/                # REST adapters
+│       │           │       ├── controller/      # REST Controllers
+│       │           │       ├── dto/             # Request/Response DTOs
+│       │           │       ├── mapper/          # MapStruct mappers
+│       │           │       └── api/             # OpenAPI spec (if used)
 │       │           │
 │       │           └── config/                  # ApplicationConfig, SecurityConfig, AsyncConfig...
 │       │
@@ -140,17 +150,16 @@ backend/
 │       │   ├── application-dev.yml
 │       │   ├── application-prod.yml
 │       │   ├── db/
-│       │   │   └── migration/                   # Flyway SQL scripts (V1__init.sql...)
-│       │   ├── static/                          # (if need serve file)
-│       │   └── templates/                       # (if use email template)
+│       │   │   └── migration/                   # Flyway SQL scripts (centralized)
+│       │   ├── static/
+│       │   └── templates/
 │       │
 │       └── docker/
 │           └── Dockerfile
 │
-├── build.gradle.kts          # (or pom.xml)
-├── gradlew
-├── gradlew.bat
-└── settings.gradle.kts
+├── pom.xml
+├── mvnw
+└── mvnw.cmd
 
 
 
@@ -228,6 +237,10 @@ docker/
 ├── nginx.conf                        # (optional) reverse proxy
 ├── entrypoint.sh
 └── healthcheck.sh
+
+Deployment notes:
+- Neon is the managed database layer, so local deployment no longer requires a PostgreSQL container.
+- Redis is still containerized for local development and VPS deployment.
 
 
 8. Coding Guidelines for AI Agent

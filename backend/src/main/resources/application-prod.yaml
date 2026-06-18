@@ -1,8 +1,12 @@
 spring:
   datasource:
-    url: ${DB_URL}
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
+    url: ${DB_URL:jdbc:postgresql://YOUR-NEON-HOST/YOUR_DATABASE?sslmode=require}
+    username: ${DB_USERNAME:YOUR_NEON_USERNAME}
+    password: ${DB_PASSWORD:YOUR_NEON_PASSWORD}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:5}
+      minimum-idle: ${DB_POOL_MIN_IDLE:1}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT:10000}
   jpa:
     hibernate:
       ddl-auto: validate

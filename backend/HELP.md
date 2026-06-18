@@ -1,7 +1,7 @@
 # Read Me First
 The following was discovered as part of building this project:
 
-* The original package name 'com.rental.rental-management' is invalid and this project uses 'com.rental.rental_management' instead.
+* The original package name 'com.rental.rental-management' is invalid and this project uses 'com.roomrental' instead.
 
 # Getting Started
 

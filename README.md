@@ -4,13 +4,13 @@ Monorepo scaffold for Smart Boarding House Management System.
 
 ## Stack
 
-- Backend: Spring Boot 3, PostgreSQL, Flyway, Redis, JWT, OpenAPI
+- Backend: Spring Boot 3, Neon PostgreSQL-compatible DB, Flyway, Redis, JWT, OpenAPI
 - Frontend: React + Vite + TypeScript + Tailwind + Zustand + TanStack Query + PWA
 - Deployment: Docker Compose
 
 ## Structure
 
-- `backend/`: Modular monolith backend
+- `backend/`: Modular monolith backend (feature-based clean architecture)
 - `frontend/`: Web client (PWA-ready)
 - `docker/`: Dockerfiles and helper scripts
 
