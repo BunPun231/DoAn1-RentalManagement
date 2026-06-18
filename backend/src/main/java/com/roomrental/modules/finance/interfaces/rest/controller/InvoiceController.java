@@ -29,9 +29,9 @@ public class InvoiceController {
     @PostMapping("/generate")
     @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     @Operation(summary = "Generate invoices for a motel (UC73)")
-    public ResponseEntity<InvoiceGenerationResult> generateForMotel(@RequestBody @Valid InvoiceGenerateRequest request) {
-        return ResponseEntity
-                .ok(service.generateForMotel(new InvoiceGenerateCommand(request.motelId(), request.billingMonth())));
+    public ResponseEntity<Void> generateForMotel(@RequestBody @Valid InvoiceGenerateRequest request) {
+        service.generateForMotel(new InvoiceGenerateCommand(request.motelId(), request.billingMonth()));
+        return ResponseEntity.accepted().build();
     }
 
     @GetMapping

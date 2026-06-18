@@ -76,6 +76,10 @@ CREATE TABLE users (
     email                 VARCHAR(255),
     password_hash         VARCHAR(255) NOT NULL,
     full_name             VARCHAR(255) NOT NULL,
+    national_id           VARCHAR(20),
+    bank_account_number   VARCHAR(30),
+    bank_account_name     VARCHAR(100),
+    bank_name             VARCHAR(100),
     role                  VARCHAR(20) NOT NULL
                           CHECK (role IN ('ADMIN','MANAGER','TECHNICIAN','RESIDENT')),
     status                VARCHAR(20) NOT NULL DEFAULT 'ACTIVE'
@@ -95,10 +99,13 @@ COMMENT ON COLUMN users.tenant_id IS 'NULL với Admin, ngược lại là SaaS 
 -- ------------------------------------------------------------------
 CREATE TABLE resident_profiles (
     user_id             UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-    id_card_number      VARCHAR(20) NOT NULL UNIQUE,
+    id_card_number      VARCHAR(255) NOT NULL UNIQUE,
     id_card_front_url   TEXT,
     id_card_back_url    TEXT,
     verified_at         TIMESTAMP,
+    bank_account_number VARCHAR(30),
+    bank_account_name   VARCHAR(100),
+    bank_name           VARCHAR(100),
     created_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at          TIMESTAMP
 );
@@ -165,6 +172,7 @@ CREATE TABLE rooms (
     current_residents_count INT NOT NULL DEFAULT 0,
     is_deleted             BOOLEAN NOT NULL DEFAULT FALSE,
     description            TEXT,
+    version                BIGINT NOT NULL DEFAULT 0,
     created_at             TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at             TIMESTAMP,
     CONSTRAINT rooms_motel_room_unique UNIQUE (motel_id, room_number)
@@ -291,6 +299,7 @@ CREATE TABLE contracts (
     intended_move_out_date  DATE,
     cancel_reason           TEXT,
     pdf_url                 TEXT,
+    version                 BIGINT NOT NULL DEFAULT 0,
     created_at              TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at              TIMESTAMP,
     created_by              UUID NOT NULL REFERENCES users(id)
@@ -366,6 +375,8 @@ CREATE TABLE invoices (
     paid_amount   DECIMAL(12,2) NOT NULL DEFAULT 0,
     status        VARCHAR(20) NOT NULL DEFAULT 'PENDING'
                   CHECK (status IN ('PENDING','PARTIAL','PAID','VOID')),
+    version       BIGINT NOT NULL DEFAULT 0,
+    calculation_snapshot JSONB,
     created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at    TIMESTAMP,
     due_date      DATE NOT NULL

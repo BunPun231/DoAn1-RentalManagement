@@ -19,6 +19,10 @@ public class ContractEntity {
     @Column(name = "tenant_id", nullable = false)
     private UUID tenantId;
 
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version = 0L;
+
     @Column(name = "room_id", nullable = false)
     private Long roomId;
 

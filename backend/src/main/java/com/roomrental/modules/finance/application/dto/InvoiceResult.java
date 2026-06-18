@@ -15,6 +15,7 @@ public record InvoiceResult(
     BigDecimal remainingAmount,
     BigDecimal overpaidAmount,
     BigDecimal creditBalanceSnapshot,
+    String calculationSnapshot,
     String status,
     String invoiceType,
     String cancelReason,

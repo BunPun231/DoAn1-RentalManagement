@@ -42,7 +42,7 @@ public class RoomService {
     /**
      * UC26: Create a new room in a motel.
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public RoomResult create(Long motelId, RoomCreateCommand command) {
         Motel motel = requireMotel(motelId);
 
@@ -91,7 +91,7 @@ public class RoomService {
     /**
      * UC29: Update room info (partial update).
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public RoomResult update(Long motelId, Long roomId, RoomUpdateCommand command) {
         Room room = findRoom(motelId, roomId);
         String oldNumber = room.getRoomNumber();
@@ -127,7 +127,7 @@ public class RoomService {
     /**
      * UC30: Update room status.
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public RoomResult updateStatus(Long motelId, Long roomId, String newStatus) {
         Room room = findRoom(motelId, roomId);
         String oldStatus = room.getStatus().name();
@@ -146,7 +146,7 @@ public class RoomService {
      * UC31: Soft-delete room.
      * Only allowed when room is EMPTY.
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void delete(Long motelId, Long roomId) {
         Room room = findRoom(motelId, roomId);
         if (room.getStatus() != RoomStatus.EMPTY) {

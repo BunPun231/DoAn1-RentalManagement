@@ -395,6 +395,7 @@ public class SettlementService {
             invoice.getRemainingAmount(),
             BigDecimal.ZERO,
             getCurrentResidentBalance(invoice.getContractId()),
+            invoice.getCalculationSnapshot(),
             invoice.getStatus() != null ? invoice.getStatus().name() : null,
             invoice.getInvoiceType() != null ? invoice.getInvoiceType().name() : null,
             invoice.getCancelReason(),

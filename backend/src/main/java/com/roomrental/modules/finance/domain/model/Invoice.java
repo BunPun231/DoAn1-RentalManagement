@@ -9,6 +9,7 @@ import java.util.UUID;
 
 public class Invoice {
     private Long id;
+    private Long version;
     private UUID tenantId;
     private Long contractId;
     private Long roomId;
@@ -21,6 +22,7 @@ public class Invoice {
     private String cancelReason;
     private boolean isDeleted;
     private LocalDate dueDate;
+    private String calculationSnapshot;
     private List<InvoiceDetail> details = new ArrayList<>();
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
@@ -86,6 +88,8 @@ public class Invoice {
     // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
+    public Long getVersion() { return version; }
+    public void setVersion(Long version) { this.version = version; }
     public UUID getTenantId() { return tenantId; }
     public void setTenantId(UUID tenantId) { this.tenantId = tenantId; }
     public Long getContractId() { return contractId; }
@@ -110,6 +114,8 @@ public class Invoice {
     public void setDeleted(boolean deleted) { isDeleted = deleted; }
     public LocalDate getDueDate() { return dueDate; }
     public void setDueDate(LocalDate dueDate) { this.dueDate = dueDate; }
+    public String getCalculationSnapshot() { return calculationSnapshot; }
+    public void setCalculationSnapshot(String calculationSnapshot) { this.calculationSnapshot = calculationSnapshot; }
     public List<InvoiceDetail> getDetails() { return details; }
     public void setDetails(List<InvoiceDetail> details) { this.details = details; }
     public OffsetDateTime getCreatedAt() { return createdAt; }

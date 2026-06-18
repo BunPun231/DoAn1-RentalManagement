@@ -4,6 +4,8 @@ import com.roomrental.common.entity.BaseEntity;
 import com.roomrental.modules.finance.domain.model.Invoice.InvoiceStatus;
 import com.roomrental.modules.finance.domain.model.Invoice.InvoiceType;
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -25,6 +27,10 @@ public class InvoiceEntity extends BaseEntity {
 
     @Column(name = "tenant_id", nullable = false)
     private UUID tenantId;
+
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version = 0L;
 
     @Column(name = "contract_id", nullable = false)
     private Long contractId;
@@ -60,6 +66,10 @@ public class InvoiceEntity extends BaseEntity {
 
     @Column(name = "due_date")
     private LocalDate dueDate;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "calculation_snapshot", columnDefinition = "jsonb")
+    private String calculationSnapshot;
 
     // We keep details strictly fetched/managed by InvoiceDetailRepository/Adapter 
     // to avoid complex cascading in this simple architecture, or we can use OneToMany.

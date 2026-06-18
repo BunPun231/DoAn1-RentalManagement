@@ -13,6 +13,7 @@ import java.util.UUID;
  */
 public class Contract {
     private Long id;
+    private Long version;
     private UUID tenantId;
     private Long roomId;
     private UUID primaryResidentUserId;
@@ -74,6 +75,14 @@ public class Contract {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public Long getVersion() {
+        return version;
+    }
+
+    public void setVersion(Long version) {
+        this.version = version;
     }
 
     public UUID getTenantId() {

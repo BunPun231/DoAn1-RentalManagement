@@ -9,6 +9,7 @@ import java.time.OffsetDateTime;
 public class Room {
 
     private Long id;
+    private Long version;
     private Long motelId;
     private String roomNumber;
     private Integer floor;
@@ -25,6 +26,9 @@ public class Room {
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
+
+    public Long getVersion() { return version; }
+    public void setVersion(Long version) { this.version = version; }
 
     public Long getMotelId() { return motelId; }
     public void setMotelId(Long motelId) { this.motelId = motelId; }

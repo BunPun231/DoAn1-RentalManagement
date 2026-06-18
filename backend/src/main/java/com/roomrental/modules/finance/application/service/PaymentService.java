@@ -48,7 +48,7 @@ public class PaymentService {
         this.eventPublisher = eventPublisher;
     }
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public TransactionResult processWebhook(PaymentWebhookCommand command) {
         // Idempotency check
         if (transactionRepository.findByTransactionRef(command.transactionRef()).isPresent()) {
@@ -107,7 +107,7 @@ public class PaymentService {
         return toResult(saved);
     }
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public TransactionResult processManualPayment(PaymentManualCommand command) {
         UUID tenantId = SecurityUtils.requireTenantId();
         Invoice invoice = invoiceRepository.findByIdAndTenantId(command.invoiceId(), tenantId)
@@ -150,7 +150,7 @@ public class PaymentService {
         return transactionRepository.findByTenantId(tenantId, pageable).map(this::toResult);
     }
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public TransactionResult reconcileTransaction(PaymentReconcileCommand command) {
         UUID tenantId = SecurityUtils.requireTenantId();
         Transaction tx = transactionRepository.findById(command.transactionId())

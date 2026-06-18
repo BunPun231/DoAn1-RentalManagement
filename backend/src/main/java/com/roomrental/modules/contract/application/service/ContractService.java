@@ -104,7 +104,7 @@ public class ContractService {
 
     }
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public ContractResult create(ContractCreateCommand command) {
         UUID tenantId = requireTenantId();
         UUID currentUserId = SecurityUtils.getCurrentUserId();
@@ -189,7 +189,7 @@ public class ContractService {
         return result;
     }
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public ContractResult activate(Long id) {
         UUID tenantId = requireTenantId();
         Contract contract = contractRepository.findByIdAndTenantId(id, tenantId)
@@ -357,7 +357,7 @@ public class ContractService {
     // UC66: Contract Adjustments
     // ========================
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public ContractAppendixResult adjust(Long contractId, ContractAdjustmentRequest request) {
         UUID tenantId = SecurityUtils.requireTenantId();
         UUID actorId = SecurityUtils.getCurrentUserId();
@@ -408,7 +408,7 @@ public class ContractService {
     // UC67: Cancel Contract (soft delete)
     // ========================
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public ContractResult cancel(Long id, String reason) {
         UUID tenantId = requireTenantId();
         Contract contract = contractRepository.findByIdAndTenantId(id, tenantId)
@@ -446,7 +446,7 @@ public class ContractService {
     // UC69: Deposit Management
     // ========================
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public ContractResult collectDeposit(Long id) {
         UUID tenantId = requireTenantId();
         Contract contract = contractRepository.findByIdAndTenantId(id, tenantId)
@@ -487,7 +487,7 @@ public class ContractService {
         return result;
     }
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public ContractResult refundDeposit(Long id) {
         UUID tenantId = requireTenantId();
         Contract contract = contractRepository.findByIdAndTenantId(id, tenantId)
@@ -509,7 +509,7 @@ public class ContractService {
         return result;
     }
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public ContractResult deductDeposit(Long id) {
         UUID tenantId = requireTenantId();
         Contract contract = contractRepository.findByIdAndTenantId(id, tenantId)

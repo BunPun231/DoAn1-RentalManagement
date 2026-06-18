@@ -29,6 +29,10 @@ public class RoomEntity extends BaseEntity {
     @Column(name = "motel_id", nullable = false)
     private Long motelId;
 
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version = 0L;
+
     @Column(name = "room_number", nullable = false, length = 20)
     private String roomNumber;
 

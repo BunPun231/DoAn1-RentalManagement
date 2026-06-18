@@ -8,7 +8,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "app")
 public record AppProperties(Security security, Tenant tenant, Bootstrap bootstrap, Cloudinary cloudinary) {
 
-    public record Security(String jwtSecret, long accessTokenMinutes, long refreshTokenDays) {
+        public record Security(String jwtSecret, long accessTokenMinutes, long refreshTokenDays, String encryptionKey) {
     }
 
     public record Tenant(String headerName) {

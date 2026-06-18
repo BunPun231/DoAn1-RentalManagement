@@ -1,6 +1,7 @@
 package com.roomrental.modules.auth.infrastructure.entity;
 
 import com.roomrental.common.entity.BaseEntity;
+import com.roomrental.common.security.AesCryptoConverter;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -37,6 +38,22 @@ public class UserEntity extends BaseEntity {
 
     @Column(name = "full_name", nullable = false)
     private String fullName;
+
+    @Convert(converter = AesCryptoConverter.class)
+    @Column(name = "national_id", length = 20)
+    private String nationalId;
+
+    @Convert(converter = AesCryptoConverter.class)
+    @Column(name = "bank_account_number", length = 30)
+    private String bankAccountNumber;
+
+    @Convert(converter = AesCryptoConverter.class)
+    @Column(name = "bank_account_name", length = 100)
+    private String bankAccountName;
+
+    @Convert(converter = AesCryptoConverter.class)
+    @Column(name = "bank_name", length = 100)
+    private String bankName;
 
     @Column(nullable = false, length = 20)
     private String role;

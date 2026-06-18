@@ -1,6 +1,6 @@
 package com.roomrental.modules.resident.infrastructure.entity;
 
-import com.roomrental.common.entity.BaseEntity;
+import com.roomrental.common.security.AesCryptoConverter;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -18,7 +18,8 @@ public class ResidentProfileEntity {
     @Column(name = "user_id")
     private UUID userId;
 
-    @Column(name = "id_card_number", nullable = false, unique = true, length = 20)
+    @Convert(converter = AesCryptoConverter.class)
+    @Column(name = "id_card_number", nullable = false, unique = true, length = 255)
     private String idCardNumber;
 
     @Column(name = "id_card_front_url")
@@ -29,6 +30,18 @@ public class ResidentProfileEntity {
 
     @Column(name = "verified_at")
     private OffsetDateTime verifiedAt;
+
+    @Convert(converter = AesCryptoConverter.class)
+    @Column(name = "bank_account_number", length = 30)
+    private String bankAccountNumber;
+
+    @Convert(converter = AesCryptoConverter.class)
+    @Column(name = "bank_account_name", length = 100)
+    private String bankAccountName;
+
+    @Convert(converter = AesCryptoConverter.class)
+    @Column(name = "bank_name", length = 100)
+    private String bankName;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;

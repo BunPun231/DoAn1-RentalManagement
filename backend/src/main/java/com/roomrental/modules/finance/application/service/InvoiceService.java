@@ -3,6 +3,8 @@ package com.roomrental.modules.finance.application.service;
 import com.roomrental.common.exception.BaseException;
 import com.roomrental.common.util.SecurityUtils;
 import com.roomrental.modules.finance.application.dto.*;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.roomrental.modules.finance.application.event.*;
 import com.roomrental.modules.finance.application.strategy.BillingContext;
 import com.roomrental.modules.finance.application.strategy.BillingStrategy;
@@ -29,21 +31,26 @@ import com.roomrental.modules.service.domain.repository.ServicePricingRepository
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @Service
 public class InvoiceService {
+    private static final Logger log = LoggerFactory.getLogger(InvoiceService.class);
     
     private final InvoiceRepository invoiceRepository;
     private final InvoiceDetailRepository invoiceDetailRepository;
@@ -56,6 +63,7 @@ public class InvoiceService {
     private final ResidentBalanceRepository residentBalanceRepository;
     private final BillingStrategyFactory strategyFactory;
     private final ApplicationEventPublisher eventPublisher;
+    private final ObjectMapper objectMapper;
 
     public InvoiceService(
             InvoiceRepository invoiceRepository,
@@ -68,7 +76,8 @@ public class InvoiceService {
             MeterReadingRepository meterReadingRepository,
             ResidentBalanceRepository residentBalanceRepository,
             BillingStrategyFactory strategyFactory,
-            ApplicationEventPublisher eventPublisher) {
+            ApplicationEventPublisher eventPublisher,
+            ObjectMapper objectMapper) {
         this.invoiceRepository = invoiceRepository;
         this.invoiceDetailRepository = invoiceDetailRepository;
         this.contractRepository = contractRepository;
@@ -80,17 +89,21 @@ public class InvoiceService {
         this.residentBalanceRepository = residentBalanceRepository;
         this.strategyFactory = strategyFactory;
         this.eventPublisher = eventPublisher;
+        this.objectMapper = objectMapper;
     }
 
-    @Transactional
-    public InvoiceGenerationResult generateForMotel(InvoiceGenerateCommand command) {
-        UUID tenantId = SecurityUtils.requireTenantId();
-        List<InvoiceResult> results = new ArrayList<>();
+    @Async("taskExecutor")
+    @Transactional(rollbackFor = Exception.class)
+    public CompletableFuture<Void> generateForMotel(InvoiceGenerateCommand command) {
+        log.info("Starting async invoice generation for motelId={}, billingMonth={}", command.motelId(), command.billingMonth());
+        try {
+            UUID tenantId = SecurityUtils.requireTenantId();
+            List<InvoiceResult> results = new ArrayList<>();
 
-        List<SkippedInvoiceRoomResult> skippedRooms = new ArrayList<>();
-        List<Room> rooms = roomRepository.findByMotelId(command.motelId(), Pageable.unpaged()).getContent();
+            List<SkippedInvoiceRoomResult> skippedRooms = new ArrayList<>();
+            List<Room> rooms = roomRepository.findByMotelId(command.motelId(), Pageable.unpaged()).getContent();
 
-        for (Room room : rooms) {
+            for (Room room : rooms) {
             List<Contract> contracts = contractRepository.findByRoomId(room.getId()).stream()
                     .filter(Contract::isActive)
                     .toList();
@@ -130,12 +143,15 @@ public class InvoiceService {
             invoice.setDueDate(LocalDate.now().plusDays(5)); // default 5 days
             invoice.setCreatedAt(OffsetDateTime.now());
             invoice.setUpdatedAt(OffsetDateTime.now());
+
+            List<Map<String, Object>> snapshotItems = new ArrayList<>();
             
             // 1. Calculate Rent
             BillingStrategy rentStrategy = strategyFactory.getStrategy("FIXED", false);
             BillingContext rentContext = new BillingContext(
                 null, "Tiền phòng", "FIXED", null, null, null, 1, contract.getRentPrice(), null
             );
+            snapshotItems.add(buildSnapshotItem("FIXED", false, rentContext));
             List<InvoiceDetail> details = new ArrayList<>(rentStrategy.calculate(rentContext));
 
             // 2. Calculate services from real service usages
@@ -149,6 +165,7 @@ public class InvoiceService {
                 MeterReading approvedReading = approvedReadings.get(usage.getId());
                 BillingStrategy strategy = strategyFactory.getStrategy(service.getChargeType().name(), hasTiers);
                 BillingContext context = buildBillingContext(service, usage, room, contract, pricing, tiers, approvedReading);
+                snapshotItems.add(buildSnapshotItem(service.getChargeType().name(), hasTiers, context));
                 details.addAll(strategy.calculate(context));
             }
 
@@ -182,6 +199,8 @@ public class InvoiceService {
             if (invoice.getRemainingAmount().compareTo(BigDecimal.ZERO) <= 0) {
                 invoice.setStatus(InvoiceStatus.PAID);
             }
+
+            invoice.setCalculationSnapshot(buildCalculationSnapshot(command, contract, room, snapshotItems));
             
             Invoice saved = invoiceRepository.save(invoice);
             
@@ -205,9 +224,15 @@ public class InvoiceService {
             ));
             
             results.add(toResult(saved));
-        }
+            }
 
-        return new InvoiceGenerationResult(results, skippedRooms);
+            log.info("Completed async invoice generation for motelId={}, billingMonth={}, created={}, skipped={}",
+                    command.motelId(), command.billingMonth(), results.size(), skippedRooms.size());
+            return CompletableFuture.completedFuture(null);
+        } catch (Exception ex) {
+            log.error("Async invoice generation failed for motelId={}, billingMonth={}", command.motelId(), command.billingMonth(), ex);
+            throw ex;
+        }
     }
 
     @Transactional(readOnly = true)
@@ -249,7 +274,7 @@ public class InvoiceService {
         return toResult(invoice);
     }
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public InvoiceResult adjustInvoice(InvoiceAdjustCommand command) {
         UUID tenantId = SecurityUtils.requireTenantId();
         Invoice invoice = invoiceRepository.findByIdAndTenantId(command.invoiceId(), tenantId)
@@ -273,7 +298,7 @@ public class InvoiceService {
         return toResult(invoice);
     }
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void deleteInvoice(Long id) {
         UUID tenantId = SecurityUtils.requireTenantId();
         Invoice invoice = invoiceRepository.findByIdAndTenantId(id, tenantId)
@@ -316,6 +341,7 @@ public class InvoiceService {
             invoice.getRemainingAmount(),
             BigDecimal.ZERO, // overpaidAmount is typically mapped via transaction, but we provide ZERO here as a fallback placeholder.
             creditBalanceSnapshot,
+            invoice.getCalculationSnapshot(),
             invoice.getStatus().name(),
             invoice.getInvoiceType().name(),
             invoice.getCancelReason(),
@@ -353,6 +379,40 @@ public class InvoiceService {
                 basePrice,
                 billingTiers
         );
+    }
+
+    private Map<String, Object> buildSnapshotItem(String strategyCode, boolean hasTiers, BillingContext context) {
+        Map<String, Object> item = new LinkedHashMap<>();
+        item.put("strategyCode", strategyCode);
+        item.put("hasTiers", hasTiers);
+        item.put("serviceId", context.serviceId());
+        item.put("serviceName", context.serviceName());
+        item.put("chargeType", context.chargeType());
+        item.put("oldReading", context.oldReading());
+        item.put("newReading", context.newReading());
+        item.put("quantity", context.quantity());
+        item.put("activeResidents", context.activeResidents());
+        item.put("basePrice", context.basePrice());
+        item.put("pricingTiers", context.pricingTiers());
+        return item;
+    }
+
+    private String buildCalculationSnapshot(
+            InvoiceGenerateCommand command,
+            Contract contract,
+            Room room,
+            List<Map<String, Object>> items) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("motelId", room.getMotelId());
+        snapshot.put("roomId", room.getId());
+        snapshot.put("contractId", contract.getId());
+        snapshot.put("billingMonth", command.billingMonth());
+        snapshot.put("items", items);
+        try {
+            return objectMapper.writeValueAsString(snapshot);
+        } catch (JsonProcessingException ex) {
+            throw new IllegalStateException("Failed to serialize invoice calculation snapshot", ex);
+        }
     }
 }
 
