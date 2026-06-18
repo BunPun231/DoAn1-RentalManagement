@@ -73,9 +73,6 @@ function GenerateInvoiceModal({
             <Zap size={32} className="text-emerald-500" />
           </div>
           <h3 className="text-lg font-bold text-brand-ink mb-2">Tạo thành công!</h3>
-          <p className="text-slate-600">
-            Đã tạo <span className="font-bold text-brand-deep">{result.generatedCount}</span> hóa đơn
-          </p>
           <Button className="mt-6" onClick={() => { setResult(null); onSuccess(); }}>
             Xem danh sách hóa đơn
           </Button>
