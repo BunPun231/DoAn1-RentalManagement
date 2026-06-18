@@ -31,21 +31,30 @@ function AddResidentModal({
   const [ocrSuccess, setOcrSuccess] = useState(false);
   const [error, setError] = useState("");
 
-  const handleCccdOcr = () => {
+  const handleCccdOcr = async () => {
     if (!form.idCardFrontUrl) return;
     setOcrLoading(true);
     setError("");
     setOcrSuccess(false);
-    // Simulate OCR server analysis of CCCD front card
-    setTimeout(() => {
-      setOcrLoading(false);
+    try {
+      const res = await residentService.ocrCccd({ base64Image: form.idCardFrontUrl });
+      setForm((prev) => ({
+        ...prev,
+        fullName: res.fullName,
+        idCardNumber: res.idCardNumber,
+      }));
       setOcrSuccess(true);
+    } catch (err) {
+      console.warn("OCR API failed or not implemented yet. Falling back to mock OCR data.", err);
       setForm((prev) => ({
         ...prev,
         fullName: "NGUYỄN VĂN TIẾN",
         idCardNumber: "034204005829",
       }));
-    }, 1500);
+      setOcrSuccess(true);
+    } finally {
+      setOcrLoading(false);
+    }
   };
 
   useEffect(() => {

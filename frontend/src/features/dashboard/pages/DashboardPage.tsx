@@ -6,7 +6,7 @@ import {
   RefreshCw, ChevronRight, CreditCard
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
-import { reportService, type DashboardSummaryResult } from "@/services/reportService";
+import { reportService, activityService, type DashboardSummaryResult } from "@/services/reportService";
 import { extractError } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import { invoiceService, type InvoiceResult } from "@/services/invoiceService";
@@ -70,7 +70,8 @@ export function DashboardPage() {
   // Tenant states
   const [tenantInvoices, setTenantInvoices] = useState<InvoiceResult[]>([]);
   const [paymentInvoice, setPaymentInvoice] = useState<InvoiceResult | null>(null);
-
+  const [managerActivities, setManagerActivities] = useState<any[]>([]);
+ 
   const fetchData = async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
@@ -84,6 +85,19 @@ export function DashboardPage() {
         // Fetch manager dashboard summary
         const result = await reportService.getDashboardSummary();
         setData(result);
+
+        if (user?.role === "MANAGER") {
+          try {
+            const logsResult = await activityService.list(0, 5);
+            const mapped = logsResult.content.map(log => ({
+              description: `${log.action} ${log.entityType || ""} (Mã: ${log.entityId || ""})`,
+              createdAt: log.timestamp
+            }));
+            setManagerActivities(mapped);
+          } catch (logErr) {
+            console.error("Failed to load manager activity logs", logErr);
+          }
+        }
       }
     } catch (err) {
       setError(extractError(err));
@@ -498,27 +512,35 @@ export function DashboardPage() {
             )}
 
             {/* Activities */}
-            {data && data.recentActivities.length > 0 && (
-              <div className="pt-4 border-t border-slate-100">
-                <h3 className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-3">Hoạt động gần đây</h3>
-                <div className="space-y-3">
-                  {data.recentActivities.slice(0, 3).map((act, i) => (
-                    <div key={i} className="flex gap-3 relative">
-                      {i < 2 && (
-                        <div className="absolute left-[7px] top-5 bottom-[-12px] w-px bg-slate-200" />
-                      )}
-                      <div className="relative z-10 w-3.5 h-3.5 rounded-full bg-brand-deep/20 border-2 border-white mt-1 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-brand-ink truncate">{act.description}</p>
-                        <p className="text-xs text-slate-400 mt-0.5">
-                          {new Date(act.createdAt).toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
-                        </p>
+            {(() => {
+              const activitiesToDisplay = (user?.role === "MANAGER" && managerActivities.length > 0)
+                ? managerActivities
+                : (data?.recentActivities || []);
+
+              if (activitiesToDisplay.length === 0) return null;
+
+              return (
+                <div className="pt-4 border-t border-slate-100">
+                  <h3 className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-3">Hoạt động gần đây</h3>
+                  <div className="space-y-3">
+                    {activitiesToDisplay.slice(0, 3).map((act, i) => (
+                      <div key={i} className="flex gap-3 relative">
+                        {i < activitiesToDisplay.slice(0, 3).length - 1 && (
+                          <div className="absolute left-[7px] top-5 bottom-[-12px] w-px bg-slate-200" />
+                        )}
+                        <div className="relative z-10 w-3.5 h-3.5 rounded-full bg-brand-deep/20 border-2 border-white mt-1 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-brand-ink truncate">{act.description}</p>
+                          <p className="text-xs text-slate-400 mt-0.5">
+                            {act.createdAt ? new Date(act.createdAt).toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" }) : "-"}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
         </div>
       </div>

@@ -60,4 +60,13 @@ export const residentService = {
   async deactivate(residentId: string): Promise<void> {
     await api.post(`/api/residents/${residentId}/deactivate`);
   },
+
+  /** OCR CCCD front image */
+  async ocrCccd(data: { base64Image: string }): Promise<{ fullName: string; idCardNumber: string }> {
+    const res = await api.post<ApiResponse<{ fullName: string; idCardNumber: string }>>(
+      "/api/residents/ocr",
+      data
+    );
+    return res.data.data;
+  },
 };

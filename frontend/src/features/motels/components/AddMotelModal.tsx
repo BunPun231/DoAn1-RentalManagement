@@ -16,6 +16,9 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
   const [address, setAddress] = useState(motel?.address ?? "");
   const [totalFloors, setTotalFloors] = useState(motel?.totalFloors?.toString() ?? "1");
   const [description, setDescription] = useState(motel?.description ?? "");
+  const [paymentCycle, setPaymentCycle] = useState("1");
+  const [closingDay, setClosingDay] = useState("5");
+  const [depositRate, setDepositRate] = useState("100");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -25,11 +28,30 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
       setAddress(motel.address);
       setTotalFloors(motel.totalFloors.toString());
       setDescription(motel.description ?? "");
+      
+      const savedSettings = localStorage.getItem(`motel_settings_${motel.id}`);
+      if (savedSettings) {
+        try {
+          const parsed = JSON.parse(savedSettings);
+          setPaymentCycle(parsed.paymentCycle?.toString() ?? "1");
+          setClosingDay(parsed.closingDay?.toString() ?? "5");
+          setDepositRate(parsed.depositRate?.toString() ?? "100");
+        } catch (e) {
+          console.error(e);
+        }
+      } else {
+        setPaymentCycle("1");
+        setClosingDay("5");
+        setDepositRate("100");
+      }
     } else {
       setName("");
       setAddress("");
       setTotalFloors("1");
       setDescription("");
+      setPaymentCycle("1");
+      setClosingDay("5");
+      setDepositRate("100");
     }
     setError("");
   }, [motel, isOpen]);
@@ -39,21 +61,27 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
     setError("");
     setIsLoading(true);
     try {
+      let savedMotel;
       if (motel) {
-        await motelService.update(motel.id, {
+        savedMotel = await motelService.update(motel.id, {
           name: name.trim(),
           address: address.trim(),
           totalFloors: parseInt(totalFloors, 10),
           description: description.trim() || undefined,
         });
       } else {
-        await motelService.create({
+        savedMotel = await motelService.create({
           name: name.trim(),
           address: address.trim(),
           totalFloors: parseInt(totalFloors, 10),
           description: description.trim() || undefined,
         });
       }
+      localStorage.setItem(`motel_settings_${savedMotel.id}`, JSON.stringify({
+        paymentCycle: parseInt(paymentCycle, 10),
+        closingDay: parseInt(closingDay, 10),
+        depositRate: parseFloat(depositRate),
+      }));
       onSuccess?.();
     } catch (err) {
       setError(extractError(err));
@@ -111,6 +139,43 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
             required
             className={inputClass}
           />
+        </div>
+
+        <div className="grid grid-cols-3 gap-4">
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-slate-700">Kỳ đóng tiền (tháng)</label>
+            <input
+              type="number"
+              value={paymentCycle}
+              onChange={(e) => setPaymentCycle(e.target.value)}
+              min={1}
+              required
+              className={inputClass}
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-slate-700">Ngày chốt kỳ (1-28)</label>
+            <input
+              type="number"
+              value={closingDay}
+              onChange={(e) => setClosingDay(e.target.value)}
+              min={1}
+              max={28}
+              required
+              className={inputClass}
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-slate-700">Tỷ lệ tiền cọc (%)</label>
+            <input
+              type="number"
+              value={depositRate}
+              onChange={(e) => setDepositRate(e.target.value)}
+              min={0}
+              required
+              className={inputClass}
+            />
+          </div>
         </div>
 
         <div className="space-y-1">

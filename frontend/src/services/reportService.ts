@@ -164,3 +164,22 @@ export const auditService = {
     return res.data.data;
   },
 };
+
+export const activityService = {
+  /** UC14: Get activity logs for manager */
+  async list(
+    page = 0,
+    size = 20,
+    filters?: {
+      action?: string;
+      entityType?: string;
+      fromDate?: string;
+      toDate?: string;
+    }
+  ): Promise<PageResponse<AuditLogResult>> {
+    const res = await api.get<ApiResponse<PageResponse<AuditLogResult>>>("/api/v1/activity-logs", {
+      params: { page, size, ...filters },
+    });
+    return res.data.data;
+  },
+};

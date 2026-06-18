@@ -3,8 +3,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Search, RefreshCw, AlertCircle, Activity } from "lucide-react";
-import { auditService, type AuditLogResult } from "@/services/reportService";
+import { auditService, activityService, type AuditLogResult } from "@/services/reportService";
 import { extractError } from "@/lib/api";
+import { useAuthStore } from "@/store/authStore";
 
 const ACTION_VARIANT: Record<string, "danger" | "success" | "warning" | "default"> = {
   DELETE: "danger",
@@ -27,6 +28,9 @@ function getActionBadge(action: string) {
 }
 
 export function AuditLogPage() {
+  const { user } = useAuthStore();
+  const isManager = user?.role === "MANAGER";
+
   const [logs, setLogs] = useState<AuditLogResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +42,8 @@ export function AuditLogPage() {
   const fetchLogs = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await auditService.list(page, 20, {
+      const service = isManager ? activityService : auditService;
+      const result = await service.list(page, 20, {
         fromDate: fromDate || undefined,
       });
       setLogs(result.content);
@@ -49,7 +54,7 @@ export function AuditLogPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, fromDate]);
+  }, [page, fromDate, isManager]);
 
   useEffect(() => {
     fetchLogs();

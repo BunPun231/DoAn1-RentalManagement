@@ -21,7 +21,7 @@ export function SettlementModal({ isOpen, onClose, contractId, onSuccess }: Sett
   const [damages, setDamages] = useState<DamageItemInput[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  
+
   const [calcResult, setCalcResult] = useState<SettlementCalculateResult | null>(null);
 
   const handleAddDamage = () => {
@@ -214,7 +214,7 @@ export function SettlementModal({ isOpen, onClose, contractId, onSuccess }: Sett
         <div className="space-y-4">
           <div className="bg-brand-deep/5 p-4 rounded-xl border border-brand-deep/10 space-y-2">
             <h3 className="font-bold text-brand-ink mb-2">Kết quả tính toán</h3>
-            
+
             <div className="flex justify-between text-sm">
               <span className="text-slate-500">Tiền cọc ban đầu:</span>
               <span className="font-medium">{formatCurrency(calcResult?.deposit || 0)}</span>
@@ -235,7 +235,7 @@ export function SettlementModal({ isOpen, onClose, contractId, onSuccess }: Sett
               <span className="text-slate-500">Chi phí khấu trừ tài sản:</span>
               <span className="font-medium text-rose-600">{formatCurrency(calcResult?.repairFees || 0)}</span>
             </div>
-            
+
             <div className="pt-2 mt-2 border-t border-brand-deep/10 flex justify-between font-bold">
               <span>Tổng thanh toán ({calcResult?.netAmount! >= 0 ? "Khách nhận lại" : "Khách đóng thêm"}):</span>
               <span className={calcResult?.netAmount! >= 0 ? "text-emerald-600" : "text-rose-600"}>
@@ -243,20 +243,6 @@ export function SettlementModal({ isOpen, onClose, contractId, onSuccess }: Sett
               </span>
             </div>
           </div>
-
-          {calcResult?.itemBreakdown && calcResult.itemBreakdown.length > 0 && (
-            <div className="space-y-1.5 rounded-xl border border-slate-100 p-3 bg-slate-50">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Chi tiết khấu trừ</p>
-              <div className="divide-y divide-slate-100 text-xs">
-                {calcResult.itemBreakdown.map((item, i) => (
-                  <div key={i} className="flex justify-between py-1.5">
-                    <span className="text-slate-600">{item.description}</span>
-                    <span className="font-medium text-rose-600">{formatCurrency(item.amount)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           <div className="pt-4 border-t border-slate-100 flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => setStep(1)} disabled={loading}>Quay lại</Button>

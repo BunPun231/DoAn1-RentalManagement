@@ -46,6 +46,8 @@ export interface ContractCreateRequest {
   primaryResidentFullName?: string;
   primaryResidentEmail?: string;
   primaryResidentIdCardNumber?: string;
+  primaryResidentIdCardFrontUrl?: string;
+  primaryResidentIdCardBackUrl?: string;
   startDate: string;
   endDate: string;
   /** billingDate: day of month when rent is due (YYYY-MM-DD) */

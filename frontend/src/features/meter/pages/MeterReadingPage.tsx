@@ -232,6 +232,7 @@ export function MeterReadingPage() {
   const [error, setError] = useState<string | null>(null);
   
   const [submittingData, setSubmittingData] = useState<{ roomId: number, serviceId: number, serviceName: string, oldReading: number } | null>(null);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   // Fetch motels
   useEffect(() => {
@@ -422,10 +423,20 @@ export function MeterReadingPage() {
                       {row.currentReading?.consumption != null ? row.currentReading.consumption : "-"}
                     </TableCell>
                     <TableCell>
-                      {row.currentReading 
-                        ? (STATUS_BADGE[row.currentReading.status] ?? <Badge>{row.currentReading.status}</Badge>)
-                        : <Badge variant="default" className="bg-slate-100 text-slate-500 border-slate-200">Chưa ghi</Badge>
-                      }
+                      <div className="flex items-center gap-2">
+                        {row.currentReading 
+                          ? (STATUS_BADGE[row.currentReading.status] ?? <Badge>{row.currentReading.status}</Badge>)
+                          : <Badge variant="default" className="bg-slate-100 text-slate-500 border-slate-200">Chưa ghi</Badge>
+                        }
+                        {row.currentReading?.imageUrl && (
+                          <img
+                            src={row.currentReading.imageUrl}
+                            alt="Minh chứng"
+                            className="h-8 w-8 hover:scale-110 object-cover rounded cursor-pointer border border-slate-200 transition-all flex-shrink-0"
+                            onClick={() => setLightboxImage(row.currentReading!.imageUrl!)}
+                          />
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
@@ -488,6 +499,30 @@ export function MeterReadingPage() {
           fetchData();
         }}
       />
+
+      {lightboxImage && (
+        <Modal
+          isOpen={!!lightboxImage}
+          onClose={() => setLightboxImage(null)}
+          title="Minh chứng chỉ số điện nước"
+        >
+          <div className="flex flex-col items-center justify-center p-2">
+            <img
+              src={lightboxImage}
+              alt="Ảnh chụp đồng hồ"
+              className="max-h-[60vh] w-auto rounded-lg border border-slate-200 object-contain shadow-md"
+            />
+            <div className="mt-4 flex justify-end w-full">
+              <Button
+                variant="outline"
+                onClick={() => setLightboxImage(null)}
+              >
+                Đóng
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

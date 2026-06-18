@@ -16,6 +16,7 @@ export interface InvoiceResult {
   invoiceType: string;
   cancelReason?: string;
   dueDate?: string;
+  calculationSnapshot?: string;
   details?: InvoiceDetail[];
 }
 

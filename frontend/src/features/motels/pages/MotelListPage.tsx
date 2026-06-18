@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/Badge";
 import { AddMotelModal } from "../components/AddMotelModal";
 import { AddRoomModal } from "../components/AddRoomModal";
 import { RoomDetailModal } from "../components/RoomDetailModal";
+import { BulkAddRoomModal } from "../components/BulkAddRoomModal";
 import { motelService, roomService, type MotelResult, type RoomResult } from "@/services/motelService";
 import { extractError } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
@@ -42,6 +43,7 @@ export function MotelListPage() {
   const [error, setError] = useState<string | null>(null);
   const [isMotelModalOpen, setIsMotelModalOpen] = useState(false);
   const [isAddRoomOpen, setIsAddRoomOpen] = useState(false);
+  const [isBulkAddRoomOpen, setIsBulkAddRoomOpen] = useState(false);
   const [editingMotel, setEditingMotel] = useState<MotelResult | undefined>();
   const [selectedRoom, setSelectedRoom] = useState<RoomResult | null>(null);
 
@@ -144,6 +146,10 @@ export function MotelListPage() {
           <Button onClick={() => { setEditingMotel(undefined); setIsMotelModalOpen(true); }} variant="outline">
             <Plus size={16} className="mr-2" />
             Thêm khu trọ
+          </Button>
+          <Button onClick={() => setIsBulkAddRoomOpen(true)} disabled={!activeMotel} variant="outline">
+            <Layers size={16} className="mr-2" />
+            Tạo hàng loạt
           </Button>
           <Button onClick={() => setIsAddRoomOpen(true)} disabled={!activeMotel}>
             <Plus size={16} className="mr-2" />
@@ -316,6 +322,17 @@ export function MotelListPage() {
           motelId={activeMotel.id}
           onSuccess={() => {
             setIsAddRoomOpen(false);
+            fetchRooms(activeMotel.id);
+          }}
+        />
+      )}
+
+      {activeMotel && (
+        <BulkAddRoomModal
+          isOpen={isBulkAddRoomOpen}
+          onClose={() => setIsBulkAddRoomOpen(false)}
+          motelId={activeMotel.id}
+          onSuccess={() => {
             fetchRooms(activeMotel.id);
           }}
         />

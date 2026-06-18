@@ -9,6 +9,7 @@ import { motelService, type MotelResult } from "@/services/motelService";
 import { extractError } from "@/lib/api";
 import { Modal } from "@/components/ui/Modal";
 import { PaymentModal } from "../components/PaymentModal";
+import { InvoiceDetailModal } from "../components/InvoiceDetailModal";
 import { useAuthStore } from "@/store/authStore";
 
 const STATUS_BADGE: Record<string, React.ReactNode> = {
@@ -357,53 +358,16 @@ export function InvoiceListPage() {
       </div>
 
       {selectedInvoice && (
-        <Modal isOpen={!!selectedInvoice} onClose={() => setSelectedInvoice(null)} title={`Chi tiết hóa đơn #${selectedInvoice.id}`} size="lg">
-          <div className="space-y-3">
-            {[
-              { label: "Phòng", value: `Phòng ${selectedInvoice.roomId}` },
-              { label: "Kỳ hóa đơn", value: selectedInvoice.billingMonth ? new Date(selectedInvoice.billingMonth).toLocaleDateString("vi-VN", { month: "long", year: "numeric" }) : "-" },
-              { label: "Tổng tiền", value: formatCurrency(selectedInvoice.totalAmount) },
-              { label: "Đã thanh toán", value: formatCurrency(selectedInvoice.paidAmount) },
-              { label: "Còn lại", value: formatCurrency(selectedInvoice.totalAmount - selectedInvoice.paidAmount) },
-            ].map(({ label, value }) => (
-              <div key={label} className="flex justify-between py-2 border-b border-slate-100">
-                <span className="text-slate-500 text-sm">{label}</span>
-                <span className="font-medium text-sm">{value}</span>
-              </div>
-            ))}
-            <div className="flex justify-between py-2">
-              <span className="text-slate-500 text-sm">Trạng thái</span>
-              <span>{STATUS_BADGE[selectedInvoice.status]}</span>
-            </div>
-
-            {invoiceDetails?.details && invoiceDetails.details.length > 0 && (
-              <div className="mt-4 pt-4 border-t border-slate-200">
-                <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Chi tiết các khoản phí</h4>
-                <div className="divide-y divide-slate-100 bg-slate-50 rounded-xl border border-slate-200 p-3 space-y-2">
-                  {invoiceDetails.details.map((detail, idx) => (
-                    <div key={idx} className="flex justify-between text-sm py-1.5">
-                      <div className="flex flex-col">
-                        <span className="font-medium text-slate-800">{detail.serviceName}</span>
-                        {detail.chargeType !== "FIXED" && detail.oldReading !== undefined && detail.newReading !== undefined && (
-                          <span className="text-xs text-slate-400">
-                            Chỉ số: {detail.oldReading} → {detail.newReading} ({detail.consumption} {detail.serviceName.toLowerCase().includes("nước") ? "khối" : "số"})
-                          </span>
-                        )}
-                        {detail.chargeType !== "FIXED" && (
-                          <span className="text-xs text-slate-400">Đơn giá: {formatCurrency(detail.unitPrice)}</span>
-                        )}
-                      </div>
-                      <span className="font-bold text-slate-800">{formatCurrency(detail.totalCost)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-          <div className="pt-4 border-t border-slate-100 flex justify-end mt-4">
-            <Button variant="outline" onClick={() => setSelectedInvoice(null)}>Đóng</Button>
-          </div>
-        </Modal>
+        <InvoiceDetailModal
+          isOpen={!!selectedInvoice}
+          onClose={() => setSelectedInvoice(null)}
+          invoice={invoiceDetails}
+          isManager={!isTenant}
+          onCollectPayment={() => {
+            setSelectedInvoice(null);
+            setPaymentInvoice(selectedInvoice);
+          }}
+        />
       )}
 
       <GenerateInvoiceModal
