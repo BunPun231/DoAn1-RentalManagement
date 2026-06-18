@@ -188,13 +188,12 @@ export const contractService = {
     await api.post(`/api/contracts/${contractId}/deposit/refund`, { notes });
   },
 
-  /** UC80: Calculate settlement */
   async calculateSettlement(data: SettlementRequest): Promise<SettlementCalculateResult> {
-    const res = await api.post<ApiResponse<SettlementCalculateResult>>(
+    const res = await api.post<SettlementCalculateResult>(
       "/api/v1/settlements/calculate",
       data
     );
-    return res.data.data;
+    return res.data;
   },
 
   /** UC80: Confirm settlement */

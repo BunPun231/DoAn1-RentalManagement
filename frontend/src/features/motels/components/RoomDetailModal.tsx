@@ -3,7 +3,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { RoomResult, roomService } from "@/services/motelService";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatVnStyle, stripVnStyle } from "@/lib/utils";
 import { extractError } from "@/lib/api";
 
 interface RoomDetailModalProps {
@@ -29,7 +29,7 @@ export function RoomDetailModal({ isOpen, onClose, room, onSuccess }: RoomDetail
 
   const handleUpdateStatus = async (newStatus: string) => {
     try {
-      await roomService.updateStatus(room.motelId, room.id, { status: newStatus });
+      await roomService.updateStatus(room.motelId, room.hashid || room.id, { status: newStatus });
       setStatus(newStatus as any);
       onSuccess?.();
     } catch (err) {
@@ -43,7 +43,7 @@ export function RoomDetailModal({ isOpen, onClose, room, onSuccess }: RoomDetail
     setLoading(true);
     setError("");
     try {
-      await roomService.update(room.motelId, room.id, {
+      await roomService.update(room.motelId, room.hashid || room.id, {
         roomNumber: roomNumber.trim(),
         floor: parseInt(floor, 10),
         area: area ? parseFloat(area) : undefined,
@@ -62,7 +62,7 @@ export function RoomDetailModal({ isOpen, onClose, room, onSuccess }: RoomDetail
   const handleDelete = async () => {
     if (!confirm(`Xóa phòng ${room.roomNumber}? Thao tác này không thể hoàn tác.`)) return;
     try {
-      await roomService.delete(room.motelId, room.id);
+      await roomService.delete(room.motelId, room.hashid || room.id);
       onClose();
       onSuccess?.();
     } catch (err) {
@@ -106,7 +106,13 @@ export function RoomDetailModal({ isOpen, onClose, room, onSuccess }: RoomDetail
               <Input label="Tên/Số phòng" value={roomNumber} onChange={(e) => setRoomNumber(e.target.value)} required />
               <Input label="Tầng" type="number" value={floor} onChange={(e) => setFloor(e.target.value)} required />
               <Input label="Diện tích (m²)" type="number" step="0.1" value={area} onChange={(e) => setArea(e.target.value)} />
-              <Input label="Giá thuê/tháng" type="number" value={basePrice} onChange={(e) => setBasePrice(e.target.value)} required />
+              <Input
+                label="Giá thuê/tháng"
+                type="text"
+                value={formatVnStyle(basePrice)}
+                onChange={(e) => setBasePrice(stripVnStyle(e.target.value))}
+                required
+              />
               <Input label="Ghi chú" value={description} onChange={(e) => setDescription(e.target.value)} />
             </div>
             <div className="flex justify-end pt-4">

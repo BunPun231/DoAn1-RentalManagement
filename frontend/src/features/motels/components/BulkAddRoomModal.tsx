@@ -3,6 +3,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { roomService } from "@/services/motelService";
 import { extractError } from "@/lib/api";
+import { formatVnStyle, stripVnStyle } from "@/lib/utils";
 
 interface BulkAddRoomModalProps {
   isOpen: boolean;
@@ -16,8 +17,6 @@ interface RoomPreviewItem {
   roomNumber: string;
   area?: number;
   basePrice: number;
-  status: "idle" | "loading" | "success" | "error";
-  errorMsg?: string;
 }
 
 export function BulkAddRoomModal({ isOpen, onClose, onSuccess, motelId }: BulkAddRoomModalProps) {
@@ -29,7 +28,6 @@ export function BulkAddRoomModal({ isOpen, onClose, onSuccess, motelId }: BulkAd
   
   const [isCreating, setIsCreating] = useState(false);
   const [progressText, setProgressText] = useState("");
-  const [creationResults, setCreationResults] = useState<RoomPreviewItem[]>([]);
   const [globalError, setGlobalError] = useState("");
 
   const previewRooms = useMemo(() => {
@@ -52,7 +50,6 @@ export function BulkAddRoomModal({ isOpen, onClose, onSuccess, motelId }: BulkAd
           roomNumber,
           area: areaVal,
           basePrice: priceVal,
-          status: "idle"
         });
       }
     }
@@ -62,54 +59,28 @@ export function BulkAddRoomModal({ isOpen, onClose, onSuccess, motelId }: BulkAd
   const handleBulkCreate = async () => {
     setGlobalError("");
     setIsCreating(true);
+    setProgressText("Đang gửi yêu cầu tạo phòng...");
     
-    const roomsToCreate = [...previewRooms];
-    setCreationResults(roomsToCreate.map(r => ({ ...r, status: "idle" })));
-
-    let successCount = 0;
-    let failureCount = 0;
-
-    for (let i = 0; i < roomsToCreate.length; i++) {
-      const room = roomsToCreate[i];
-      setProgressText(`Đang tạo phòng ${room.roomNumber} (tầng ${room.floor})...`);
+    try {
+      const roomsData = previewRooms.map(r => ({
+        roomNumber: r.roomNumber,
+        floor: r.floor,
+        area: r.area,
+        basePrice: r.basePrice,
+      }));
       
-      // Update status to loading
-      setCreationResults(prev => {
-        const next = [...prev];
-        next[i] = { ...next[i], status: "loading" };
-        return next;
-      });
-
-      try {
-        await roomService.create(motelId, {
-          roomNumber: room.roomNumber,
-          floor: room.floor,
-          area: room.area,
-          basePrice: room.basePrice,
-        });
-        
-        successCount++;
-        setCreationResults(prev => {
-          const next = [...prev];
-          next[i] = { ...next[i], status: "success" };
-          return next;
-        });
-      } catch (err) {
-        failureCount++;
-        const errorMsg = extractError(err);
-        setCreationResults(prev => {
-          const next = [...prev];
-          next[i] = { ...next[i], status: "error", errorMsg };
-          return next;
-        });
+      await roomService.createBulk(motelId, { rooms: roomsData });
+      
+      setProgressText(`Tạo thành công ${previewRooms.length} phòng.`);
+      if (onSuccess) {
+        onSuccess();
       }
-    }
-
-    setIsCreating(false);
-    setProgressText(`Hoàn thành! Đã tạo thành công ${successCount} phòng, thất bại ${failureCount} phòng.`);
-    
-    if (successCount > 0 && onSuccess) {
-      onSuccess();
+      onClose();
+    } catch (err) {
+      setGlobalError(extractError(err));
+      setProgressText("");
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -179,11 +150,10 @@ export function BulkAddRoomModal({ isOpen, onClose, onSuccess, motelId }: BulkAd
           <div className="space-y-1">
             <label className="text-xs font-semibold text-slate-600">Giá thuê mặc định (đ) *</label>
             <input
-              type="number"
-              value={basePrice}
-              onChange={(e) => setBasePrice(e.target.value)}
-              min={0}
-              placeholder="VD: 3000000"
+              type="text"
+              value={formatVnStyle(basePrice)}
+              onChange={(e) => setBasePrice(stripVnStyle(e.target.value))}
+              placeholder="VD: 3.000.000"
               required
               disabled={isCreating}
               className={inputClass}
@@ -203,21 +173,7 @@ export function BulkAddRoomModal({ isOpen, onClose, onSuccess, motelId }: BulkAd
           </div>
 
           <div className="border border-slate-100 rounded-xl bg-slate-50 p-3 max-h-48 overflow-y-auto space-y-1.5 text-xs text-slate-600">
-            {creationResults.length > 0 ? (
-              creationResults.map((room, idx) => (
-                <div key={idx} className="flex justify-between items-center py-1 border-b border-slate-200/50 last:border-0">
-                  <span>
-                    Phòng <strong>{room.roomNumber}</strong> (Tầng {room.floor}) - {room.area || "?"}m² - {room.basePrice.toLocaleString()}đ
-                  </span>
-                  <span>
-                    {room.status === "idle" && <span className="text-slate-400">Chờ tạo</span>}
-                    {room.status === "loading" && <span className="text-blue-500 font-semibold animate-pulse">Đang tạo...</span>}
-                    {room.status === "success" && <span className="text-emerald-600 font-semibold">✓ Thành công</span>}
-                    {room.status === "error" && <span className="text-red-500 font-semibold" title={room.errorMsg}>✗ Lỗi</span>}
-                  </span>
-                </div>
-              ))
-            ) : previewRooms.length > 0 ? (
+            {previewRooms.length > 0 ? (
               previewRooms.map((room, idx) => (
                 <div key={idx} className="flex justify-between items-center py-1 border-b border-slate-200/50 last:border-0">
                   <span>
@@ -234,7 +190,7 @@ export function BulkAddRoomModal({ isOpen, onClose, onSuccess, motelId }: BulkAd
 
         <div className="pt-4 border-t border-slate-100 flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={onClose} disabled={isCreating}>
-            {creationResults.length > 0 ? "Đóng" : "Hủy"}
+            Hủy
           </Button>
           <Button
             onClick={handleBulkCreate}

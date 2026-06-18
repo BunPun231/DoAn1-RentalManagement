@@ -25,15 +25,32 @@ export function AssignServiceModal({ isOpen, onClose, motelId, service }: Assign
       setLoading(true);
       setError("");
       roomService.list(motelId)
-        .then((res) => {
+        .then(async (res) => {
           setRooms(res.content);
-          // By default, maybe nothing is selected, or we could fetch existing assignments
-          setSelectedRoomIds([]);
+          try {
+            const assignments = await Promise.all(
+              res.content.map(async (room) => {
+                try {
+                  const svcs = await serviceService.listByRoom(motelId, room.hashid || room.id);
+                  const isAssigned = svcs.some((s) => s.id === service.id);
+                  return { roomId: room.id, isAssigned };
+                } catch {
+                  return { roomId: room.id, isAssigned: false };
+                }
+              })
+            );
+            const initiallySelected = assignments
+              .filter((a) => a.isAssigned)
+              .map((a) => a.roomId);
+            setSelectedRoomIds(initiallySelected);
+          } catch (err) {
+            console.error("Failed to load service assignments", err);
+          }
         })
         .catch((err) => setError(extractError(err)))
         .finally(() => setLoading(false));
     }
-  }, [isOpen, motelId]);
+  }, [isOpen, motelId, service.id]);
 
   const toggleRoom = (roomId: number) => {
     setSelectedRoomIds((prev) =>

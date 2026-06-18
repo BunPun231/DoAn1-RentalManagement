@@ -647,8 +647,16 @@ export function ContractListPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 border-amber-200"
+                        className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 border-amber-200 disabled:opacity-50 disabled:cursor-not-allowed"
                         onClick={() => setSettlementContractId(contract.id)}
+                        disabled={contract.status === "DRAFT" || contract.depositStatus === "UNPAID"}
+                        title={
+                          contract.status === "DRAFT"
+                            ? "Không thể thanh lý hợp đồng nháp"
+                            : contract.depositStatus === "UNPAID"
+                            ? "Không thể tất toán khi chưa hoàn tất thu tiền cọc"
+                            : undefined
+                        }
                       >
                         <Ban size={14} className="mr-1.5" />
                         Thanh lý

@@ -72,13 +72,7 @@ export function ContractTemplateModal({ isOpen, onClose, contract }: ContractTem
       
       const loadDetails = async () => {
         try {
-          // 1. Get room details first to extract motelId
-          const roomObj = await roomService.get(1, contract.roomId); // Fallback motelId as 1 or load in parallel, wait
-          // Since roomService.get needs motelId, but contract has roomId, how to find motelId?
-          // We can fetch motels and check which motel contains the room, or fetch contract detail.
-          // Wait, contract object might not have motelId, but we can query motels or load from contract.
-          // Let's load the room by listing rooms for each motel, or we can fetch room details if we try motel list.
-          // Actually, we can fetch all motels and check where the room belongs.
+          // 1. Fetch all motels to find which one contains the contract's room
           const motelList = await motelService.list(0, 100);
           let foundRoom: RoomResult | null = null;
           let foundMotel: MotelResult | null = null;

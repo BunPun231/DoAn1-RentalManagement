@@ -83,7 +83,7 @@ export const serviceService = {
   },
 
   /** UC37+: Get services assigned to a specific room */
-  async listByRoom(motelId: number, roomId: number): Promise<ServiceResult[]> {
+  async listByRoom(motelId: number, roomId: number | string): Promise<ServiceResult[]> {
     const res = await api.get<ApiResponse<ServiceResult[]>>(
       `/api/motels/${motelId}/services/by-room/${roomId}`
     );

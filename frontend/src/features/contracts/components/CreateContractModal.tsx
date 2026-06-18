@@ -7,21 +7,14 @@ import { contractService } from "@/services/contractService";
 import { residentService, type ResidentResult } from "@/services/residentService";
 import { extractError } from "@/lib/api";
 import { Building2, UserCheck, ShieldCheck } from "lucide-react";
+import { formatVnStyle, stripVnStyle, cn } from "@/lib/utils";
+import { ValidationErrorTooltip } from "@/components/ui/ValidationErrorTooltip";
 
 interface CreateContractModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
 }
-
-const formatWithCommas = (value: string) => {
-  const clean = value.replace(/\D/g, "");
-  return clean ? Number(clean).toLocaleString("en-US") : "";
-};
-
-const stripCommas = (value: string) => {
-  return value.replace(/,/g, "");
-};
 
 export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContractModalProps) {
   const [motels, setMotels] = useState<MotelResult[]>([]);
@@ -59,11 +52,13 @@ export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContra
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // Load motels and residents on open
   useEffect(() => {
     if (isOpen) {
       setError("");
+      setFieldErrors({});
       setOcrSuccess(false);
 
       // Default start and end dates
@@ -95,11 +90,10 @@ export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContra
     const today = new Date();
     const formatDate = (d: Date) => d.toISOString().split("T")[0];
     
-    const motelSettingsStr = localStorage.getItem(`motel_settings_${motelId}`);
-    const motelSettings = motelSettingsStr ? JSON.parse(motelSettingsStr) : null;
+    const selectedMotel = motels.find(m => m.id === motelId);
     
     // closingDay
-    const closingDayVal = motelSettings && typeof motelSettings.closingDay === 'number' ? motelSettings.closingDay : 30;
+    const closingDayVal = selectedMotel && typeof selectedMotel.billingCycleDay === 'number' ? selectedMotel.billingCycleDay : 30;
     let billing = new Date(today.getFullYear(), today.getMonth(), closingDayVal);
     if (today.getDate() > closingDayVal) {
       billing = new Date(today.getFullYear(), today.getMonth() + 1, closingDayVal);
@@ -107,9 +101,9 @@ export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContra
     setBillingDate(formatDate(billing));
 
     // depositRate
-    const depositRate = motelSettings && typeof motelSettings.depositRate === 'number' ? motelSettings.depositRate : 100;
+    const depositRate = selectedMotel && typeof selectedMotel.depositPercent === 'number' ? selectedMotel.depositPercent : 100;
     const calculatedDeposit = Math.round(basePrice * (depositRate / 100));
-    setDepositAmount(formatWithCommas(calculatedDeposit.toString()));
+    setDepositAmount(calculatedDeposit.toString());
   };
 
   // Load rooms and services when selectedMotelId changes
@@ -124,7 +118,7 @@ export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContra
           if (availableRooms.length > 0) {
             const firstRoom = availableRooms[0];
             setSelectedRoomId(firstRoom.id);
-            setRentPrice(formatWithCommas(firstRoom.basePrice.toString()));
+            setRentPrice(firstRoom.basePrice.toString());
             applyMotelBillingConfigs(Number(selectedMotelId), firstRoom.basePrice);
           } else {
             setSelectedRoomId("");
@@ -157,7 +151,7 @@ export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContra
     setSelectedRoomId(rId);
     const room = rooms.find(r => r.id === rId);
     if (room) {
-      setRentPrice(formatWithCommas(room.basePrice.toString()));
+      setRentPrice(room.basePrice.toString());
       applyMotelBillingConfigs(Number(selectedMotelId), room.basePrice);
     }
   };
@@ -192,7 +186,15 @@ export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContra
     setError("");
     setOcrSuccess(false);
     try {
-      const res = await residentService.ocrCccd({ base64Image: idCardFrontUrl });
+      const dataUrl = idCardFrontUrl;
+      const commaIdx = dataUrl.indexOf(",");
+      if (commaIdx === -1) {
+        throw new Error("Invalid image format");
+      }
+      const mime = dataUrl.substring(dataUrl.indexOf(":") + 1, dataUrl.indexOf(";"));
+      const base64Raw = dataUrl.substring(commaIdx + 1);
+
+      const res = await residentService.ocrCccd({ base64Image: base64Raw, mimeType: mime });
       setFullName(res.fullName);
       setIdCardNumber(res.idCardNumber);
       setOcrSuccess(true);
@@ -207,35 +209,32 @@ export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContra
   };
 
   const validateForm = () => {
+    const errors: Record<string, string> = {};
     if (repType === "new") {
       if (!fullName.trim()) {
-        setError("Vui lòng nhập họ và tên đại diện");
-        return false;
+        errors.fullName = "Vui lòng nhập họ và tên đại diện";
       }
       const phoneRegex = /^[0-9]{10}$/;
       if (!phoneRegex.test(phone.trim())) {
-        setError("Số điện thoại không hợp lệ (phải gồm 10 chữ số)");
-        return false;
+        errors.phone = "Số điện thoại không hợp lệ (phải gồm 10 chữ số)";
       }
       if (email.trim()) {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email.trim())) {
-          setError("Email không đúng định dạng");
-          return false;
+          errors.email = "Email không đúng định dạng";
         }
       }
       const cccdRegex = /^[0-9]{9}$|^[0-9]{12}$/;
       if (!cccdRegex.test(idCardNumber.trim())) {
-        setError("Số CCCD/CMND không hợp lệ (phải gồm 9 hoặc 12 chữ số)");
-        return false;
+        errors.idCardNumber = "Số CCCD/CMND không hợp lệ (phải gồm 9 hoặc 12 chữ số)";
       }
     } else {
       if (!selectedResidentId) {
-        setError("Vui lòng chọn khách thuê có sẵn");
-        return false;
+        errors.resident = "Vui lòng chọn khách thuê có sẵn";
       }
     }
-    return true;
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -256,8 +255,8 @@ export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContra
         startDate,
         endDate,
         billingDate,
-        rentPrice: parseFloat(stripCommas(rentPrice)),
-        depositAmount: parseFloat(stripCommas(depositAmount)),
+        rentPrice: parseFloat(rentPrice) || 0,
+        depositAmount: parseFloat(depositAmount) || 0,
         depositStatus,
         serviceItems: selectedServices,
         primaryResidentUserId: repType === "existing" ? selectedResidentId : undefined,
@@ -350,11 +349,23 @@ export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContra
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="flex flex-col gap-1.5 w-full">
               <label className="text-sm font-medium text-slate-700">Tiền thuê/tháng (đ) *</label>
-              <input type="text" value={rentPrice} onChange={(e) => setRentPrice(formatWithCommas(e.target.value))} required className={inputClass} />
+              <input
+                type="text"
+                value={formatVnStyle(rentPrice)}
+                onChange={(e) => setRentPrice(stripVnStyle(e.target.value))}
+                required
+                className={inputClass}
+              />
             </div>
             <div className="flex flex-col gap-1.5 w-full">
               <label className="text-sm font-medium text-slate-700">Tiền cọc (đ) *</label>
-              <input type="text" value={depositAmount} onChange={(e) => setDepositAmount(formatWithCommas(e.target.value))} required className={inputClass} />
+              <input
+                type="text"
+                value={formatVnStyle(depositAmount)}
+                onChange={(e) => setDepositAmount(stripVnStyle(e.target.value))}
+                required
+                className={inputClass}
+              />
             </div>
             <div className="flex flex-col gap-1.5 w-full">
               <label className="text-sm font-medium text-slate-700">Trạng thái đóng cọc *</label>
@@ -410,25 +421,35 @@ export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContra
                   onChange={(e) => setSearchResidentQuery(e.target.value)}
                   className="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-brand-deep/30 focus:border-brand-deep transition-all mb-2"
                 />
-                <select
-                  value={selectedResidentId}
-                  onChange={(e) => setSelectedResidentId(e.target.value)}
-                  className={inputClass}
-                  required={repType === "existing"}
-                >
-                  <option value="">-- Chọn khách thuê --</option>
-                  {residents
-                    .filter(r => {
-                      if (!searchResidentQuery) return true;
-                      const q = searchResidentQuery.toLowerCase();
-                      return r.fullName.toLowerCase().includes(q) || r.phone.includes(q);
-                    })
-                    .map((r) => (
-                      <option key={r.userId} value={r.userId}>
-                        {r.fullName} ({r.phone})
-                      </option>
-                    ))}
-                </select>
+                <div className="relative flex items-center">
+                  <select
+                    value={selectedResidentId}
+                    onChange={(e) => {
+                      setSelectedResidentId(e.target.value);
+                      setFieldErrors(prev => ({ ...prev, resident: "" }));
+                    }}
+                    className={cn(inputClass, fieldErrors.resident && "border-red-500 pr-10 focus:ring-red-500")}
+                    required={repType === "existing"}
+                  >
+                    <option value="">-- Chọn khách thuê --</option>
+                    {residents
+                      .filter(r => {
+                        if (!searchResidentQuery) return true;
+                        const q = searchResidentQuery.toLowerCase();
+                        return r.fullName.toLowerCase().includes(q) || r.phone.includes(q);
+                      })
+                      .map((r) => (
+                        <option key={r.userId} value={r.userId}>
+                          {r.fullName} ({r.phone})
+                        </option>
+                      ))}
+                  </select>
+                  {fieldErrors.resident && (
+                    <div className="absolute right-8 flex items-center pointer-events-none">
+                      <ValidationErrorTooltip message={fieldErrors.resident} />
+                    </div>
+                  )}
+                </div>
               </div>
 
               {selectedResidentId && (() => {
@@ -449,49 +470,89 @@ export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContra
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-medium text-slate-700 font-sans">Họ và tên đại diện *</label>
-                  <input
-                    type="text"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder="VD: Nguyễn Văn A"
-                    required={repType === "new"}
-                    className={inputClass}
-                  />
+                  <div className="relative flex items-center">
+                    <input
+                      type="text"
+                      value={fullName}
+                      onChange={(e) => {
+                        setFullName(e.target.value);
+                        setFieldErrors(prev => ({ ...prev, fullName: "" }));
+                      }}
+                      placeholder="VD: Nguyễn Văn A"
+                      required={repType === "new"}
+                      className={cn(inputClass, fieldErrors.fullName && "border-red-500 pr-10 focus:ring-red-500")}
+                    />
+                    {fieldErrors.fullName && (
+                      <div className="absolute right-3 flex items-center">
+                        <ValidationErrorTooltip message={fieldErrors.fullName} />
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-medium text-slate-700 font-sans">Số CCCD/CMND *</label>
-                  <input
-                    type="text"
-                    value={idCardNumber}
-                    onChange={(e) => setIdCardNumber(e.target.value)}
-                    placeholder="034204005829"
-                    required={repType === "new"}
-                    className={inputClass}
-                  />
+                  <div className="relative flex items-center">
+                    <input
+                      type="text"
+                      value={idCardNumber}
+                      onChange={(e) => {
+                        setIdCardNumber(e.target.value);
+                        setFieldErrors(prev => ({ ...prev, idCardNumber: "" }));
+                      }}
+                      placeholder="034204005829"
+                      required={repType === "new"}
+                      className={cn(inputClass, fieldErrors.idCardNumber && "border-red-500 pr-10 focus:ring-red-500")}
+                    />
+                    {fieldErrors.idCardNumber && (
+                      <div className="absolute right-3 flex items-center">
+                        <ValidationErrorTooltip message={fieldErrors.idCardNumber} />
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-medium text-slate-700 font-sans">Số điện thoại *</label>
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="0912345678"
-                    required={repType === "new"}
-                    className={inputClass}
-                  />
+                  <div className="relative flex items-center">
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => {
+                        setPhone(e.target.value);
+                        setFieldErrors(prev => ({ ...prev, phone: "" }));
+                      }}
+                      placeholder="0912345678"
+                      required={repType === "new"}
+                      className={cn(inputClass, fieldErrors.phone && "border-red-500 pr-10 focus:ring-red-500")}
+                    />
+                    {fieldErrors.phone && (
+                      <div className="absolute right-3 flex items-center">
+                        <ValidationErrorTooltip message={fieldErrors.phone} />
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-medium text-slate-700 font-sans">Email (Tùy chọn)</label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="a@example.com"
-                    className={inputClass}
-                  />
+                  <div className="relative flex items-center">
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        setFieldErrors(prev => ({ ...prev, email: "" }));
+                      }}
+                      placeholder="a@example.com"
+                      className={cn(inputClass, fieldErrors.email && "border-red-500 pr-10 focus:ring-red-500")}
+                    />
+                    {fieldErrors.email && (
+                      <div className="absolute right-3 flex items-center">
+                        <ValidationErrorTooltip message={fieldErrors.email} />
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 

@@ -1,5 +1,6 @@
 import React from "react";
 import { cn } from "@/lib/utils";
+import { ValidationErrorTooltip } from "./ValidationErrorTooltip";
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -15,16 +16,22 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             {label}
           </label>
         )}
-        <input
-          ref={ref}
-          className={cn(
-            "flex h-10 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-deep focus:border-transparent disabled:cursor-not-allowed disabled:opacity-50 transition-all",
-            error && "border-red-500 focus:ring-red-500",
-            className
+        <div className="relative flex items-center">
+          <input
+            ref={ref}
+            className={cn(
+              "flex h-10 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-deep focus:border-transparent disabled:cursor-not-allowed disabled:opacity-50 transition-all",
+              error && "border-red-500 pr-10 focus:ring-red-500",
+              className
+            )}
+            {...props}
+          />
+          {error && (
+            <div className="absolute right-3 flex items-center">
+              <ValidationErrorTooltip message={error} />
+            </div>
           )}
-          {...props}
-        />
-        {error && <span className="text-xs text-red-500">{error}</span>}
+        </div>
       </div>
     );
   }

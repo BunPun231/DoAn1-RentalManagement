@@ -3,6 +3,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { roomService, type RoomResult } from "@/services/motelService";
 import { extractError } from "@/lib/api";
+import { formatVnStyle, stripVnStyle } from "@/lib/utils";
 
 interface AddRoomModalProps {
   isOpen: boolean;
@@ -127,11 +128,10 @@ export function AddRoomModal({ isOpen, onClose, onSuccess, motelId }: AddRoomMod
           <div className="space-y-1">
             <label className="text-sm font-medium text-slate-700">Giá thuê (đ/tháng) *</label>
             <input
-              type="number"
-              value={basePrice}
-              onChange={(e) => setBasePrice(e.target.value)}
-              min={0}
-              placeholder="VD: 3000000"
+              type="text"
+              value={formatVnStyle(basePrice)}
+              onChange={(e) => setBasePrice(stripVnStyle(e.target.value))}
+              placeholder="VD: 3.000.000"
               required
               className={inputClass}
             />

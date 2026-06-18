@@ -62,11 +62,15 @@ export const residentService = {
   },
 
   /** OCR CCCD front image */
-  async ocrCccd(data: { base64Image: string }): Promise<{ fullName: string; idCardNumber: string }> {
-    const res = await api.post<ApiResponse<{ fullName: string; idCardNumber: string }>>(
-      "/api/residents/ocr",
+  async ocrCccd(data: { base64Image: string; mimeType: string }): Promise<{ fullName: string; idCardNumber: string }> {
+    const res = await api.post<ApiResponse<any>>(
+      "/api/residents/ocr/idcard",
       data
     );
-    return res.data.data;
+    const result = res.data.data;
+    return {
+      fullName: result.fullName || "",
+      idCardNumber: result.idNumber || result.idCardNumber || "",
+    };
   },
 };

@@ -224,9 +224,8 @@ export function InvoiceListPage() {
         ].map((item) => (
           <div
             key={item.label}
-            className={`rounded-2xl bg-white p-5 shadow-sm border border-slate-100 ${
-              item.border ? "border-l-4 border-l-rose-400" : ""
-            }`}
+            className={`rounded-2xl bg-white p-5 shadow-sm border border-slate-100 ${item.border ? "border-l-4 border-l-rose-400" : ""
+              }`}
           >
             <p className="text-sm font-medium text-slate-500">{item.label}</p>
             <h3 className={`text-2xl font-bold mt-1 font-display ${item.color}`}>
@@ -295,7 +294,9 @@ export function InvoiceListPage() {
                 <TableRow key={invoice.id} className="hover:bg-slate-50/50 transition-colors">
                   <TableCell>
                     <div className="font-mono text-xs text-slate-400">#{invoice.id}</div>
-                    <div className="font-medium text-brand-deep">Phòng {invoice.roomId}</div>
+                    <div className="font-medium text-brand-deep">
+                      {invoice.roomNumber ? `P.${invoice.roomNumber}` : `Phòng ${invoice.roomId}`}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <div className="text-sm text-slate-700">
@@ -316,28 +317,28 @@ export function InvoiceListPage() {
                     <div className="text-sm text-emerald-700 font-medium">{formatCurrency(invoice.paidAmount)}</div>
                   </TableCell>
                   <TableCell>{STATUS_BADGE[invoice.status] ?? <Badge>{invoice.status}</Badge>}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        {(invoice.status === "PENDING" || invoice.status === "PARTIAL") && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 border-emerald-200"
-                            onClick={() => setPaymentInvoice(invoice)}
-                          >
-                            <CreditCard size={14} className="mr-1.5" />
-                            {isTenant ? "Thanh toán" : "Thu tiền"}
-                          </Button>
-                        )}
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      {(invoice.status === "PENDING" || invoice.status === "PARTIAL") && (
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setSelectedInvoice(invoice)}
+                          className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 border-emerald-200"
+                          onClick={() => setPaymentInvoice(invoice)}
                         >
-                          Chi tiết
+                          <CreditCard size={14} className="mr-1.5" />
+                          {isTenant ? "Thanh toán" : "Thu tiền"}
                         </Button>
-                      </div>
-                    </TableCell>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSelectedInvoice(invoice)}
+                      >
+                        Chi tiết
+                      </Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -375,7 +376,7 @@ export function InvoiceListPage() {
         onClose={() => setIsGenerateOpen(false)}
         onSuccess={() => { setIsGenerateOpen(false); fetchInvoices(); }}
       />
-      
+
       {paymentInvoice && (
         <PaymentModal
           isOpen={!!paymentInvoice}

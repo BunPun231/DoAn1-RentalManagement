@@ -23,6 +23,8 @@ export interface MotelResult {
   totalFloors: number;
   description?: string;
   createdAt: string;
+  billingCycleDay?: number;
+  depositPercent?: number;
 }
 
 export interface MotelCreateRequest {
@@ -30,6 +32,8 @@ export interface MotelCreateRequest {
   address: string;
   totalFloors: number;
   description?: string;
+  billingCycleDay?: number;
+  depositPercent?: number;
 }
 
 export interface MotelUpdateRequest {
@@ -37,10 +41,13 @@ export interface MotelUpdateRequest {
   address?: string;
   totalFloors?: number;
   description?: string;
+  billingCycleDay?: number;
+  depositPercent?: number;
 }
 
 export interface RoomResult {
   id: number;
+  hashid?: string;
   motelId: number;
   roomNumber: string;
   floor: number;
@@ -120,7 +127,7 @@ export const roomService = {
   },
 
   /** UC28: Get room detail */
-  async get(motelId: number, roomId: number): Promise<RoomResult> {
+  async get(motelId: number, roomId: number | string): Promise<RoomResult> {
     const res = await api.get<ApiResponse<RoomResult>>(
       `/api/motels/${motelId}/rooms/${roomId}`
     );
@@ -136,8 +143,17 @@ export const roomService = {
     return res.data.data;
   },
 
+  /** UC26+: Bulk create rooms */
+  async createBulk(motelId: number, data: { rooms: RoomCreateRequest[] }): Promise<RoomResult[]> {
+    const res = await api.post<ApiResponse<RoomResult[]>>(
+      `/api/motels/${motelId}/rooms/bulk`,
+      data
+    );
+    return res.data.data;
+  },
+
   /** UC29: Update room */
-  async update(motelId: number, roomId: number, data: RoomUpdateRequest): Promise<RoomResult> {
+  async update(motelId: number, roomId: number | string, data: RoomUpdateRequest): Promise<RoomResult> {
     const res = await api.patch<ApiResponse<RoomResult>>(
       `/api/motels/${motelId}/rooms/${roomId}`,
       data
@@ -146,7 +162,7 @@ export const roomService = {
   },
 
   /** UC30: Change room status */
-  async updateStatus(motelId: number, roomId: number, data: RoomStatusUpdateRequest): Promise<RoomResult> {
+  async updateStatus(motelId: number, roomId: number | string, data: RoomStatusUpdateRequest): Promise<RoomResult> {
     const res = await api.patch<ApiResponse<RoomResult>>(
       `/api/motels/${motelId}/rooms/${roomId}/status`,
       data
@@ -155,7 +171,7 @@ export const roomService = {
   },
 
   /** UC31: Delete room */
-  async delete(motelId: number, roomId: number): Promise<void> {
+  async delete(motelId: number, roomId: number | string): Promise<void> {
     await api.delete(`/api/motels/${motelId}/rooms/${roomId}`);
   },
 };

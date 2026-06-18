@@ -21,3 +21,13 @@ export function formatDate(dateStr: string | Date): string {
     year: "numeric"
   }).format(date);
 }
+
+export function formatVnStyle(value: string | number | undefined | null): string {
+  if (value === undefined || value === null || value === "") return "";
+  const numStr = typeof value === "number" ? String(value) : value.replace(/[^\d]/g, "");
+  return numStr ? Number(numStr).toLocaleString("de-DE") : "";
+}
+
+export function stripVnStyle(value: string): string {
+  return value.replace(/\./g, "");
+}

@@ -84,11 +84,18 @@ public class SettlementService {
 
     @Transactional
     public SettlementResult calculate(SettlementCommand command) {
-        UUID tenantId = SecurityUtils.requireTenantId();
-        Contract contract = contractRepository.findByIdAndTenantId(command.contractId(), tenantId)
-            .orElseThrow(() -> BaseException.notFound("Contract", command.contractId()));
+      UUID tenantId = SecurityUtils.requireTenantId();
+      Contract contract = contractRepository.findByIdAndTenantId(command.contractId(), tenantId)
+          .orElseThrow(() -> BaseException.notFound("Contract", command.contractId()));
 
-        SettlementComputation comp = computeSettlement(contract, command.moveOutDate(), command.finalElectricReading(), command.finalWaterReading(), command.damages());
+      if (contract.getStatus() == Contract.ContractStatus.DRAFT) {
+          throw BaseException.badRequest("Cannot compute settlement for DRAFT contract");
+      }
+      if (contract.getDepositStatus() == Contract.DepositStatus.UNPAID) {
+          throw BaseException.badRequest("Cannot compute settlement for UNPAID deposit contract");
+      }
+
+      SettlementComputation comp = computeSettlement(contract, command.moveOutDate(), command.finalElectricReading(), command.finalWaterReading(), command.damages());
 
         return new SettlementResult(
             contract.getId(),
@@ -104,11 +111,18 @@ public class SettlementService {
 
     @Transactional
     public SettlementConfirmationResult confirmSettlement(SettlementConfirmCommand command) {
-        UUID tenantId = SecurityUtils.requireTenantId();
-        Contract contract = contractRepository.findByIdAndTenantId(command.contractId(), tenantId)
-            .orElseThrow(() -> BaseException.notFound("Contract", command.contractId()));
+      UUID tenantId = SecurityUtils.requireTenantId();
+      Contract contract = contractRepository.findByIdAndTenantId(command.contractId(), tenantId)
+          .orElseThrow(() -> BaseException.notFound("Contract", command.contractId()));
 
-        SettlementComputation comp = computeSettlement(contract, command.moveOutDate(), command.finalElectricReading(), command.finalWaterReading(), command.damages());
+      if (contract.getStatus() == Contract.ContractStatus.DRAFT) {
+          throw BaseException.badRequest("Cannot confirm settlement for DRAFT contract");
+      }
+      if (contract.getDepositStatus() == Contract.DepositStatus.UNPAID) {
+          throw BaseException.badRequest("Cannot confirm settlement for UNPAID deposit contract");
+      }
+
+      SettlementComputation comp = computeSettlement(contract, command.moveOutDate(), command.finalElectricReading(), command.finalWaterReading(), command.damages());
 
         BigDecimal remainingDeposit = comp.deposit();
         BigDecimal oldDebtDeducted = BigDecimal.ZERO;
@@ -341,7 +355,12 @@ public class SettlementService {
                     newMr.setNewReading(finalReading);
                     newMr.setConsumption(finalReading.subtract(oldReading).max(BigDecimal.ZERO));
                     newMr.setStatus(MeterReading.MeterReadingStatus.APPROVED);
-                    newMr.setApprovedBy(SecurityUtils.getCurrentUserId());
+                    UUID userToSet = SecurityUtils.getCurrentUserId();
+                    if (userToSet == null) {
+                        userToSet = contract.getCreatedBy();
+                    }
+                    newMr.setSubmittedBy(userToSet);
+                    newMr.setApprovedBy(userToSet);
                     newMr.setCreatedAt(OffsetDateTime.now());
                     newMr.setUpdatedAt(OffsetDateTime.now());
                     generatedReadings.add(newMr);
@@ -394,10 +413,18 @@ public class SettlementService {
     }
 
     private InvoiceResult toInvoiceResult(Invoice invoice) {
+        String roomNumber = null;
+        if (invoice.getRoomId() != null) {
+            roomNumber = roomRepository.findById(invoice.getRoomId())
+                    .map(Room::getRoomNumber)
+                    .orElse(null);
+        }
+
         return new InvoiceResult(
             invoice.getId(),
             invoice.getContractId(),
             invoice.getRoomId(),
+            roomNumber,
             invoice.getBillingMonth(),
             invoice.getTotalAmount(),
             invoice.getPaidAmount(),

@@ -333,10 +333,18 @@ public class InvoiceService {
                 .map(rb -> rb.getBalance())
                 .orElse(BigDecimal.ZERO);
 
+        String roomNumber = null;
+        if (invoice.getRoomId() != null) {
+            roomNumber = roomRepository.findById(invoice.getRoomId())
+                    .map(Room::getRoomNumber)
+                    .orElse(null);
+        }
+
         return new InvoiceResult(
             invoice.getId(),
             invoice.getContractId(),
             invoice.getRoomId(),
+            roomNumber,
             invoice.getBillingMonth(),
             invoice.getTotalAmount(),
             invoice.getPaidAmount(),

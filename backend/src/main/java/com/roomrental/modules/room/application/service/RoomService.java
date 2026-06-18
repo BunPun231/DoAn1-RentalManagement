@@ -21,6 +21,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.roomrental.common.util.HashidsCodec;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -34,11 +36,13 @@ public class RoomService {
     private final RoomRepository roomRepository;
     private final MotelRepository motelRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final HashidsCodec hashidsCodec;
 
-    public RoomService(RoomRepository roomRepository, MotelRepository motelRepository, ApplicationEventPublisher eventPublisher) {
+    public RoomService(RoomRepository roomRepository, MotelRepository motelRepository, ApplicationEventPublisher eventPublisher, HashidsCodec hashidsCodec) {
         this.roomRepository = roomRepository;
         this.motelRepository = motelRepository;
         this.eventPublisher = eventPublisher;
+        this.hashidsCodec = hashidsCodec;
     }
 
     /**
@@ -208,7 +212,7 @@ public class RoomService {
                 room.getId(), room.getMotelId(), room.getRoomNumber(),
                 room.getFloor(), room.getArea(), room.getBasePrice(),
                 room.getStatus().name(), room.getCurrentResidentsCount(),
-                room.getDescription()
+                room.getDescription(), hashidsCodec.encode(room.getId())
         );
     }
 }

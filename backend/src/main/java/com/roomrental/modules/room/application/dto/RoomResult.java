@@ -11,6 +11,7 @@ public record RoomResult(
         BigDecimal basePrice,
         String status,
         Integer currentResidentsCount,
-        String description
+        String description,
+        String hashid
 ) {
 }

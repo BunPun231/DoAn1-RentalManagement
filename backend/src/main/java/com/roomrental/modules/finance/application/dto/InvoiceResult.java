@@ -8,6 +8,7 @@ public record InvoiceResult(
     Long id,
     Long contractId,
     Long roomId,
+    String roomNumber,
     LocalDate billingMonth,
     BigDecimal totalAmount,
     BigDecimal paidAmount,

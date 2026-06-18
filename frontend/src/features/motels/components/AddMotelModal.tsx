@@ -16,7 +16,6 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
   const [address, setAddress] = useState(motel?.address ?? "");
   const [totalFloors, setTotalFloors] = useState(motel?.totalFloors?.toString() ?? "1");
   const [description, setDescription] = useState(motel?.description ?? "");
-  const [paymentCycle, setPaymentCycle] = useState("1");
   const [closingDay, setClosingDay] = useState("5");
   const [depositRate, setDepositRate] = useState("100");
   const [isLoading, setIsLoading] = useState(false);
@@ -28,28 +27,13 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
       setAddress(motel.address);
       setTotalFloors(motel.totalFloors.toString());
       setDescription(motel.description ?? "");
-      
-      const savedSettings = localStorage.getItem(`motel_settings_${motel.id}`);
-      if (savedSettings) {
-        try {
-          const parsed = JSON.parse(savedSettings);
-          setPaymentCycle(parsed.paymentCycle?.toString() ?? "1");
-          setClosingDay(parsed.closingDay?.toString() ?? "5");
-          setDepositRate(parsed.depositRate?.toString() ?? "100");
-        } catch (e) {
-          console.error(e);
-        }
-      } else {
-        setPaymentCycle("1");
-        setClosingDay("5");
-        setDepositRate("100");
-      }
+      setClosingDay(motel.billingCycleDay !== undefined && motel.billingCycleDay !== null ? motel.billingCycleDay.toString() : "last");
+      setDepositRate(motel.depositPercent !== undefined && motel.depositPercent !== null ? motel.depositPercent.toString() : "100");
     } else {
       setName("");
       setAddress("");
       setTotalFloors("1");
       setDescription("");
-      setPaymentCycle("1");
       setClosingDay("5");
       setDepositRate("100");
     }
@@ -61,27 +45,28 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
     setError("");
     setIsLoading(true);
     try {
+      const payload = {
+        name: name.trim(),
+        address: address.trim(),
+        totalFloors: parseInt(totalFloors, 10),
+        description: description.trim() || undefined,
+        billingCycleDay: closingDay === "last" ? undefined : parseInt(closingDay, 10),
+        depositPercent: parseFloat(depositRate) || 0,
+      };
+
       let savedMotel;
       if (motel) {
-        savedMotel = await motelService.update(motel.id, {
-          name: name.trim(),
-          address: address.trim(),
-          totalFloors: parseInt(totalFloors, 10),
-          description: description.trim() || undefined,
-        });
+        savedMotel = await motelService.update(motel.id, payload);
       } else {
-        savedMotel = await motelService.create({
-          name: name.trim(),
-          address: address.trim(),
-          totalFloors: parseInt(totalFloors, 10),
-          description: description.trim() || undefined,
-        });
+        savedMotel = await motelService.create(payload);
       }
+      
       localStorage.setItem(`motel_settings_${savedMotel.id}`, JSON.stringify({
-        paymentCycle: parseInt(paymentCycle, 10),
-        closingDay: parseInt(closingDay, 10),
+        paymentCycle: 1,
+        closingDay: closingDay === "last" ? 30 : parseInt(closingDay, 10),
         depositRate: parseFloat(depositRate),
       }));
+
       onSuccess?.();
     } catch (err) {
       setError(extractError(err));
@@ -141,32 +126,23 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
           />
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1">
-            <label className="text-sm font-medium text-slate-700">Kỳ đóng tiền (tháng)</label>
-            <input
-              type="number"
-              value={paymentCycle}
-              onChange={(e) => setPaymentCycle(e.target.value)}
-              min={1}
-              required
-              className={inputClass}
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-sm font-medium text-slate-700">Ngày chốt kỳ (1-28)</label>
-            <input
-              type="number"
+            <label className="text-sm font-medium text-slate-700">Ngày chốt kỳ *</label>
+            <select
               value={closingDay}
               onChange={(e) => setClosingDay(e.target.value)}
-              min={1}
-              max={28}
-              required
               className={inputClass}
-            />
+              required
+            >
+              {Array.from({ length: 28 }, (_, i) => i + 1).map((d) => (
+                <option key={d} value={d.toString()}>Ngày {d} hàng tháng</option>
+              ))}
+              <option value="last">Ngày cuối tháng</option>
+            </select>
           </div>
           <div className="space-y-1">
-            <label className="text-sm font-medium text-slate-700">Tỷ lệ tiền cọc (%)</label>
+            <label className="text-sm font-medium text-slate-700">Tỷ lệ tiền cọc (%) *</label>
             <input
               type="number"
               value={depositRate}

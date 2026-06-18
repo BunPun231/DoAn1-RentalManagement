@@ -8,6 +8,7 @@ export interface InvoiceResult {
   tenantId: string;
   contractId: number;
   roomId: number;
+  roomNumber?: string;
   billingMonth: string;
   totalAmount: number;
   paidAmount: number;

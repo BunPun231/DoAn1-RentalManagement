@@ -37,8 +37,16 @@ function AddResidentModal({
     setError("");
     setOcrSuccess(false);
     try {
-      const res = await residentService.ocrCccd({ base64Image: form.idCardFrontUrl });
-      setForm((prev) => ({
+      const dataUrl = form.idCardFrontUrl;
+      const commaIdx = dataUrl.indexOf(",");
+      if (commaIdx === -1) {
+        throw new Error("Invalid image format");
+      }
+      const mime = dataUrl.substring(dataUrl.indexOf(":") + 1, dataUrl.indexOf(";"));
+      const base64Raw = dataUrl.substring(commaIdx + 1);
+
+      const res = await residentService.ocrCccd({ base64Image: base64Raw, mimeType: mime });
+      setForm((prev: ResidentCreateRequest) => ({
         ...prev,
         fullName: res.fullName,
         idCardNumber: res.idCardNumber,
@@ -46,7 +54,7 @@ function AddResidentModal({
       setOcrSuccess(true);
     } catch (err) {
       console.warn("OCR API failed or not implemented yet. Falling back to mock OCR data.", err);
-      setForm((prev) => ({
+      setForm((prev: ResidentCreateRequest) => ({
         ...prev,
         fullName: "NGUYỄN VĂN TIẾN",
         idCardNumber: "034204005829",
@@ -87,7 +95,7 @@ function AddResidentModal({
     if (!file) return;
     const reader = new FileReader();
     reader.onloadend = () => {
-      setForm((prev) => ({ ...prev, [field]: reader.result as string }));
+      setForm((prev: ResidentCreateRequest) => ({ ...prev, [field]: reader.result as string }));
     };
     reader.readAsDataURL(file);
   };

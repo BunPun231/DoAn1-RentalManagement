@@ -36,6 +36,7 @@ class RoomServiceTest {
     @Mock private RoomRepository roomRepository;
     @Mock private MotelRepository motelRepository;
     @Mock private ApplicationEventPublisher eventPublisher;
+    @Mock private com.roomrental.common.util.HashidsCodec hashidsCodec;
     @InjectMocks private RoomService roomService;
 
     private UUID tenantId;

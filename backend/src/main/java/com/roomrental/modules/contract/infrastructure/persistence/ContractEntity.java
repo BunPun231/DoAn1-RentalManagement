@@ -103,14 +103,6 @@ public class ContractEntity {
         this.tenantId = tenantId;
     }
 
-    public Long getVersion() {
-        return version;
-    }
-
-    public void setVersion(Long version) {
-        this.version = version;
-    }
-
     public Long getRoomId() {
         return roomId;
     }

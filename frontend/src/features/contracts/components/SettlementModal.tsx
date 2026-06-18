@@ -3,7 +3,7 @@ import { Plus, Trash2, Image as ImageIcon } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { contractService, type SettlementCalculateResult, type DamageItemInput } from "@/services/contractService";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatVnStyle, stripVnStyle } from "@/lib/utils";
 import { extractError } from "@/lib/api";
 
 interface SettlementModalProps {
@@ -170,10 +170,10 @@ export function SettlementModal({ isOpen, onClose, contractId, onSuccess }: Sett
                       <div className="space-y-1">
                         <label className="text-xs font-medium text-slate-500">Số tiền khấu trừ (đ)</label>
                         <input
-                          type="number"
+                          type="text"
                           required
-                          value={damage.penaltyFee || ""}
-                          onChange={(e) => handleDamageChange(idx, "penaltyFee", parseFloat(e.target.value) || 0)}
+                          value={formatVnStyle(damage.penaltyFee)}
+                          onChange={(e) => handleDamageChange(idx, "penaltyFee", parseFloat(stripVnStyle(e.target.value)) || 0)}
                           placeholder="0"
                           className={inputClass}
                         />
