@@ -5,7 +5,7 @@ import java.time.LocalDate;
 
 public record MeterReadingSubmitCommand(
     Long roomId,
-    Long serviceUsageId,
+    Long serviceId,
     LocalDate billingMonth,
     BigDecimal newReading,
     String readingImageUrl

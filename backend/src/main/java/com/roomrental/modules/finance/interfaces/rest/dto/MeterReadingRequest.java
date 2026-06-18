@@ -6,7 +6,7 @@ import java.time.LocalDate;
 
 public record MeterReadingRequest(
     @NotNull Long roomId,
-    @NotNull Long serviceUsageId,
+    @NotNull Long serviceId,
     @NotNull LocalDate billingMonth,
     @NotNull BigDecimal newReading,
     String readingImageUrl

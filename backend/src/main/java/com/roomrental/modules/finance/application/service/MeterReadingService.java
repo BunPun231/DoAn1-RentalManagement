@@ -6,6 +6,7 @@ import com.roomrental.modules.finance.application.dto.*;
 import com.roomrental.modules.finance.application.event.*;
 import com.roomrental.modules.finance.domain.model.MeterReading;
 import com.roomrental.modules.finance.domain.model.MeterReading.MeterReadingStatus;
+import com.roomrental.modules.finance.domain.repository.ServiceUsageRepository;
 import com.roomrental.modules.finance.domain.port.OcrPort;
 import com.roomrental.modules.finance.domain.port.OcrResult;
 import com.roomrental.modules.finance.domain.repository.MeterReadingRepository;
@@ -26,16 +27,19 @@ import java.util.stream.Collectors;
 public class MeterReadingService {
     
     private final MeterReadingRepository meterReadingRepository;
+    private final ServiceUsageRepository serviceUsageRepository;
     private final OcrPort ocrPort;
     private final ApplicationEventPublisher eventPublisher;
     private final CloudinaryService cloudinaryService;
 
     public MeterReadingService(
             MeterReadingRepository meterReadingRepository,
+            ServiceUsageRepository serviceUsageRepository,
             OcrPort ocrPort,
             ApplicationEventPublisher eventPublisher,
             CloudinaryService cloudinaryService) {
         this.meterReadingRepository = meterReadingRepository;
+        this.serviceUsageRepository = serviceUsageRepository;
         this.ocrPort = ocrPort;
         this.eventPublisher = eventPublisher;
         this.cloudinaryService = cloudinaryService;
@@ -47,8 +51,10 @@ public class MeterReadingService {
         UUID actorId = SecurityUtils.getCurrentUserId();
 
         // 1. Validate only 1 APPROVED per billingMonth per service
+        Long serviceUsageId = resolveActiveServiceUsageId(command.roomId(), command.serviceId());
+
         boolean hasApproved = meterReadingRepository.existsByServiceUsageIdAndBillingMonthAndStatus(
-            command.serviceUsageId(), command.billingMonth(), MeterReadingStatus.APPROVED.name()
+            serviceUsageId, command.billingMonth(), MeterReadingStatus.APPROVED.name()
         );
         if (hasApproved) {
             throw BaseException.badRequest("Already has approved reading for this month");
@@ -68,7 +74,7 @@ public class MeterReadingService {
         MeterReading reading = new MeterReading();
         reading.setTenantId(tenantId);
         reading.setRoomId(command.roomId());
-        reading.setServiceUsageId(command.serviceUsageId());
+        reading.setServiceUsageId(serviceUsageId);
         reading.setBillingMonth(command.billingMonth());
         reading.setOldReading(oldReading);
         reading.setNewReading(command.newReading());
@@ -97,6 +103,8 @@ public class MeterReadingService {
         } catch (java.io.IOException e) {
             throw BaseException.badRequest("Failed to upload image: " + e.getMessage());
         }
+
+        resolveActiveServiceUsageId(command.roomId(), command.serviceId());
 
         // UC71 - Just return suggested result, do not save
         OcrResult ocrResult = ocrPort.extractReading(command.imageBytes(), command.mimeType());
@@ -223,6 +231,12 @@ public class MeterReadingService {
             reading.getCreatedAt(),
             reading.getUpdatedAt()
         );
+    }
+
+    private Long resolveActiveServiceUsageId(Long roomId, Long serviceId) {
+        return serviceUsageRepository.findActiveByRoomIdAndServiceId(roomId, serviceId)
+                .orElseThrow(() -> BaseException.badRequest("Phòng chưa đăng ký sử dụng dịch vụ này"))
+                .getId();
     }
 }
 

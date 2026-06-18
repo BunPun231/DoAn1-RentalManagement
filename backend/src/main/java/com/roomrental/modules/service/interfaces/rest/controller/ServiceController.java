@@ -4,6 +4,7 @@ import com.roomrental.common.dto.ApiResponse;
 import com.roomrental.common.dto.PageResponse;
 import com.roomrental.modules.service.application.dto.ServiceCreateCommand;
 import com.roomrental.modules.service.application.dto.ServiceResult;
+import com.roomrental.modules.service.application.dto.ServiceTierPricingCommand;
 import com.roomrental.modules.service.application.dto.ServiceUpdateCommand;
 import com.roomrental.modules.service.application.service.RentalServiceService;
 import com.roomrental.modules.service.interfaces.rest.dto.ServiceCreateRequest;
@@ -35,7 +36,10 @@ public class ServiceController {
     public ResponseEntity<ApiResponse<ServiceResult>> create(
             @PathVariable Long motelId, @Valid @RequestBody ServiceCreateRequest body) {
         ServiceResult result = svc.create(motelId, new ServiceCreateCommand(
-                body.name(), body.chargeType(), body.unit(), body.mandatory()));
+            body.name(), body.chargeType(), body.unit(), body.mandatory(),
+            body.basePrice(), body.pricingTiers() == null ? null : body.pricingTiers().stream()
+                .map(item -> new ServiceTierPricingCommand(item.tierStart(), item.tierEnd(), item.pricePerUnit()))
+                .toList()));
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(result, "Service created"));
     }
 
@@ -62,7 +66,10 @@ public class ServiceController {
             @PathVariable Long motelId, @PathVariable Long serviceId,
             @RequestBody ServiceUpdateRequest body) {
         ServiceResult result = svc.update(motelId, serviceId, new ServiceUpdateCommand(
-                body.name(), body.chargeType(), body.unit(), body.mandatory()));
+            body.name(), body.chargeType(), body.unit(), body.mandatory(),
+            body.basePrice(), body.pricingTiers() == null ? null : body.pricingTiers().stream()
+                .map(item -> new ServiceTierPricingCommand(item.tierStart(), item.tierEnd(), item.pricePerUnit()))
+                .toList()));
         return ResponseEntity.ok(ApiResponse.ok(result, "Service updated"));
     }
 

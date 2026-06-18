@@ -34,6 +34,9 @@ import com.roomrental.modules.resident.application.service.ResidentService;
 import com.roomrental.modules.room.domain.model.Room;
 import com.roomrental.modules.room.domain.model.RoomStatus;
 import com.roomrental.modules.room.domain.repository.RoomRepository;
+import com.roomrental.modules.finance.domain.model.ServiceUsage;
+import com.roomrental.modules.finance.domain.model.ServiceUsage.ServiceUsageStatus;
+import com.roomrental.modules.finance.domain.repository.ServiceUsageRepository;
 import com.roomrental.modules.service.domain.model.ChargeType;
 import com.roomrental.modules.service.domain.model.RentalService;
 import com.roomrental.modules.service.domain.repository.RentalServiceRepository;
@@ -46,6 +49,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -62,6 +67,7 @@ public class ContractService {
     private final RoomRepository roomRepository;
     private final MotelRepository motelRepository;
     private final ResidentService residentService;
+    private final ServiceUsageRepository serviceUsageRepository;
     private final RentalServiceRepository rentalServiceRepository;
     private final ContractAdjustmentStrategyFactory strategyFactory;
     private final ApplicationEventPublisher eventPublisher;
@@ -74,6 +80,7 @@ public class ContractService {
             RoomRepository roomRepository,
             MotelRepository motelRepository,
             ResidentService residentService,
+                ServiceUsageRepository serviceUsageRepository,
             RentalServiceRepository rentalServiceRepository,
             ContractAdjustmentStrategyFactory strategyFactory,
             ApplicationEventPublisher eventPublisher
@@ -85,6 +92,7 @@ public class ContractService {
         this.roomRepository = roomRepository;
         this.motelRepository = motelRepository;
         this.residentService = residentService;
+        this.serviceUsageRepository = serviceUsageRepository;
         this.rentalServiceRepository = rentalServiceRepository;
         this.strategyFactory = strategyFactory;
         this.eventPublisher = eventPublisher;
@@ -161,6 +169,10 @@ public class ContractService {
             contractServiceItemRepository.saveAll(serviceItems);
         }
 
+        if (depositPaid) {
+            syncServiceUsages(room.getId(), serviceItems);
+        }
+
         room.setStatus(depositPaid ? RoomStatus.RENTED : RoomStatus.DEPOSITED);
         room.setCurrentResidentsCount(residents.isEmpty() ? 1 : residents.size());
         roomRepository.save(room);
@@ -195,6 +207,9 @@ public class ContractService {
         room.setStatus(RoomStatus.RENTED);
         room.setCurrentResidentsCount(residentsCount > 0 ? residentsCount : 1);
         roomRepository.save(room);
+
+        List<ContractServiceItem> serviceItems = contractServiceItemRepository.findByContractId(contract.getId());
+        syncServiceUsages(room.getId(), serviceItems);
 
         ContractResult result = toResult(saved);
         eventPublisher.publishEvent(new ContractActivatedEvent(
@@ -629,6 +644,32 @@ public class ContractService {
         }
 
         return items;
+    }
+
+    private void syncServiceUsages(Long roomId, List<ContractServiceItem> serviceItems) {
+        if (serviceItems == null || serviceItems.isEmpty()) {
+            return;
+        }
+
+        List<ServiceUsage> usages = new ArrayList<>();
+        for (ContractServiceItem item : serviceItems) {
+            if (serviceUsageRepository.findActiveByRoomIdAndServiceId(roomId, item.getServiceId()).isPresent()) {
+                continue;
+            }
+
+            ServiceUsage usage = new ServiceUsage();
+            usage.setRoomId(roomId);
+            usage.setServiceId(item.getServiceId());
+            usage.setRegisteredQuantity(item.getQuantity() != null ? item.getQuantity() : 1);
+            usage.setStatus(ServiceUsageStatus.ACTIVE);
+            usage.setRegisteredAt(OffsetDateTime.now());
+            usage.setUpdatedAt(OffsetDateTime.now());
+            usages.add(usage);
+        }
+
+        if (!usages.isEmpty()) {
+            serviceUsageRepository.saveAll(usages);
+        }
     }
 
     private ContractAppendixResult toAppendixResult(ContractAppendix appendix) {

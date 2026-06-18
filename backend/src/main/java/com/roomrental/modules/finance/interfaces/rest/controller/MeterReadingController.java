@@ -42,7 +42,7 @@ public class MeterReadingController {
     @Operation(summary = "Submit a meter reading manually (UC70)")
     public ResponseEntity<MeterReadingResult> submit(@RequestBody @Valid MeterReadingRequest request) {
         MeterReadingSubmitCommand cmd = new MeterReadingSubmitCommand(
-            request.roomId(), request.serviceUsageId(), request.billingMonth(),
+            request.roomId(), request.serviceId(), request.billingMonth(),
             request.newReading(), request.readingImageUrl()
         );
         return ResponseEntity.ok(service.submit(cmd));
@@ -54,7 +54,7 @@ public class MeterReadingController {
     public ResponseEntity<MeterReadingResult> submitWithOcr(@RequestBody @Valid MeterReadingOcrRequest request) {
         byte[] imageBytes = Base64.getDecoder().decode(request.base64Image());
         MeterReadingOcrCommand cmd = new MeterReadingOcrCommand(
-            request.roomId(), request.serviceUsageId(), request.billingMonth(),
+            request.roomId(), request.serviceId(), request.billingMonth(),
             imageBytes, request.mimeType()
         );
         return ResponseEntity.ok(service.submitWithOcr(cmd));

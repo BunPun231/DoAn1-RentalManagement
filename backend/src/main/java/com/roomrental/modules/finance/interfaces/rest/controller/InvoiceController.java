@@ -14,8 +14,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-
 @RestController
 @RequestMapping("/api/v1/invoices")
 @SecurityRequirement(name = "bearerAuth")
@@ -31,7 +29,7 @@ public class InvoiceController {
     @PostMapping("/generate")
     @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     @Operation(summary = "Generate invoices for a motel (UC73)")
-    public ResponseEntity<List<InvoiceResult>> generateForMotel(@RequestBody @Valid InvoiceGenerateRequest request) {
+    public ResponseEntity<InvoiceGenerationResult> generateForMotel(@RequestBody @Valid InvoiceGenerateRequest request) {
         return ResponseEntity
                 .ok(service.generateForMotel(new InvoiceGenerateCommand(request.motelId(), request.billingMonth())));
     }

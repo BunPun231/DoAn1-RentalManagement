@@ -10,10 +10,21 @@ import com.roomrental.modules.finance.application.strategy.BillingStrategyFactor
 import com.roomrental.modules.finance.domain.model.Invoice;
 import com.roomrental.modules.finance.domain.model.Invoice.InvoiceStatus;
 import com.roomrental.modules.finance.domain.model.InvoiceDetail;
+import com.roomrental.modules.finance.domain.model.MeterReading;
+import com.roomrental.modules.finance.domain.model.ServiceUsage;
+import com.roomrental.modules.finance.domain.repository.MeterReadingRepository;
 import com.roomrental.modules.finance.domain.repository.InvoiceDetailRepository;
 import com.roomrental.modules.finance.domain.repository.InvoiceRepository;
+import com.roomrental.modules.finance.domain.repository.ServiceUsageRepository;
 import com.roomrental.modules.contract.domain.model.Contract;
 import com.roomrental.modules.contract.domain.repository.ContractRepository;
+import com.roomrental.modules.room.domain.model.Room;
+import com.roomrental.modules.room.domain.repository.RoomRepository;
+import com.roomrental.modules.service.domain.model.ServicePricing;
+import com.roomrental.modules.service.domain.model.ServiceTierPricing;
+import com.roomrental.modules.service.domain.model.RentalService;
+import com.roomrental.modules.service.domain.repository.RentalServiceRepository;
+import com.roomrental.modules.service.domain.repository.ServicePricingRepository;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -24,7 +35,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -34,6 +47,11 @@ public class InvoiceService {
     private final InvoiceRepository invoiceRepository;
     private final InvoiceDetailRepository invoiceDetailRepository;
     private final ContractRepository contractRepository;
+    private final RoomRepository roomRepository;
+    private final RentalServiceRepository rentalServiceRepository;
+    private final ServiceUsageRepository serviceUsageRepository;
+    private final ServicePricingRepository servicePricingRepository;
+    private final MeterReadingRepository meterReadingRepository;
     private final BillingStrategyFactory strategyFactory;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -41,37 +59,62 @@ public class InvoiceService {
             InvoiceRepository invoiceRepository,
             InvoiceDetailRepository invoiceDetailRepository,
             ContractRepository contractRepository,
+            RoomRepository roomRepository,
+            RentalServiceRepository rentalServiceRepository,
+            ServiceUsageRepository serviceUsageRepository,
+            ServicePricingRepository servicePricingRepository,
+            MeterReadingRepository meterReadingRepository,
             BillingStrategyFactory strategyFactory,
             ApplicationEventPublisher eventPublisher) {
         this.invoiceRepository = invoiceRepository;
         this.invoiceDetailRepository = invoiceDetailRepository;
         this.contractRepository = contractRepository;
+        this.roomRepository = roomRepository;
+        this.rentalServiceRepository = rentalServiceRepository;
+        this.serviceUsageRepository = serviceUsageRepository;
+        this.servicePricingRepository = servicePricingRepository;
+        this.meterReadingRepository = meterReadingRepository;
         this.strategyFactory = strategyFactory;
         this.eventPublisher = eventPublisher;
     }
 
     @Transactional
-    public List<InvoiceResult> generateForMotel(InvoiceGenerateCommand command) {
+    public InvoiceGenerationResult generateForMotel(InvoiceGenerateCommand command) {
         UUID tenantId = SecurityUtils.requireTenantId();
-        
-        // Find active contracts in motel. 
-        // Note: Currently contractRepository doesn't have an easy findActiveByMotelId. We just simulate.
-        List<Contract> contracts = contractRepository.findByTenantId(tenantId).stream()
-                .filter(c -> c.getStatus() == Contract.ContractStatus.ACTIVE)
-                .filter(c -> {
-                    // BR73.9: Skip if intendedMoveOutDate is in this month
-                    if (c.getIntendedMoveOutDate() != null) {
-                        return c.getIntendedMoveOutDate().getMonth() != command.billingMonth().getMonth();
-                    }
-                    return true;
-                })
-                .collect(Collectors.toList());
-
         List<InvoiceResult> results = new ArrayList<>();
-        
-        for (Contract contract : contracts) {
+
+        List<SkippedInvoiceRoomResult> skippedRooms = new ArrayList<>();
+        List<Room> rooms = roomRepository.findByMotelId(command.motelId(), Pageable.unpaged()).getContent();
+
+        for (Room room : rooms) {
+            List<Contract> contracts = contractRepository.findByRoomId(room.getId()).stream()
+                    .filter(Contract::isActive)
+                    .toList();
+            if (contracts.isEmpty()) {
+                continue;
+            }
+
+            Contract contract = contracts.get(0);
+
             // Check duplicate
             if (invoiceRepository.existsByContractIdAndBillingMonth(contract.getId(), command.billingMonth())) {
+                continue;
+            }
+
+            List<ServiceUsage> billableUsages = serviceUsageRepository.findBillableByRoomId(room.getId());
+            Map<Long, MeterReading> approvedReadings = meterReadingRepository.findByRoomIdAndBillingMonth(room.getId(), command.billingMonth())
+                    .stream()
+                    .filter(r -> r.getStatus() == MeterReading.MeterReadingStatus.APPROVED)
+                    .collect(Collectors.toMap(MeterReading::getServiceUsageId, reading -> reading, (left, right) -> left));
+
+            boolean missingIndexReading = billableUsages.stream().anyMatch(usage -> {
+                RentalService service = rentalServiceRepository.findByIdAndMotelId(usage.getServiceId(), room.getMotelId()).orElse(null);
+                return service != null && service.getChargeType() == com.roomrental.modules.service.domain.model.ChargeType.PER_INDEX
+                        && !approvedReadings.containsKey(usage.getId());
+            });
+            if (missingIndexReading) {
+                skippedRooms.add(new SkippedInvoiceRoomResult(
+                        room.getId(), room.getRoomNumber(), "Missing APPROVED meter reading for at least one PER_INDEX service"));
                 continue;
             }
 
@@ -91,8 +134,19 @@ public class InvoiceService {
             );
             List<InvoiceDetail> details = new ArrayList<>(rentStrategy.calculate(rentContext));
 
-            // 2. Fetch Services and Meter Readings (Simulated here)
-            // You would loop through ContractServiceItems and generate details via strategies
+            // 2. Calculate services from real service usages
+            for (ServiceUsage usage : billableUsages) {
+                RentalService service = rentalServiceRepository.findByIdAndMotelId(usage.getServiceId(), room.getMotelId())
+                        .orElseThrow(() -> BaseException.notFound("Service", usage.getServiceId()));
+                ServicePricing pricing = servicePricingRepository.findCurrentByServiceId(service.getId(), command.billingMonth()).orElse(null);
+                List<ServiceTierPricing> tiers = pricing != null ? pricing.getTierPrices() : List.of();
+                boolean hasTiers = tiers != null && !tiers.isEmpty();
+
+                MeterReading approvedReading = approvedReadings.get(usage.getId());
+                BillingStrategy strategy = strategyFactory.getStrategy(service.getChargeType().name(), hasTiers);
+                BillingContext context = buildBillingContext(service, usage, room, contract, pricing, tiers, approvedReading);
+                details.addAll(strategy.calculate(context));
+            }
 
             BigDecimal total = details.stream().map(InvoiceDetail::getLineTotal).reduce(BigDecimal.ZERO, BigDecimal::add);
             invoice.setTotalAmount(total);
@@ -124,6 +178,15 @@ public class InvoiceService {
                 d.setInvoiceId(saved.getId());
             }
             invoiceDetailRepository.saveAll(details);
+
+            List<ServiceUsage> toCancel = billableUsages.stream()
+                    .filter(usage -> usage.getStatus() == ServiceUsage.ServiceUsageStatus.PENDING_CANCELLATION)
+                    .peek(usage -> usage.setStatus(ServiceUsage.ServiceUsageStatus.CANCELLED))
+                    .peek(usage -> usage.setUpdatedAt(OffsetDateTime.now()))
+                    .collect(Collectors.toList());
+            if (!toCancel.isEmpty()) {
+                serviceUsageRepository.saveAll(toCancel);
+            }
             
             eventPublisher.publishEvent(new InvoiceCreatedEvent(
                 tenantId, SecurityUtils.getCurrentUserId(), SecurityUtils.getCurrentRole(),
@@ -133,7 +196,7 @@ public class InvoiceService {
             results.add(toResult(saved));
         }
 
-        return results;
+        return new InvoiceGenerationResult(results, skippedRooms);
     }
 
     @Transactional(readOnly = true)
@@ -231,6 +294,37 @@ public class InvoiceService {
             invoice.getCancelReason(),
             invoice.getDueDate(),
             invoice.getCreatedAt()
+        );
+    }
+
+    private BillingContext buildBillingContext(
+            RentalService service,
+            ServiceUsage usage,
+            Room room,
+            Contract contract,
+            ServicePricing pricing,
+            List<ServiceTierPricing> tiers,
+            MeterReading approvedReading) {
+        BigDecimal basePrice = pricing != null ? pricing.getBasePrice() : BigDecimal.ZERO;
+        Integer activeResidents = room.getCurrentResidentsCount() != null ? room.getCurrentResidentsCount() : 1;
+        BigDecimal quantity = usage.getRegisteredQuantity() != null ? BigDecimal.valueOf(usage.getRegisteredQuantity()) : BigDecimal.ONE;
+        BigDecimal oldReading = approvedReading != null ? approvedReading.getOldReading() : BigDecimal.ZERO;
+        BigDecimal newReading = approvedReading != null ? approvedReading.getNewReading() : oldReading;
+
+        List<BillingContext.PricingTier> billingTiers = tiers == null ? List.of() : tiers.stream()
+                .map(tier -> new BillingContext.PricingTier(tier.getTierStart(), tier.getTierEnd(), tier.getPricePerUnit()))
+                .toList();
+
+        return new BillingContext(
+                service.getId(),
+                service.getName(),
+                service.getChargeType().name(),
+                oldReading,
+                newReading,
+                quantity,
+                activeResidents,
+                basePrice,
+                billingTiers
         );
     }
 }

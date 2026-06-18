@@ -4,7 +4,7 @@ import java.time.LocalDate;
 
 public record MeterReadingOcrCommand(
     Long roomId,
-    Long serviceUsageId,
+    Long serviceId,
     LocalDate billingMonth,
     byte[] imageBytes,
     String mimeType
