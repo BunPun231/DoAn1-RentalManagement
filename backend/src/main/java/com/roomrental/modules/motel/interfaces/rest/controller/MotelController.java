@@ -74,10 +74,24 @@ public class MotelController {
     }
 
     private MotelUpsertCommand toCommand(MotelUpsertRequestBody body) {
-        return new MotelUpsertCommand(body.name(), body.address(), body.totalFloors(), body.description());
+        return new MotelUpsertCommand(
+                body.name(),
+                body.address(),
+                body.totalFloors(),
+                body.description(),
+                body.billingCycleDay(),
+                body.depositPercent()
+        );
     }
 
     private MotelUpsertCommand toPatchCommand(MotelPatchRequestBody body) {
-        return new MotelUpsertCommand(body.name(), body.address(), body.totalFloors(), body.description());
+        return new MotelUpsertCommand(
+                body.name(),
+                body.address(),
+                body.totalFloors(),
+                body.description(),
+                body.billingCycleDay(),
+                body.depositPercent()
+        );
     }
 }

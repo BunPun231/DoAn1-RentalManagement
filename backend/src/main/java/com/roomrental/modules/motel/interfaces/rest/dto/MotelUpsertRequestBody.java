@@ -8,6 +8,8 @@ public record MotelUpsertRequestBody(
         @NotBlank String name,
         @NotBlank String address,
         @NotNull @Min(1) Integer totalFloors,
-        String description
+        String description,
+        Integer billingCycleDay,
+        java.math.BigDecimal depositPercent
 ) {
 }

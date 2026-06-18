@@ -237,8 +237,10 @@ public class ContractController {
                 body.effectiveDate(),
                 body.newRentPrice(),
                 body.newEndDate(),
-                body.intendedMoveOutDate(),
-                body.metadata()
+            body.intendedMoveOutDate(),
+            body.metadata(),
+            body.applyToCurrentContracts(),
+            body.newServicePrices()
         );
         ContractAppendixResult result = contractService.adjust(contractId, request);
         return ResponseEntity.ok(ApiResponse.ok(result, "Contract adjusted"));

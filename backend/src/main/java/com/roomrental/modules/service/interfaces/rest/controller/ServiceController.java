@@ -21,6 +21,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import com.roomrental.common.util.HashidsCodec;
+import com.roomrental.common.exception.BaseException;
 
 import java.util.List;
 
@@ -31,8 +33,9 @@ import java.util.List;
 public class ServiceController {
 
     private final RentalServiceService svc;
+    private final HashidsCodec hashidsCodec;
 
-    public ServiceController(RentalServiceService svc) { this.svc = svc; }
+    public ServiceController(RentalServiceService svc, HashidsCodec hashidsCodec) { this.svc = svc; this.hashidsCodec = hashidsCodec; }
 
     @PostMapping
     @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
@@ -105,7 +108,9 @@ public class ServiceController {
     @PreAuthorize("hasAnyRole('MANAGER','ADMIN','RESIDENT')")
     @Operation(summary = "Get services assigned to a room (UC37+)")
     public ResponseEntity<ApiResponse<List<ServiceResult>>> listByRoom(
-            @PathVariable Long motelId, @PathVariable Long roomId) {
-        return ResponseEntity.ok(ApiResponse.ok(svc.listByRoom(motelId, roomId)));
+            @PathVariable Long motelId, @PathVariable String roomId) {
+        Long decoded = hashidsCodec.decode(roomId);
+        if (decoded == null) throw BaseException.badRequest("roomId: invalid");
+        return ResponseEntity.ok(ApiResponse.ok(svc.listByRoom(motelId, decoded)));
     }
 }

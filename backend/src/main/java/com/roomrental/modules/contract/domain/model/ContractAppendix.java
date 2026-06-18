@@ -16,6 +16,7 @@ public class ContractAppendix {
     private BigDecimal newRentPrice;
     private String appendixType;
     private String metadata;  // JSON payload
+    private String newServicePrices; // JSON payload storing new service prices array
     private UUID createdBy;
     private LocalDateTime createdAt;
 
@@ -87,6 +88,14 @@ public class ContractAppendix {
 
     public void setMetadata(String metadata) {
         this.metadata = metadata;
+    }
+
+    public String getNewServicePrices() {
+        return newServicePrices;
+    }
+
+    public void setNewServicePrices(String newServicePrices) {
+        this.newServicePrices = newServicePrices;
     }
 
     public UUID getCreatedBy() {

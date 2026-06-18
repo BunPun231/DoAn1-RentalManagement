@@ -13,6 +13,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -34,6 +35,7 @@ import static org.mockito.Mockito.*;
 class MotelServiceTest {
 
     @Mock private MotelRepository motelRepository;
+    @Mock private ApplicationEventPublisher eventPublisher;
     @InjectMocks private MotelService motelService;
 
     private UUID tenantId;
@@ -62,7 +64,14 @@ class MotelServiceTest {
             return m;
         });
 
-        MotelResult result = motelService.create(new MotelUpsertCommand("Nhà trọ A", "123 Street", 3, "desc"));
+        MotelResult result = motelService.create(new MotelUpsertCommand(
+            "Nhà trọ A",
+            "123 Street",
+            3,
+            "desc",
+            25,
+            null
+        ));
 
         assertThat(result.id()).isEqualTo(1L);
         assertThat(result.name()).isEqualTo("Nhà trọ A");

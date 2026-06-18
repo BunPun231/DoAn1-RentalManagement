@@ -14,6 +14,8 @@ public record ContractAdjustmentRequestBody(
         @Schema(description = "Gia thue moi") BigDecimal newRentPrice,
         @Schema(description = "Ngay ket thuc moi", example = "2027-01-01") LocalDate newEndDate,
         @Schema(description = "Ngay du kien tra phong", example = "2026-08-15") LocalDate intendedMoveOutDate,
-        @Schema(description = "Metadata JSON (manual clause)") String metadata
+        @Schema(description = "Metadata JSON (manual clause)") String metadata,
+        @Schema(description = "Apply new prices to current contracts (bulk appendix)") boolean applyToCurrentContracts,
+        @Schema(description = "JSON array of new service prices to store in appendix, e.g. [{\"serviceId\":1,\"price\":10000}]") String newServicePrices
 ) {
 }

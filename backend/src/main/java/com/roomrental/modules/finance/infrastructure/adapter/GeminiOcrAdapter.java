@@ -112,4 +112,81 @@ public class GeminiOcrAdapter implements OcrPort {
             throw BaseException.badRequest("Failed to extract reading from image via Gemini: " + e.getMessage());
         }
     }
+
+    /**
+     * Specialized OCR extraction for Vietnamese CCCD / ID cards.
+     * Returns a clean JSON string containing keys: idNumber, fullName, dateOfBirth, address
+     */
+    public String extractIdCardJson(byte[] imageBytes, String mimeType) {
+        if (apiKey == null || apiKey.trim().isEmpty()) {
+            throw BaseException.badRequest("Gemini API key is not configured in environment (GEMINI_API_KEY)");
+        }
+
+        try {
+            String base64Image = Base64.getEncoder().encodeToString(imageBytes);
+
+            Map<String, Object> inlineData = new HashMap<>();
+            inlineData.put("mimeType", mimeType != null ? mimeType : "image/jpeg");
+            inlineData.put("data", base64Image);
+
+            Map<String, Object> textPart = new HashMap<>();
+            // System prompt tailored for Vietnamese CCCD
+            String prompt = "You are an OCR assistant specialized in reading Vietnamese CCCD (citizen ID) cards. " +
+                    "Extract and return a strict JSON object with exactly these keys: idNumber, fullName, dateOfBirth, address. " +
+                    "Normalize dateOfBirth to YYYY-MM-DD. Clean whitespace, remove extraneous characters, and prefer the printed ID number if present. " +
+                    "If any field cannot be confidently extracted, return an empty string for that field. " +
+                    "Respond only with a JSON object, no extra text. Example: {\"idNumber\":\"079123456789\",\"fullName\":\"Nguyen Van A\",\"dateOfBirth\":\"1990-01-01\",\"address\":\"123 Le Loi, District 1, HCMC\"}.";
+            textPart.put("text", prompt);
+
+            Map<String, Object> imagePart = new HashMap<>();
+            imagePart.put("inlineData", inlineData);
+
+            Map<String, Object> content = new HashMap<>();
+            content.put("parts", List.of(textPart, imagePart));
+
+            Map<String, Object> stringProp = new HashMap<>();
+            stringProp.put("type", "STRING");
+
+            Map<String, Object> responseSchema = new HashMap<>();
+            responseSchema.put("type", "OBJECT");
+            responseSchema.put("properties", Map.of(
+                    "idNumber", stringProp,
+                    "fullName", stringProp,
+                    "dateOfBirth", stringProp,
+                    "address", stringProp
+            ));
+            responseSchema.put("required", List.of("idNumber", "fullName"));
+
+            Map<String, Object> generationConfig = new HashMap<>();
+            generationConfig.put("responseMimeType", "application/json");
+            generationConfig.put("responseSchema", responseSchema);
+
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("contents", List.of(content));
+            requestBody.put("generationConfig", generationConfig);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+            String url = String.format("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s", model, apiKey);
+
+            String responseStr = restTemplate.postForObject(url, entity, String.class);
+            JsonNode root = objectMapper.readTree(responseStr);
+            JsonNode textNode = root.path("candidates").path(0).path("content").path("parts").path(0).path("text");
+            if (textNode.isMissingNode() || textNode.asText().isEmpty()) {
+                throw BaseException.badRequest("Gemini did not return any OCR suggestion for ID card");
+            }
+            String jsonText = textNode.asText();
+            // Basic validation: ensure it's JSON object
+            JsonNode parsed = objectMapper.readTree(jsonText);
+            if (!parsed.isObject()) {
+                throw BaseException.badRequest("Gemini returned invalid JSON for ID card OCR");
+            }
+            return objectMapper.writeValueAsString(parsed);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw BaseException.badRequest("Failed to extract ID card from image via Gemini: " + e.getMessage());
+        }
+    }
 }

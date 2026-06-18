@@ -46,6 +46,14 @@ public class MotelService {
         motel.setAddress(command.address());
         motel.setTotalFloors(command.totalFloors());
         motel.setDescription(command.description());
+        if (command.billingCycleDay() != null) {
+            validateBillingCycleDay(command.billingCycleDay());
+            motel.setBillingCycleDay(command.billingCycleDay());
+        }
+        if (command.depositPercent() != null) {
+            validateDepositPercent(command.depositPercent());
+            motel.setDepositPercent(command.depositPercent());
+        }
 
         MotelResult result = toResult(motelRepository.save(motel));
         eventPublisher.publishEvent(new MotelCreatedEvent(
@@ -95,6 +103,14 @@ public class MotelService {
         if (command.description() != null) {
             motel.setDescription(command.description());
         }
+        if (command.billingCycleDay() != null) {
+            validateBillingCycleDay(command.billingCycleDay());
+            motel.setBillingCycleDay(command.billingCycleDay());
+        }
+        if (command.depositPercent() != null) {
+            validateDepositPercent(command.depositPercent());
+            motel.setDepositPercent(command.depositPercent());
+        }
 
         MotelResult result = toResult(motelRepository.save(motel));
         UUID tenantId = SecurityUtils.requireTenantId();
@@ -132,7 +148,22 @@ public class MotelService {
                 motel.getName(),
                 motel.getAddress(),
                 motel.getTotalFloors(),
-                motel.getDescription()
+                motel.getDescription(),
+                motel.getBillingCycleDay(),
+                motel.getDepositPercent()
         );
+    }
+
+    private void validateBillingCycleDay(Integer billingCycleDay) {
+        if (billingCycleDay < 1 || billingCycleDay > 28) {
+            throw BaseException.badRequest("billingCycleDay must be between 1 and 28");
+        }
+    }
+
+    private void validateDepositPercent(java.math.BigDecimal depositPercent) {
+        if (depositPercent.compareTo(java.math.BigDecimal.ZERO) < 0
+                || depositPercent.compareTo(new java.math.BigDecimal("100")) > 0) {
+            throw BaseException.badRequest("depositPercent must be between 0 and 100");
+        }
     }
 }

@@ -53,6 +53,7 @@ public class ContractAppendixRepositoryAdapter implements ContractAppendixReposi
         entity.setNewRentPrice(appendix.getNewRentPrice());
         entity.setAppendixType(appendix.getAppendixType());
         entity.setMetadata(appendix.getMetadata());
+        entity.setNewServicePrices(appendix.getNewServicePrices());
         entity.setCreatedBy(appendix.getCreatedBy());
         entity.setCreatedAt(appendix.getCreatedAt());
         return entity;
@@ -66,6 +67,7 @@ public class ContractAppendixRepositoryAdapter implements ContractAppendixReposi
         appendix.setEffectiveDate(entity.getEffectiveDate());
         appendix.setNewRentPrice(entity.getNewRentPrice());
         appendix.setAppendixType(entity.getAppendixType());
+        appendix.setNewServicePrices(entity.getNewServicePrices());
         appendix.setMetadata(entity.getMetadata());
         appendix.setCreatedBy(entity.getCreatedBy());
         appendix.setCreatedAt(entity.getCreatedAt());

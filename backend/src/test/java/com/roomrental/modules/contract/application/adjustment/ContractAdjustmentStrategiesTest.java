@@ -81,7 +81,13 @@ class ContractAdjustmentStrategiesTest {
         });
         ContractAdjustmentRequest req = new ContractAdjustmentRequest(
                 "PRICE_CHANGE",
-                LocalDate.now().plusDays(1), new BigDecimal("4800000"), null, null, null
+            LocalDate.now().plusDays(1),
+            new BigDecimal("4800000"),
+            null,
+            null,
+            null,
+            false,
+            null
         );
         Long id = priceChangeStrategy.process(contract, req);
         assertThat(id).isEqualTo(1L);
@@ -93,7 +99,13 @@ class ContractAdjustmentStrategiesTest {
         when(invoiceReadRepository.existsPaidInvoiceCovering(contract.getId(), LocalDate.now().plusDays(1))).thenReturn(true);
         ContractAdjustmentRequest req = new ContractAdjustmentRequest(
                 "PRICE_CHANGE",
-                LocalDate.now().plusDays(1), new BigDecimal("4800000"), null, null, null
+            LocalDate.now().plusDays(1),
+            new BigDecimal("4800000"),
+            null,
+            null,
+            null,
+            false,
+            null
         );
         assertThatThrownBy(() -> priceChangeStrategy.process(contract, req)).isInstanceOf(BaseException.class);
     }
@@ -108,7 +120,13 @@ class ContractAdjustmentStrategiesTest {
         LocalDate newEnd = LocalDate.of(2026,1,1);
         ContractAdjustmentRequest req = new ContractAdjustmentRequest(
                 "RENEW",
-                null, null, newEnd, null, null
+            null,
+            null,
+            newEnd,
+            null,
+            null,
+            false,
+            null
         );
         Long id = renewStrategy.process(contract, req);
         assertThat(id).isEqualTo(2L);
@@ -121,7 +139,13 @@ class ContractAdjustmentStrategiesTest {
         LocalDate moveOut = LocalDate.now().plusDays(10);
         ContractAdjustmentRequest req = new ContractAdjustmentRequest(
                 "MOVE_OUT_NOTICE",
-                null, null, null, moveOut, null
+            null,
+            null,
+            null,
+            moveOut,
+            null,
+            false,
+            null
         );
         Long id = moveOutNoticeStrategy.process(contract, req);
         assertThat(id).isNull();
@@ -137,7 +161,13 @@ class ContractAdjustmentStrategiesTest {
         });
         ContractAdjustmentRequest req = new ContractAdjustmentRequest(
                 "MANUAL_CLAUSE",
-                LocalDate.now().plusDays(2), null, null, null, "{\"text\":\"sample clause\"}"
+            LocalDate.now().plusDays(2),
+            null,
+            null,
+            null,
+            "{\"text\":\"sample clause\"}",
+            false,
+            null
         );
         Long id = manualAppendixStrategy.process(contract, req);
         assertThat(id).isEqualTo(3L);
@@ -148,7 +178,13 @@ class ContractAdjustmentStrategiesTest {
     void manualAppendix_throws_whenMetadataBlank() {
         ContractAdjustmentRequest req = new ContractAdjustmentRequest(
                 "MANUAL_CLAUSE",
-                LocalDate.now().plusDays(2), null, null, null, " "
+            LocalDate.now().plusDays(2),
+            null,
+            null,
+            null,
+            " ",
+            false,
+            null
         );
         assertThatThrownBy(() -> manualAppendixStrategy.process(contract, req)).isInstanceOf(BaseException.class);
     }

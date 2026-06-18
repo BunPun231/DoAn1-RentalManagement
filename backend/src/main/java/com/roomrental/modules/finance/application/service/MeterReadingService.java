@@ -61,6 +61,7 @@ public class MeterReadingService {
     public MeterReadingResult submit(MeterReadingSubmitCommand command) {
         UUID tenantId = SecurityUtils.requireTenantId();
         UUID actorId = SecurityUtils.getCurrentUserId();
+        LocalDate billingMonth = normalizeBillingMonth(command.billingMonth());
 
         Room room = roomRepository.findById(command.roomId())
                 .orElseThrow(() -> BaseException.notFound("Room", command.roomId()));
@@ -72,7 +73,7 @@ public class MeterReadingService {
         Long serviceUsageId = resolveActiveServiceUsageId(command.roomId(), command.serviceId());
 
         boolean hasApproved = meterReadingRepository.existsByServiceUsageIdAndBillingMonthAndStatus(
-            serviceUsageId, command.billingMonth(), MeterReadingStatus.APPROVED.name()
+            serviceUsageId, billingMonth, MeterReadingStatus.APPROVED.name()
         );
         if (hasApproved) {
             throw BaseException.badRequest("Already has approved reading for this month");
@@ -82,7 +83,7 @@ public class MeterReadingService {
         // For simplicity, we assume command provides oldReading or we calculate it. 
         // Here we just fetch the last approved one to set oldReading.
         List<MeterReading> prevReadings = meterReadingRepository.findApprovedByRoomIdAndBillingMonth(
-                command.roomId(), command.billingMonth().minusMonths(1));
+            command.roomId(), billingMonth.minusMonths(1));
         BigDecimal oldReading = prevReadings.isEmpty() ? BigDecimal.ZERO : prevReadings.get(0).getNewReading();
 
         if (command.newReading().compareTo(oldReading) < 0) {
@@ -93,7 +94,7 @@ public class MeterReadingService {
         reading.setTenantId(tenantId);
         reading.setRoomId(command.roomId());
         reading.setServiceUsageId(serviceUsageId);
-        reading.setBillingMonth(command.billingMonth());
+        reading.setBillingMonth(billingMonth);
         reading.setOldReading(oldReading);
         reading.setNewReading(command.newReading());
         reading.calculateConsumption();
@@ -122,6 +123,7 @@ public class MeterReadingService {
         }
 
         Long serviceUsageId = resolveActiveServiceUsageId(command.roomId(), command.serviceId());
+        LocalDate billingMonth = normalizeBillingMonth(command.billingMonth());
 
         // UC71 - Just return suggested result, do not save and do not upload to Cloudinary at this step
         OcrResult ocrResult = ocrPort.extractReading(command.imageBytes(), command.mimeType());
@@ -134,7 +136,7 @@ public class MeterReadingService {
 
         // Fetch old reading from DB
         List<MeterReading> prevReadings = meterReadingRepository.findApprovedByRoomIdAndBillingMonth(
-                command.roomId(), command.billingMonth().minusMonths(1));
+            command.roomId(), billingMonth.minusMonths(1));
         BigDecimal oldReading = prevReadings.isEmpty() ? BigDecimal.ZERO : prevReadings.get(0).getNewReading();
         BigDecimal consumption = ocrResult.extractedValue().subtract(oldReading).max(BigDecimal.ZERO);
 
@@ -146,7 +148,7 @@ public class MeterReadingService {
             command.roomId(),
             command.serviceId(),
             serviceName,
-            command.billingMonth(),
+            billingMonth,
             oldReading,
             ocrResult.extractedValue(),
             consumption,
@@ -272,6 +274,13 @@ public class MeterReadingService {
             reading.getCreatedAt(),
             reading.getUpdatedAt()
         );
+    }
+
+    private LocalDate normalizeBillingMonth(LocalDate billingMonth) {
+        if (billingMonth == null) {
+            throw BaseException.badRequest("billingMonth: required");
+        }
+        return billingMonth.withDayOfMonth(1);
     }
 
     private Long resolveActiveServiceUsageId(Long roomId, Long serviceId) {

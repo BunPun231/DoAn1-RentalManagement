@@ -12,6 +12,8 @@ public record ContractAdjustmentRequest(
         BigDecimal newRentPrice,
         LocalDate newEndDate,
         LocalDate intendedMoveOutDate,
-        String metadata
+        String metadata,
+        boolean applyToCurrentContracts,
+        String newServicePrices
 ) {
 }

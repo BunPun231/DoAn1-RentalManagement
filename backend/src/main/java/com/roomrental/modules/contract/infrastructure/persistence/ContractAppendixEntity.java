@@ -28,6 +28,9 @@ public class ContractAppendixEntity {
     @Column(name = "new_rent_price", precision = 12, scale = 2)
     private BigDecimal newRentPrice;
 
+    @Column(name = "new_service_prices", columnDefinition = "jsonb")
+    private String newServicePrices;
+
     @Column(name = "appendix_type", nullable = false)
     private String appendixType;
 
@@ -107,6 +110,14 @@ public class ContractAppendixEntity {
 
     public void setMetadata(String metadata) {
         this.metadata = metadata;
+    }
+
+    public String getNewServicePrices() {
+        return newServicePrices;
+    }
+
+    public void setNewServicePrices(String newServicePrices) {
+        this.newServicePrices = newServicePrices;
     }
 
     public UUID getCreatedBy() {

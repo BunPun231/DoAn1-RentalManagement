@@ -42,6 +42,12 @@ public class MotelEntity extends BaseEntity {
     @Column
     private String description;
 
+    @Column(name = "billing_cycle_day")
+    private Integer billingCycleDay;
+
+    @Column(name = "deposit_percent", precision = 5, scale = 2)
+    private java.math.BigDecimal depositPercent;
+
     @Column(name = "is_deleted", nullable = false)
     private boolean deleted;
 }

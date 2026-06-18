@@ -89,11 +89,12 @@ export interface SettlementRequest {
 
 export interface SettlementCalculateResult {
   contractId: number;
-  unpaidInvoicesTotal: number;
-  depositAmount: number;
-  deductedAmount: number;
-  refundableDeposit: number;
-  totalSettlementAmount: number;
+  deposit: number;
+  currentDebt: number;
+  proRatedRent: number;
+  finalUtilities: number;
+  repairFees: number;
+  netAmount: number;
   itemBreakdown: Array<{ description: string; amount: number }>;
 }
 

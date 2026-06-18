@@ -217,25 +217,29 @@ export function SettlementModal({ isOpen, onClose, contractId, onSuccess }: Sett
             
             <div className="flex justify-between text-sm">
               <span className="text-slate-500">Tiền cọc ban đầu:</span>
-              <span className="font-medium">{formatCurrency(calcResult?.depositAmount || 0)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-500">Đã khấu trừ:</span>
-              <span className="font-medium text-rose-600">{formatCurrency(calcResult?.deductedAmount || 0)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-500">Tiền cọc còn lại:</span>
-              <span className="font-medium text-emerald-600">{formatCurrency(calcResult?.refundableDeposit || 0)}</span>
+              <span className="font-medium">{formatCurrency(calcResult?.deposit || 0)}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-slate-500">Nợ hóa đơn chưa đóng:</span>
-              <span className="font-medium text-rose-600">{formatCurrency(calcResult?.unpaidInvoicesTotal || 0)}</span>
+              <span className="font-medium text-rose-600">{formatCurrency(calcResult?.currentDebt || 0)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-500">Tiền phòng theo ngày:</span>
+              <span className="font-medium">{formatCurrency(calcResult?.proRatedRent || 0)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-500">Tiền điện nước cuối kỳ:</span>
+              <span className="font-medium">{formatCurrency(calcResult?.finalUtilities || 0)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-500">Chi phí khấu trừ tài sản:</span>
+              <span className="font-medium text-rose-600">{formatCurrency(calcResult?.repairFees || 0)}</span>
             </div>
             
             <div className="pt-2 mt-2 border-t border-brand-deep/10 flex justify-between font-bold">
-              <span>Tổng thanh toán ({calcResult?.totalSettlementAmount! >= 0 ? "Khách nhận lại" : "Khách đóng thêm"}):</span>
-              <span className={calcResult?.totalSettlementAmount! >= 0 ? "text-emerald-600" : "text-rose-600"}>
-                {formatCurrency(Math.abs(calcResult?.totalSettlementAmount || 0))}
+              <span>Tổng thanh toán ({calcResult?.netAmount! >= 0 ? "Khách nhận lại" : "Khách đóng thêm"}):</span>
+              <span className={calcResult?.netAmount! >= 0 ? "text-emerald-600" : "text-rose-600"}>
+                {formatCurrency(Math.abs(calcResult?.netAmount || 0))}
               </span>
             </div>
           </div>

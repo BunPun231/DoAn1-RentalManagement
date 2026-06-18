@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Base64;
 import java.util.List;
+import com.roomrental.common.util.HashidsCodec;
+import com.roomrental.common.exception.BaseException;
 
 @RestController
 @RequestMapping("/api/v1/meter-readings")
@@ -22,9 +24,11 @@ import java.util.List;
 public class MeterReadingController {
 
     private final MeterReadingService service;
+    private final HashidsCodec hashidsCodec;
 
-    public MeterReadingController(MeterReadingService service) {
+    public MeterReadingController(MeterReadingService service, HashidsCodec hashidsCodec) {
         this.service = service;
+        this.hashidsCodec = hashidsCodec;
     }
 
     @GetMapping
@@ -84,16 +88,20 @@ public class MeterReadingController {
     @GetMapping("/rooms/{roomId}/history")
     @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN', 'RESIDENT')")
     @Operation(summary = "Get reading history for a room (UC72)")
-    public ResponseEntity<List<MeterReadingResult>> getHistory(@PathVariable Long roomId) {
-        return ResponseEntity.ok(service.getHistory(roomId));
+    public ResponseEntity<List<MeterReadingResult>> getHistory(@PathVariable String roomId) {
+        Long decoded = hashidsCodec.decode(roomId);
+        if (decoded == null) throw BaseException.badRequest("roomId: invalid");
+        return ResponseEntity.ok(service.getHistory(decoded));
     }
 
     @GetMapping("/rooms/{roomId}/trend")
     @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN', 'RESIDENT')")
     @Operation(summary = "Get reading trend chart data (UC72)")
     public ResponseEntity<List<MeterReadingResult>> getConsumptionTrend(
-            @PathVariable Long roomId, 
+            @PathVariable String roomId, 
             @RequestParam(defaultValue = "6") int months) {
-        return ResponseEntity.ok(service.getConsumptionTrend(roomId, months));
+        Long decoded = hashidsCodec.decode(roomId);
+        if (decoded == null) throw BaseException.badRequest("roomId: invalid");
+        return ResponseEntity.ok(service.getConsumptionTrend(decoded, months));
     }
 }

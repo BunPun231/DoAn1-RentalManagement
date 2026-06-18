@@ -6,6 +6,8 @@ public record MotelResult(
         String name,
         String address,
         Integer totalFloors,
-        String description
+        String description,
+        Integer billingCycleDay,
+        java.math.BigDecimal depositPercent
 ) {
 }

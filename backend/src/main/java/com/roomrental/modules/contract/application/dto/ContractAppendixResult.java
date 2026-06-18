@@ -14,6 +14,7 @@ public record ContractAppendixResult(
         BigDecimal newRentPrice,
         String appendixType,
         String metadata,
+        String newServicePrices,
         String createdBy,
         LocalDateTime createdAt
 ) {

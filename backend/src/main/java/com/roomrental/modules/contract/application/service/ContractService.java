@@ -399,8 +399,8 @@ public class ContractService {
         }
         return new ContractAppendixResult(
                 null, contract.getId(), null, null,
-                type.name(), null,
-                actorId.toString(), LocalDateTime.now()
+            type.name(), null, null,
+            actorId.toString(), LocalDateTime.now()
         );
     }
 
@@ -700,6 +700,7 @@ public class ContractService {
                 appendix.getNewRentPrice(),
                 appendix.getAppendixType(),
                 appendix.getMetadata(),
+                appendix.getNewServicePrices(),
                 appendix.getCreatedBy() != null ? appendix.getCreatedBy().toString() : null,
                 appendix.getCreatedAt()
         );

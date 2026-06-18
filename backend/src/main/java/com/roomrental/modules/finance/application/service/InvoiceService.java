@@ -363,6 +363,15 @@ public class InvoiceService {
         BigDecimal quantity = usage.getRegisteredQuantity() != null ? BigDecimal.valueOf(usage.getRegisteredQuantity()) : BigDecimal.ONE;
         BigDecimal oldReading = approvedReading != null ? approvedReading.getOldReading() : BigDecimal.ZERO;
         BigDecimal newReading = approvedReading != null ? approvedReading.getNewReading() : oldReading;
+        if (service.getChargeType() == com.roomrental.modules.service.domain.model.ChargeType.PER_QUANTITY && approvedReading != null) {
+            BigDecimal consumption = approvedReading.getConsumption();
+            if (consumption == null) {
+                consumption = newReading.subtract(oldReading);
+            }
+            if (consumption != null) {
+                quantity = consumption.max(BigDecimal.ZERO);
+            }
+        }
 
         List<BillingContext.PricingTier> billingTiers = tiers == null ? List.of() : tiers.stream()
                 .map(tier -> new BillingContext.PricingTier(tier.getTierStart(), tier.getTierEnd(), tier.getPricePerUnit()))
