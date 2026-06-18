@@ -20,7 +20,7 @@ It targets middle-aged landlords (Managers) with a **minimalist, step-by-step UI
 - **ADMIN** – System-wide management
 - **MANAGER** – Landlords (main user)
 - **TECHNICIAN** – Maintenance staff
-- **TENANT** – Renters
+- **RESIDENT** – Renters
 
 ## 2. Tech Stack (Final – Aligned with ADD)
 
@@ -95,16 +95,39 @@ backend/
 │       │           │
 │       │           ├── common/                  # Cross-cutting concerns
 │       │           │   ├── config/              # Framework configs, @ConfigurationProperties
-│       │           │   ├── exception/           # GlobalExceptionHandler, custom exceptions
-│       │           │   ├── security/            # JWT + Multi-tenancy filter
-│       │           │   └── util/                # TenantContext, JwtUtils, helpers
+│       │           │   ├── exception/           # BaseException, GlobalExceptionHandler
+│       │           │   ├── security/            # JWT utilities + Multi-tenancy filter
+│       │           │   └── util/                # TenantContext, helpers
 │       │           │
 │       │           ├── modules/                 # Business modules by bounded context
-│       │           │   ├── core/                # Shared business core: Tenant, User, Subscription
-│       │           │   │   ├── domain/
-│       │           │   │   ├── application/
-│       │           │   │   └── infrastructure/
-│       │           │   │       └── outbox/
+│       │           │   ├── core/                # Shared business core split by feature
+│       │           │   │   ├── auth/             # Login/Register + workspace tenant bootstrap
+│       │           │   │   │   ├── domain/
+│       │           │   │   │   │   ├── model/
+│       │           │   │   │   │   └── repository/
+│       │           │   │   │   ├── application/
+│       │           │   │   │   │   ├── dto/
+│       │           │   │   │   │   └── service/
+│       │           │   │   │   ├── infrastructure/
+│       │           │   │   │   │   ├── entity/
+│       │           │   │   │   │   ├── mapper/
+│       │           │   │   │   │   ├── repository/
+│       │           │   │   │   │   ├── adapter/
+│       │           │   │   │   │   └── outbox/
+│       │           │   │   │   └── interfaces/
+│       │           │   │   │       └── rest/
+│       │           │   │   │           ├── controller/
+│       │           │   │   │           └── dto/
+│       │           │   │   ├── user/             # User profile / account management (future)
+│       │           │   │   │   ├── domain/
+│       │           │   │   │   ├── application/
+│       │           │   │   │   ├── infrastructure/
+│       │           │   │   │   └── interfaces/rest/
+│       │           │   │   └── tenant/          # Workspace tenant lifecycle/settings (future)
+│       │           │   │       ├── domain/
+│       │           │   │       ├── application/
+│       │           │   │       ├── infrastructure/
+│       │           │   │       └── interfaces/rest/
 │       │           │   ├── billing/             # Invoice, MeterReading, CalculationSnapshot
 │       │           │   │   ├── domain/
 │       │           │   │   ├── application/
@@ -135,13 +158,6 @@ backend/
 │       │           │       ├── application/
 │       │           │       └── infrastructure/
 │       │           │           └── outbox/
-│       │           │
-│       │           ├── interfaces/              # Outer interface layer
-│       │           │   └── rest/                # REST adapters
-│       │           │       ├── controller/      # REST Controllers
-│       │           │       ├── dto/             # Request/Response DTOs
-│       │           │       ├── mapper/          # MapStruct mappers
-│       │           │       └── api/             # OpenAPI spec (if used)
 │       │           │
 │       │           └── config/                  # ApplicationConfig, SecurityConfig, AsyncConfig...
 │       │
@@ -240,6 +256,7 @@ docker/
 
 Deployment notes:
 - Neon is the managed database layer, so local deployment no longer requires a PostgreSQL container.
+- All Spring Boot runtime settings should come from environment variables in `.env.example`.
 - Redis is still containerized for local development and VPS deployment.
 
 
