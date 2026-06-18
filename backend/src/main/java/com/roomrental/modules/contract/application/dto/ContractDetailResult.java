@@ -7,6 +7,7 @@ import java.util.List;
 
 /**
  * Detailed contract result for UC65.
+ * Only returns appendices count — full appendix data is fetched via separate endpoints.
  */
 public record ContractDetailResult(
         Long id,
@@ -26,6 +27,6 @@ public record ContractDetailResult(
         LocalDateTime updatedAt,
         List<String> residentUserIds,
         List<ContractServiceItemResult> serviceItems,
-        List<ContractAppendixResult> appendixes
+        int appendicesCount
 ) {
 }

@@ -97,6 +97,32 @@ public class ContractController {
     }
 
     /**
+     * Danh sách phụ lục hợp đồng (phân trang).
+     * GET /api/contracts/{id}/appendices
+     */
+    @GetMapping("/{id}/appendices")
+    @PreAuthorize("hasAnyRole('MANAGER','ADMIN','RESIDENT')")
+    public ResponseEntity<ApiResponse<PageResponse<ContractAppendixResult>>> getAppendices(
+            @PathVariable Long id,
+            @Parameter(description = "Page number (0-based), size, sort - e.g. sort=effectiveDate,desc")
+            @PageableDefault(size = 20, sort = "effectiveDate", direction = Sort.Direction.DESC) Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                PageResponse.from(contractService.getAppendicesByContract(id, pageable))
+        ));
+    }
+
+    /**
+     * Chi tiết phụ lục hợp đồng.
+     * GET /api/contracts/appendices/{appendixId}
+     */
+    @GetMapping("/appendices/{appendixId}")
+    @PreAuthorize("hasAnyRole('MANAGER','ADMIN','RESIDENT')")
+    public ResponseEntity<ApiResponse<ContractAppendixResult>> getAppendixDetail(
+            @PathVariable Long appendixId) {
+        return ResponseEntity.ok(ApiResponse.ok(contractService.getAppendixDetail(appendixId)));
+    }
+
+    /**
      * Lấy danh sách hợp đồng của tenant hiện tại.
      * GET /api/contracts
      */

@@ -5,6 +5,9 @@ import com.roomrental.modules.contract.domain.repository.ContractAppendixReposit
 import com.roomrental.modules.contract.infrastructure.persistence.ContractAppendixEntity;
 import com.roomrental.modules.contract.infrastructure.persistence.ContractAppendixJpaRepository;
 import java.util.List;
+import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -24,6 +27,21 @@ public class ContractAppendixRepositoryAdapter implements ContractAppendixReposi
     @Override
     public List<ContractAppendix> findByContractId(Long contractId) {
         return jpaRepository.findByContractId(contractId).stream().map(this::toDomain).toList();
+    }
+
+    @Override
+    public Page<ContractAppendix> findByContractId(Long contractId, Pageable pageable) {
+        return jpaRepository.findByContractId(contractId, pageable).map(this::toDomain);
+    }
+
+    @Override
+    public long countByContractId(Long contractId) {
+        return jpaRepository.countByContractId(contractId);
+    }
+
+    @Override
+    public Optional<ContractAppendix> findById(Long id) {
+        return jpaRepository.findById(id).map(this::toDomain);
     }
 
     private ContractAppendixEntity toEntity(ContractAppendix appendix) {

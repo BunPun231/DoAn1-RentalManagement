@@ -31,6 +31,8 @@ import com.roomrental.modules.service.domain.model.ChargeType;
 import com.roomrental.modules.service.domain.model.RentalService;
 import com.roomrental.modules.service.domain.repository.RentalServiceRepository;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,8 +41,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 
 /**
  * Application Service cho Contract Management.
@@ -217,46 +217,72 @@ public class ContractService {
         return toResult(contract);
     }
 
-        @Transactional(readOnly = true)
-        public ContractDetailResult getDetail(Long id) {
-            UUID tenantId = requireTenantId();
-            Contract contract = contractRepository.findByIdAndTenantId(id, tenantId)
-                    .orElseThrow(() -> BaseException.notFound("Contract", id));
+    @Transactional(readOnly = true)
+    public ContractDetailResult getDetail(Long id) {
+        UUID tenantId = requireTenantId();
+        Contract contract = contractRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> BaseException.notFound("Contract", id));
 
-            List<String> residentIds = contractResidentRepository.findByContractId(id).stream()
-                    .map(r -> r.getResidentUserId().toString())
-                    .toList();
-            List<ContractServiceItemResult> serviceItems = contractServiceItemRepository.findByContractId(id).stream()
-                    .map(item -> new ContractServiceItemResult(item.getServiceId(), item.getQuantity()))
-                    .toList();
-            List<ContractAppendixResult> appendixes = contractAppendixRepository.findByContractId(id).stream()
-                    .map(this::toAppendixResult)
-                    .toList();
+        List<String> residentIds = contractResidentRepository.findByContractId(id).stream()
+                .map(r -> r.getResidentUserId().toString())
+                .toList();
+        List<ContractServiceItemResult> serviceItems = contractServiceItemRepository.findByContractId(id).stream()
+                .map(item -> new ContractServiceItemResult(item.getServiceId(), item.getQuantity()))
+                .toList();
+        long appendicesCount = contractAppendixRepository.countByContractId(id);
 
-            return new ContractDetailResult(
-                    contract.getId(),
-                    contract.getTenantId().toString(),
-                    contract.getRoomId(),
-                    contract.getPrimaryResidentUserId().toString(),
-                    contract.getRentPrice(),
-                    contract.getStartDate(),
-                    contract.getEndDate(),
-                    contract.getDepositAmount(),
-                    contract.getDepositStatus().toString(),
-                    contract.getStatus().toString(),
-                    contract.getBillingDate(),
-                    contract.getIntendedMoveOutDate(),
-                    contract.getPdfUrl(),
-                    contract.getCreatedAt(),
-                    contract.getUpdatedAt(),
-                    residentIds,
-                    serviceItems,
-                    appendixes
-            );
-        }
+        return new ContractDetailResult(
+                contract.getId(),
+                contract.getTenantId().toString(),
+                contract.getRoomId(),
+                contract.getPrimaryResidentUserId().toString(),
+                contract.getRentPrice(),
+                contract.getStartDate(),
+                contract.getEndDate(),
+                contract.getDepositAmount(),
+                contract.getDepositStatus().toString(),
+                contract.getStatus().toString(),
+                contract.getBillingDate(),
+                contract.getIntendedMoveOutDate(),
+                contract.getPdfUrl(),
+                contract.getCreatedAt(),
+                contract.getUpdatedAt(),
+                residentIds,
+                serviceItems,
+                (int) appendicesCount
+        );
+    }
 
-        @Transactional(readOnly = true)
-        public byte[] exportPdf(Long id) {
+    // ========================
+    // Appendix queries (separate endpoints)
+    // ========================
+
+    @Transactional(readOnly = true)
+    public Page<ContractAppendixResult> getAppendicesByContract(Long contractId, Pageable pageable) {
+        UUID tenantId = requireTenantId();
+        // Verify contract exists and belongs to tenant
+        contractRepository.findByIdAndTenantId(contractId, tenantId)
+                .orElseThrow(() -> BaseException.notFound("Contract", contractId));
+
+        return contractAppendixRepository.findByContractId(contractId, pageable)
+                .map(this::toAppendixResult);
+    }
+
+    @Transactional(readOnly = true)
+    public ContractAppendixResult getAppendixDetail(Long appendixId) {
+        ContractAppendix appendix = contractAppendixRepository.findById(appendixId)
+                .orElseThrow(() -> BaseException.notFound("ContractAppendix", appendixId));
+
+        // Verify the parent contract belongs to the current tenant
+        UUID tenantId = requireTenantId();
+        contractRepository.findByIdAndTenantId(appendix.getContractId(), tenantId)
+                .orElseThrow(() -> BaseException.notFound("Contract", appendix.getContractId()));
+
+        return toAppendixResult(appendix);
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] exportPdf(Long id) {
         UUID tenantId = requireTenantId();
         Contract contract = contractRepository.findByIdAndTenantId(id, tenantId)
             .orElseThrow(() -> BaseException.notFound("Contract", id));
@@ -264,7 +290,7 @@ public class ContractService {
         String text = "Contract " + contract.getId() + " | Room " + contract.getRoomId() +
             " | Start " + contract.getStartDate() + " | End " + contract.getEndDate();
         return buildSimplePdf(text);
-        }
+    }
 
     @Transactional(readOnly = true)
     public List<ContractResult> listByTenant() {
