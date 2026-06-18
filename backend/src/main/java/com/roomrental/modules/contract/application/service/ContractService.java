@@ -2,8 +2,13 @@ package com.roomrental.modules.contract.application.service;
 
 import com.roomrental.common.exception.BaseException;
 import com.roomrental.common.util.SecurityUtils;
-import com.roomrental.modules.activity.application.dto.ActivityLogCreateCommand;
-import com.roomrental.modules.activity.application.service.ActivityLogService;
+import com.roomrental.modules.contract.application.event.ContractActivatedEvent;
+import com.roomrental.modules.contract.application.event.ContractAdjustedEvent;
+import com.roomrental.modules.contract.application.event.ContractCancelledEvent;
+import com.roomrental.modules.contract.application.event.ContractCreatedEvent;
+import com.roomrental.modules.contract.application.event.DepositCollectedEvent;
+import com.roomrental.modules.contract.application.event.DepositDeductedEvent;
+import com.roomrental.modules.contract.application.event.DepositRefundedEvent;
 import com.roomrental.modules.contract.application.adjustment.ContractAdjustmentStrategy;
 import com.roomrental.modules.contract.application.adjustment.ContractAdjustmentStrategyFactory;
 import com.roomrental.modules.contract.application.dto.ContractAdjustmentRequest;
@@ -60,7 +65,6 @@ public class ContractService {
     private final RentalServiceRepository rentalServiceRepository;
     private final ContractAdjustmentStrategyFactory strategyFactory;
     private final ApplicationEventPublisher eventPublisher;
-    private final ActivityLogService activityLogService;
 
     public ContractService(
             ContractRepository contractRepository,
@@ -72,8 +76,7 @@ public class ContractService {
             ResidentService residentService,
             RentalServiceRepository rentalServiceRepository,
             ContractAdjustmentStrategyFactory strategyFactory,
-            ApplicationEventPublisher eventPublisher,
-            ActivityLogService activityLogService
+            ApplicationEventPublisher eventPublisher
     ) {
         this.contractRepository = contractRepository;
         this.contractResidentRepository = contractResidentRepository;
@@ -85,7 +88,7 @@ public class ContractService {
         this.rentalServiceRepository = rentalServiceRepository;
         this.strategyFactory = strategyFactory;
         this.eventPublisher = eventPublisher;
-        this.activityLogService = activityLogService;
+
     }
 
     @Transactional
@@ -163,17 +166,9 @@ public class ContractService {
         roomRepository.save(room);
 
         ContractResult result = toResult(saved);
-        activityLogService.log(new ActivityLogCreateCommand(
-                tenantId,
-                currentUserId,
-                SecurityUtils.getCurrentRole(),
-                "CREATE_CONTRACT",
-                "Contract",
-                result.id().toString(),
-                null,
-                result.status(),
-                null
-        ));
+        eventPublisher.publishEvent(new ContractCreatedEvent(
+                tenantId, currentUserId, SecurityUtils.getCurrentRole(),
+                result.id(), result.status()));
         return result;
     }
 
@@ -202,17 +197,9 @@ public class ContractService {
         roomRepository.save(room);
 
         ContractResult result = toResult(saved);
-        activityLogService.log(new ActivityLogCreateCommand(
-                tenantId,
-                SecurityUtils.getCurrentUserId(),
-                SecurityUtils.getCurrentRole(),
-                "ACTIVATE_CONTRACT",
-                "Contract",
-                result.id().toString(),
-                "DRAFT",
-                result.status(),
-                null
-        ));
+        eventPublisher.publishEvent(new ContractActivatedEvent(
+                tenantId, SecurityUtils.getCurrentUserId(), SecurityUtils.getCurrentRole(),
+                result.id()));
         return result;
     }
 
@@ -376,17 +363,9 @@ public class ContractService {
                 LocalDateTime.now()
         ));
 
-        activityLogService.log(new ActivityLogCreateCommand(
-                tenantId,
-                actorId,
-                SecurityUtils.getCurrentRole(),
-                "ADJUST_CONTRACT",
-                "Contract",
-                contractId.toString(),
-                null,
-                type.name(),
-                null
-        ));
+        eventPublisher.publishEvent(new ContractAdjustedEvent(
+                tenantId, actorId, SecurityUtils.getCurrentRole(),
+                contractId, type.name()));
 
         // Build result from the created appendix, or return minimal result
         if (appendixId != null) {
@@ -437,17 +416,9 @@ public class ContractService {
         roomRepository.save(room);
 
         ContractResult result = toResult(saved);
-        activityLogService.log(new ActivityLogCreateCommand(
-                tenantId,
-                SecurityUtils.getCurrentUserId(),
-                SecurityUtils.getCurrentRole(),
-                "CANCEL_CONTRACT",
-                "Contract",
-                result.id().toString(),
-                oldStatus,
-                "CANCELED",
-                reason
-        ));
+        eventPublisher.publishEvent(new ContractCancelledEvent(
+                tenantId, SecurityUtils.getCurrentUserId(), SecurityUtils.getCurrentRole(),
+                result.id(), oldStatus, reason));
         return result;
     }
 
@@ -487,17 +458,9 @@ public class ContractService {
         }
 
         ContractResult result = toResult(saved);
-        activityLogService.log(new ActivityLogCreateCommand(
-                tenantId,
-                SecurityUtils.getCurrentUserId(),
-                SecurityUtils.getCurrentRole(),
-                "COLLECT_DEPOSIT",
-                "Contract",
-                result.id().toString(),
-                oldDepositStatus,
-                "PAID",
-                null
-        ));
+        eventPublisher.publishEvent(new DepositCollectedEvent(
+                tenantId, SecurityUtils.getCurrentUserId(), SecurityUtils.getCurrentRole(),
+                result.id(), oldDepositStatus));
         return result;
     }
 
@@ -517,17 +480,9 @@ public class ContractService {
         Contract saved = contractRepository.save(contract);
 
         ContractResult result = toResult(saved);
-        activityLogService.log(new ActivityLogCreateCommand(
-                tenantId,
-                SecurityUtils.getCurrentUserId(),
-                SecurityUtils.getCurrentRole(),
-                "REFUND_DEPOSIT",
-                "Contract",
-                result.id().toString(),
-                oldDepositStatus,
-                "REFUNDED",
-                null
-        ));
+        eventPublisher.publishEvent(new DepositRefundedEvent(
+                tenantId, SecurityUtils.getCurrentUserId(), SecurityUtils.getCurrentRole(),
+                result.id(), oldDepositStatus));
         return result;
     }
 
@@ -547,17 +502,9 @@ public class ContractService {
         Contract saved = contractRepository.save(contract);
 
         ContractResult result = toResult(saved);
-        activityLogService.log(new ActivityLogCreateCommand(
-                tenantId,
-                SecurityUtils.getCurrentUserId(),
-                SecurityUtils.getCurrentRole(),
-                "DEDUCT_DEPOSIT",
-                "Contract",
-                result.id().toString(),
-                oldDepositStatus,
-                "DEDUCTED",
-                null
-        ));
+        eventPublisher.publishEvent(new DepositDeductedEvent(
+                tenantId, SecurityUtils.getCurrentUserId(), SecurityUtils.getCurrentRole(),
+                result.id(), oldDepositStatus));
         return result;
     }
 

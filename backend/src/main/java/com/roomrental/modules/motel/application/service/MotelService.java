@@ -3,12 +3,14 @@ package com.roomrental.modules.motel.application.service;
 import com.roomrental.common.dto.PageResponse;
 import com.roomrental.common.exception.BaseException;
 import com.roomrental.common.util.SecurityUtils;
-import com.roomrental.modules.activity.application.dto.ActivityLogCreateCommand;
-import com.roomrental.modules.activity.application.service.ActivityLogService;
 import com.roomrental.modules.motel.application.dto.MotelResult;
 import com.roomrental.modules.motel.application.dto.MotelUpsertCommand;
+import com.roomrental.modules.motel.application.event.MotelCreatedEvent;
+import com.roomrental.modules.motel.application.event.MotelDeletedEvent;
+import com.roomrental.modules.motel.application.event.MotelUpdatedEvent;
 import com.roomrental.modules.motel.domain.model.Motel;
 import com.roomrental.modules.motel.domain.repository.MotelRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -24,11 +26,11 @@ import java.util.UUID;
 public class MotelService {
 
     private final MotelRepository motelRepository;
-    private final ActivityLogService activityLogService;
+    private final ApplicationEventPublisher eventPublisher;
 
-    public MotelService(MotelRepository motelRepository, ActivityLogService activityLogService) {
+    public MotelService(MotelRepository motelRepository, ApplicationEventPublisher eventPublisher) {
         this.motelRepository = motelRepository;
-        this.activityLogService = activityLogService;
+        this.eventPublisher = eventPublisher;
     }
 
     /**
@@ -46,17 +48,9 @@ public class MotelService {
         motel.setDescription(command.description());
 
         MotelResult result = toResult(motelRepository.save(motel));
-        activityLogService.log(new ActivityLogCreateCommand(
-                tenantId,
-                SecurityUtils.getCurrentUserId(),
-                SecurityUtils.getCurrentRole(),
-                "CREATE_MOTEL",
-                "Motel",
-                result.id().toString(),
-                null,
-                result.name(),
-                null
-        ));
+        eventPublisher.publishEvent(new MotelCreatedEvent(
+                tenantId, SecurityUtils.getCurrentUserId(), SecurityUtils.getCurrentRole(),
+                result.id(), result.name()));
         return result;
     }
 
@@ -104,17 +98,9 @@ public class MotelService {
 
         MotelResult result = toResult(motelRepository.save(motel));
         UUID tenantId = SecurityUtils.requireTenantId();
-        activityLogService.log(new ActivityLogCreateCommand(
-                tenantId,
-                SecurityUtils.getCurrentUserId(),
-                SecurityUtils.getCurrentRole(),
-                "UPDATE_MOTEL",
-                "Motel",
-                result.id().toString(),
-                oldName,
-                result.name(),
-                null
-        ));
+        eventPublisher.publishEvent(new MotelUpdatedEvent(
+                tenantId, SecurityUtils.getCurrentUserId(), SecurityUtils.getCurrentRole(),
+                result.id(), oldName, result.name()));
         return result;
     }
 
@@ -128,17 +114,9 @@ public class MotelService {
         motelRepository.save(motel);
 
         UUID tenantId = SecurityUtils.requireTenantId();
-        activityLogService.log(new ActivityLogCreateCommand(
-                tenantId,
-                SecurityUtils.getCurrentUserId(),
-                SecurityUtils.getCurrentRole(),
-                "DELETE_MOTEL",
-                "Motel",
-                id.toString(),
-                motel.getName(),
-                "DELETED",
-                null
-        ));
+        eventPublisher.publishEvent(new MotelDeletedEvent(
+                tenantId, SecurityUtils.getCurrentUserId(), SecurityUtils.getCurrentRole(),
+                id, motel.getName()));
     }
 
     private Motel findMotel(Long id) {

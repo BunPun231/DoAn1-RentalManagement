@@ -2,13 +2,13 @@ package com.roomrental.modules.auth.application.service;
 
 import com.roomrental.common.exception.BaseException;
 import com.roomrental.common.security.JwtTokenService;
-import com.roomrental.modules.activity.application.dto.ActivityLogCreateCommand;
-import com.roomrental.modules.activity.application.service.ActivityLogService;
-import com.roomrental.modules.audit.application.dto.AuditLogCreateCommand;
-import com.roomrental.modules.audit.application.service.AuditLogService;
 import com.roomrental.modules.auth.application.dto.AuthResult;
 import com.roomrental.modules.auth.application.dto.LoginCommand;
 import com.roomrental.modules.auth.application.dto.RegisterCommand;
+import com.roomrental.modules.auth.application.event.ManagerRegisteredEvent;
+import com.roomrental.modules.auth.application.event.PasswordChangedEvent;
+import com.roomrental.modules.auth.application.event.PasswordResetEvent;
+import com.roomrental.modules.auth.application.event.UserLoggedInEvent;
 import com.roomrental.modules.auth.domain.model.Tenant;
 import com.roomrental.modules.auth.domain.model.TenantStatus;
 import com.roomrental.modules.auth.domain.model.User;
@@ -16,6 +16,7 @@ import com.roomrental.modules.auth.domain.model.UserRole;
 import com.roomrental.modules.auth.domain.model.UserStatus;
 import com.roomrental.modules.auth.domain.repository.TenantRepository;
 import com.roomrental.modules.auth.domain.repository.UserRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -38,8 +39,7 @@ public class AuthService {
     private final JwtTokenService jwtTokenService;
     private final PasswordHistoryService passwordHistoryService;
     private final org.springframework.data.redis.core.StringRedisTemplate redisTemplate;
-    private final ActivityLogService activityLogService;
-    private final AuditLogService auditLogService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public AuthService(
             TenantRepository tenantRepository,
@@ -48,8 +48,7 @@ public class AuthService {
             JwtTokenService jwtTokenService,
             PasswordHistoryService passwordHistoryService,
             org.springframework.data.redis.core.StringRedisTemplate redisTemplate,
-            ActivityLogService activityLogService,
-            AuditLogService auditLogService
+            ApplicationEventPublisher eventPublisher
     ) {
         this.tenantRepository = tenantRepository;
         this.userRepository = userRepository;
@@ -57,8 +56,7 @@ public class AuthService {
         this.jwtTokenService = jwtTokenService;
         this.passwordHistoryService = passwordHistoryService;
         this.redisTemplate = redisTemplate;
-        this.activityLogService = activityLogService;
-        this.auditLogService = auditLogService;
+        this.eventPublisher = eventPublisher;
     }
 
     /**
@@ -104,17 +102,8 @@ public class AuthService {
         user.setTenantId(tenant.getId());
         user = userRepository.save(user);
 
-        activityLogService.log(new ActivityLogCreateCommand(
-                tenant.getId(),
-                user.getId(),
-                "MANAGER",
-                "REGISTER_MANAGER",
-                "User",
-                user.getId().toString(),
-                null,
-                user.getFullName(),
-                null
-        ));
+        eventPublisher.publishEvent(new ManagerRegisteredEvent(
+                tenant.getId(), user.getId(), "MANAGER", user.getFullName()));
 
         return buildAuthResult(user, tenant);
     }
@@ -157,30 +146,8 @@ public class AuthService {
             tenant = tenantRepository.findById(user.getTenantId()).orElse(null);
         }
 
-        if (user.getRole() == UserRole.ADMIN) {
-            auditLogService.log(new AuditLogCreateCommand(
-                    user.getId(),
-                    user.getRole().name(),
-                    "ADMIN_LOGIN",
-                    "User",
-                    user.getId().toString(),
-                    null,
-                    "SUCCESS",
-                    null, null, null
-            ));
-        } else {
-            activityLogService.log(new ActivityLogCreateCommand(
-                    user.getTenantId(),
-                    user.getId(),
-                    user.getRole().name(),
-                    "USER_LOGIN",
-                    "User",
-                    user.getId().toString(),
-                    null,
-                    "SUCCESS",
-                    null
-            ));
-        }
+        eventPublisher.publishEvent(new UserLoggedInEvent(
+                user.getTenantId(), user.getId(), user.getRole().name()));
 
         return buildAuthResult(user, tenant);
     }
@@ -210,30 +177,8 @@ public class AuthService {
 
         passwordHistoryService.save(user.getId(), encodedPassword);
 
-        if (user.getRole() == UserRole.ADMIN) {
-            auditLogService.log(new AuditLogCreateCommand(
-                    user.getId(),
-                    user.getRole().name(),
-                    "CHANGE_PASSWORD",
-                    "User",
-                    user.getId().toString(),
-                    null,
-                    "CHANGED",
-                    null, null, null
-            ));
-        } else {
-            activityLogService.log(new ActivityLogCreateCommand(
-                    user.getTenantId(),
-                    user.getId(),
-                    user.getRole().name(),
-                    "CHANGE_PASSWORD",
-                    "User",
-                    user.getId().toString(),
-                    null,
-                    "CHANGED",
-                    null
-            ));
-        }
+        eventPublisher.publishEvent(new PasswordChangedEvent(
+                user.getTenantId(), user.getId(), user.getRole().name()));
     }
 
     @Transactional
@@ -283,30 +228,8 @@ public class AuthService {
         passwordHistoryService.save(user.getId(), encodedPassword);
         redisTemplate.delete(redisKey);
 
-        if (user.getRole() == UserRole.ADMIN) {
-            auditLogService.log(new AuditLogCreateCommand(
-                    user.getId(),
-                    user.getRole().name(),
-                    "RESET_PASSWORD",
-                    "User",
-                    user.getId().toString(),
-                    null,
-                    "RESET",
-                    null, null, null
-            ));
-        } else {
-            activityLogService.log(new ActivityLogCreateCommand(
-                    user.getTenantId(),
-                    user.getId(),
-                    user.getRole().name(),
-                    "RESET_PASSWORD",
-                    "User",
-                    user.getId().toString(),
-                    null,
-                    "RESET",
-                    null
-            ));
-        }
+        eventPublisher.publishEvent(new PasswordResetEvent(
+                user.getTenantId(), user.getId(), user.getRole().name()));
     }
 
     private AuthResult buildAuthResult(User user, Tenant tenant) {

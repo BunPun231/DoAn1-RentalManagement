@@ -3,16 +3,19 @@ package com.roomrental.modules.room.application.service;
 import com.roomrental.common.dto.PageResponse;
 import com.roomrental.common.exception.BaseException;
 import com.roomrental.common.util.SecurityUtils;
-import com.roomrental.modules.activity.application.dto.ActivityLogCreateCommand;
-import com.roomrental.modules.activity.application.service.ActivityLogService;
 import com.roomrental.modules.motel.domain.model.Motel;
 import com.roomrental.modules.motel.domain.repository.MotelRepository;
 import com.roomrental.modules.room.application.dto.RoomCreateCommand;
 import com.roomrental.modules.room.application.dto.RoomResult;
 import com.roomrental.modules.room.application.dto.RoomUpdateCommand;
+import com.roomrental.modules.room.application.event.RoomCreatedEvent;
+import com.roomrental.modules.room.application.event.RoomDeletedEvent;
+import com.roomrental.modules.room.application.event.RoomStatusUpdatedEvent;
+import com.roomrental.modules.room.application.event.RoomUpdatedEvent;
 import com.roomrental.modules.room.domain.model.Room;
 import com.roomrental.modules.room.domain.model.RoomStatus;
 import com.roomrental.modules.room.domain.repository.RoomRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -28,12 +31,12 @@ public class RoomService {
 
     private final RoomRepository roomRepository;
     private final MotelRepository motelRepository;
-    private final ActivityLogService activityLogService;
+    private final ApplicationEventPublisher eventPublisher;
 
-    public RoomService(RoomRepository roomRepository, MotelRepository motelRepository, ActivityLogService activityLogService) {
+    public RoomService(RoomRepository roomRepository, MotelRepository motelRepository, ApplicationEventPublisher eventPublisher) {
         this.roomRepository = roomRepository;
         this.motelRepository = motelRepository;
-        this.activityLogService = activityLogService;
+        this.eventPublisher = eventPublisher;
     }
 
     /**
@@ -62,17 +65,9 @@ public class RoomService {
 
         RoomResult result = toResult(roomRepository.save(room));
         UUID tenantId = SecurityUtils.requireTenantId();
-        activityLogService.log(new ActivityLogCreateCommand(
-                tenantId,
-                SecurityUtils.getCurrentUserId(),
-                SecurityUtils.getCurrentRole(),
-                "CREATE_ROOM",
-                "Room",
-                result.id().toString(),
-                null,
-                result.roomNumber(),
-                null
-        ));
+        eventPublisher.publishEvent(new RoomCreatedEvent(
+                tenantId, SecurityUtils.getCurrentUserId(), SecurityUtils.getCurrentRole(),
+                result.id(), result.roomNumber()));
         return result;
     }
 
@@ -123,17 +118,9 @@ public class RoomService {
 
         RoomResult result = toResult(roomRepository.save(room));
         UUID tenantId = SecurityUtils.requireTenantId();
-        activityLogService.log(new ActivityLogCreateCommand(
-                tenantId,
-                SecurityUtils.getCurrentUserId(),
-                SecurityUtils.getCurrentRole(),
-                "UPDATE_ROOM",
-                "Room",
-                result.id().toString(),
-                oldNumber,
-                result.roomNumber(),
-                null
-        ));
+        eventPublisher.publishEvent(new RoomUpdatedEvent(
+                tenantId, SecurityUtils.getCurrentUserId(), SecurityUtils.getCurrentRole(),
+                result.id(), oldNumber, result.roomNumber()));
         return result;
     }
 
@@ -149,17 +136,9 @@ public class RoomService {
 
         RoomResult result = toResult(roomRepository.save(room));
         UUID tenantId = SecurityUtils.requireTenantId();
-        activityLogService.log(new ActivityLogCreateCommand(
-                tenantId,
-                SecurityUtils.getCurrentUserId(),
-                SecurityUtils.getCurrentRole(),
-                "UPDATE_ROOM_STATUS",
-                "Room",
-                result.id().toString(),
-                oldStatus,
-                result.status(),
-                null
-        ));
+        eventPublisher.publishEvent(new RoomStatusUpdatedEvent(
+                tenantId, SecurityUtils.getCurrentUserId(), SecurityUtils.getCurrentRole(),
+                result.id(), oldStatus, result.status()));
         return result;
     }
 
@@ -178,17 +157,9 @@ public class RoomService {
         roomRepository.save(room);
 
         UUID tenantId = SecurityUtils.requireTenantId();
-        activityLogService.log(new ActivityLogCreateCommand(
-                tenantId,
-                SecurityUtils.getCurrentUserId(),
-                SecurityUtils.getCurrentRole(),
-                "DELETE_ROOM",
-                "Room",
-                roomId.toString(),
-                room.getRoomNumber(),
-                "DELETED",
-                null
-        ));
+        eventPublisher.publishEvent(new RoomDeletedEvent(
+                tenantId, SecurityUtils.getCurrentUserId(), SecurityUtils.getCurrentRole(),
+                roomId, room.getRoomNumber()));
     }
 
     // ── Private helpers ──────────────────────────────────────────────

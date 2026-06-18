@@ -3,14 +3,16 @@ package com.roomrental.modules.resident.application.service;
 import com.roomrental.common.dto.PageResponse;
 import com.roomrental.common.exception.BaseException;
 import com.roomrental.common.util.SecurityUtils;
-import com.roomrental.modules.activity.application.dto.ActivityLogCreateCommand;
-import com.roomrental.modules.activity.application.service.ActivityLogService;
 import com.roomrental.modules.auth.infrastructure.entity.UserEntity;
 import com.roomrental.modules.auth.infrastructure.repository.UserJpaRepository;
 import com.roomrental.modules.resident.application.dto.ResidentCreateCommand;
 import com.roomrental.modules.resident.application.dto.ResidentResult;
+import com.roomrental.modules.resident.application.event.ResidentCreatedEvent;
+import com.roomrental.modules.resident.application.event.ResidentDeactivatedEvent;
+import com.roomrental.modules.resident.application.event.ResidentReactivatedEvent;
 import com.roomrental.modules.resident.infrastructure.entity.ResidentProfileEntity;
 import com.roomrental.modules.resident.infrastructure.repository.ResidentProfileJpaRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -30,18 +32,18 @@ public class ResidentService {
     private final UserJpaRepository userJpaRepository;
     private final ResidentProfileJpaRepository profileRepository;
     private final PasswordEncoder passwordEncoder;
-    private final ActivityLogService activityLogService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public ResidentService(
             UserJpaRepository userJpaRepository,
             ResidentProfileJpaRepository profileRepository,
             PasswordEncoder passwordEncoder,
-            ActivityLogService activityLogService
+            ApplicationEventPublisher eventPublisher
     ) {
         this.userJpaRepository = userJpaRepository;
         this.profileRepository = profileRepository;
         this.passwordEncoder = passwordEncoder;
-        this.activityLogService = activityLogService;
+        this.eventPublisher = eventPublisher;
     }
 
     /**
@@ -74,17 +76,9 @@ public class ResidentService {
                 profileRepository.save(profile);
 
                 ResidentResult result = toResult(user, profile);
-                activityLogService.log(new ActivityLogCreateCommand(
-                        tenantId,
-                        SecurityUtils.getCurrentUserId(),
-                        SecurityUtils.getCurrentRole(),
-                        "REACTIVATE_RESIDENT",
-                        "Resident",
-                        result.userId().toString(),
-                        "INACTIVE",
-                        "ACTIVE",
-                        null
-                ));
+                eventPublisher.publishEvent(new ResidentReactivatedEvent(
+                        tenantId, SecurityUtils.getCurrentUserId(), SecurityUtils.getCurrentRole(),
+                        result.userId()));
                 return result;
             }
             // If ACTIVE, throw conflict
@@ -115,17 +109,9 @@ public class ResidentService {
         profileRepository.save(profile);
 
         ResidentResult result = toResult(user, profile);
-        activityLogService.log(new ActivityLogCreateCommand(
-                tenantId,
-                SecurityUtils.getCurrentUserId(),
-                SecurityUtils.getCurrentRole(),
-                "CREATE_RESIDENT",
-                "Resident",
-                result.userId().toString(),
-                null,
-                result.fullName(),
-                null
-        ));
+        eventPublisher.publishEvent(new ResidentCreatedEvent(
+                tenantId, SecurityUtils.getCurrentUserId(), SecurityUtils.getCurrentRole(),
+                result.userId(), result.fullName()));
         return result;
     }
 
@@ -168,17 +154,9 @@ public class ResidentService {
         user.setStatus("INACTIVE");
         userJpaRepository.save(user);
 
-        activityLogService.log(new ActivityLogCreateCommand(
-                tenantId,
-                SecurityUtils.getCurrentUserId(),
-                SecurityUtils.getCurrentRole(),
-                "DEACTIVATE_RESIDENT",
-                "Resident",
-                residentId.toString(),
-                oldStatus,
-                "INACTIVE",
-                null
-        ));
+        eventPublisher.publishEvent(new ResidentDeactivatedEvent(
+                tenantId, SecurityUtils.getCurrentUserId(), SecurityUtils.getCurrentRole(),
+                residentId, oldStatus));
     }
 
     private ResidentResult toResult(UserEntity user, ResidentProfileEntity profile) {

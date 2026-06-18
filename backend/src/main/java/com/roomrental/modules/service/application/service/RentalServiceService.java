@@ -3,16 +3,18 @@ package com.roomrental.modules.service.application.service;
 import com.roomrental.common.dto.PageResponse;
 import com.roomrental.common.exception.BaseException;
 import com.roomrental.common.util.SecurityUtils;
-import com.roomrental.modules.activity.application.dto.ActivityLogCreateCommand;
-import com.roomrental.modules.activity.application.service.ActivityLogService;
 import com.roomrental.modules.motel.domain.model.Motel;
 import com.roomrental.modules.motel.domain.repository.MotelRepository;
 import com.roomrental.modules.service.application.dto.ServiceCreateCommand;
 import com.roomrental.modules.service.application.dto.ServiceResult;
 import com.roomrental.modules.service.application.dto.ServiceUpdateCommand;
+import com.roomrental.modules.service.application.event.ServiceCreatedEvent;
+import com.roomrental.modules.service.application.event.ServiceDeletedEvent;
+import com.roomrental.modules.service.application.event.ServiceUpdatedEvent;
 import com.roomrental.modules.service.domain.model.ChargeType;
 import com.roomrental.modules.service.domain.model.RentalService;
 import com.roomrental.modules.service.domain.repository.RentalServiceRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,12 +29,12 @@ public class RentalServiceService {
 
     private final RentalServiceRepository serviceRepository;
     private final MotelRepository motelRepository;
-    private final ActivityLogService activityLogService;
+    private final ApplicationEventPublisher eventPublisher;
 
-    public RentalServiceService(RentalServiceRepository serviceRepository, MotelRepository motelRepository, ActivityLogService activityLogService) {
+    public RentalServiceService(RentalServiceRepository serviceRepository, MotelRepository motelRepository, ApplicationEventPublisher eventPublisher) {
         this.serviceRepository = serviceRepository;
         this.motelRepository = motelRepository;
-        this.activityLogService = activityLogService;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -52,17 +54,9 @@ public class RentalServiceService {
 
         ServiceResult result = toResult(serviceRepository.save(svc));
         UUID tenantId = SecurityUtils.requireTenantId();
-        activityLogService.log(new ActivityLogCreateCommand(
-                tenantId,
-                SecurityUtils.getCurrentUserId(),
-                SecurityUtils.getCurrentRole(),
-                "CREATE_SERVICE",
-                "RentalService",
-                result.id().toString(),
-                null,
-                result.name(),
-                null
-        ));
+        eventPublisher.publishEvent(new ServiceCreatedEvent(
+                tenantId, SecurityUtils.getCurrentUserId(), SecurityUtils.getCurrentRole(),
+                result.id(), result.name()));
         return result;
     }
 
@@ -100,17 +94,9 @@ public class RentalServiceService {
 
         ServiceResult result = toResult(serviceRepository.save(svc));
         UUID tenantId = SecurityUtils.requireTenantId();
-        activityLogService.log(new ActivityLogCreateCommand(
-                tenantId,
-                SecurityUtils.getCurrentUserId(),
-                SecurityUtils.getCurrentRole(),
-                "UPDATE_SERVICE",
-                "RentalService",
-                result.id().toString(),
-                oldName,
-                result.name(),
-                null
-        ));
+        eventPublisher.publishEvent(new ServiceUpdatedEvent(
+                tenantId, SecurityUtils.getCurrentUserId(), SecurityUtils.getCurrentRole(),
+                result.id(), oldName, result.name()));
         return result;
     }
 
@@ -121,17 +107,9 @@ public class RentalServiceService {
         serviceRepository.save(svc);
 
         UUID tenantId = SecurityUtils.requireTenantId();
-        activityLogService.log(new ActivityLogCreateCommand(
-                tenantId,
-                SecurityUtils.getCurrentUserId(),
-                SecurityUtils.getCurrentRole(),
-                "DELETE_SERVICE",
-                "RentalService",
-                serviceId.toString(),
-                svc.getName(),
-                "DELETED",
-                null
-        ));
+        eventPublisher.publishEvent(new ServiceDeletedEvent(
+                tenantId, SecurityUtils.getCurrentUserId(), SecurityUtils.getCurrentRole(),
+                serviceId, svc.getName()));
     }
 
     private Motel requireMotel(Long motelId) {

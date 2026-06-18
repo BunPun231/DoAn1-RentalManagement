@@ -3,14 +3,16 @@ package com.roomrental.modules.technician.application.service;
 import com.roomrental.common.dto.PageResponse;
 import com.roomrental.common.exception.BaseException;
 import com.roomrental.common.util.SecurityUtils;
-import com.roomrental.modules.activity.application.dto.ActivityLogCreateCommand;
-import com.roomrental.modules.activity.application.service.ActivityLogService;
 import com.roomrental.modules.auth.infrastructure.entity.UserEntity;
 import com.roomrental.modules.auth.infrastructure.repository.UserJpaRepository;
 import com.roomrental.modules.technician.application.dto.TechnicianCreateCommand;
 import com.roomrental.modules.technician.application.dto.TechnicianResult;
+import com.roomrental.modules.technician.application.event.TechnicianCreatedEvent;
+import com.roomrental.modules.technician.application.event.TechnicianLockedEvent;
+import com.roomrental.modules.technician.application.event.TechnicianPasswordResetEvent;
 import com.roomrental.modules.technician.infrastructure.entity.TechnicianProfileEntity;
 import com.roomrental.modules.technician.infrastructure.repository.TechnicianProfileJpaRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -30,18 +32,18 @@ public class TechnicianService {
     private final UserJpaRepository userJpaRepository;
     private final TechnicianProfileJpaRepository profileRepository;
     private final PasswordEncoder passwordEncoder;
-    private final ActivityLogService activityLogService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public TechnicianService(
             UserJpaRepository userJpaRepository,
             TechnicianProfileJpaRepository profileRepository,
             PasswordEncoder passwordEncoder,
-            ActivityLogService activityLogService
+            ApplicationEventPublisher eventPublisher
     ) {
         this.userJpaRepository = userJpaRepository;
         this.profileRepository = profileRepository;
         this.passwordEncoder = passwordEncoder;
-        this.activityLogService = activityLogService;
+        this.eventPublisher = eventPublisher;
     }
 
     /**
@@ -75,17 +77,9 @@ public class TechnicianService {
         profileRepository.save(profile);
 
         TechnicianResult result = toResult(user, profile);
-        activityLogService.log(new ActivityLogCreateCommand(
-                tenantId,
-                SecurityUtils.getCurrentUserId(),
-                SecurityUtils.getCurrentRole(),
-                "CREATE_TECHNICIAN",
-                "Technician",
-                result.userId().toString(),
-                null,
-                result.fullName(),
-                null
-        ));
+        eventPublisher.publishEvent(new TechnicianCreatedEvent(
+                tenantId, SecurityUtils.getCurrentUserId(), SecurityUtils.getCurrentRole(),
+                result.userId(), result.fullName()));
         return result;
     }
 
@@ -125,17 +119,9 @@ public class TechnicianService {
         user.setLockReason(reason);
         userJpaRepository.save(user);
 
-        activityLogService.log(new ActivityLogCreateCommand(
-                tenantId,
-                SecurityUtils.getCurrentUserId(),
-                SecurityUtils.getCurrentRole(),
-                "LOCK_TECHNICIAN",
-                "Technician",
-                techId.toString(),
-                oldStatus,
-                "LOCKED",
-                reason
-        ));
+        eventPublisher.publishEvent(new TechnicianLockedEvent(
+                tenantId, SecurityUtils.getCurrentUserId(), SecurityUtils.getCurrentRole(),
+                techId, oldStatus, reason));
     }
 
     /**
@@ -151,17 +137,9 @@ public class TechnicianService {
         user.setMustChangePassword(true);
         userJpaRepository.save(user);
 
-        activityLogService.log(new ActivityLogCreateCommand(
-                tenantId,
-                SecurityUtils.getCurrentUserId(),
-                SecurityUtils.getCurrentRole(),
-                "RESET_TECHNICIAN_PASSWORD",
-                "Technician",
-                techId.toString(),
-                null,
-                "PASSWORD_RESET",
-                null
-        ));
+        eventPublisher.publishEvent(new TechnicianPasswordResetEvent(
+                tenantId, SecurityUtils.getCurrentUserId(), SecurityUtils.getCurrentRole(),
+                techId));
     }
 
     private TechnicianResult toResult(UserEntity user, TechnicianProfileEntity p) {

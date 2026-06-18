@@ -3,16 +3,18 @@ package com.roomrental.modules.device.application.service;
 import com.roomrental.common.dto.PageResponse;
 import com.roomrental.common.exception.BaseException;
 import com.roomrental.common.util.SecurityUtils;
-import com.roomrental.modules.activity.application.dto.ActivityLogCreateCommand;
-import com.roomrental.modules.activity.application.service.ActivityLogService;
 import com.roomrental.modules.device.application.dto.DeviceCreateCommand;
 import com.roomrental.modules.device.application.dto.DeviceResult;
 import com.roomrental.modules.device.application.dto.DeviceUpdateCommand;
+import com.roomrental.modules.device.application.event.DeviceCreatedEvent;
+import com.roomrental.modules.device.application.event.DeviceDeletedEvent;
+import com.roomrental.modules.device.application.event.DeviceUpdatedEvent;
 import com.roomrental.modules.device.domain.model.Device;
 import com.roomrental.modules.device.domain.model.DeviceStatus;
 import com.roomrental.modules.device.domain.repository.DeviceRepository;
 import com.roomrental.modules.motel.domain.model.Motel;
 import com.roomrental.modules.motel.domain.repository.MotelRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,12 +29,12 @@ public class DeviceService {
 
     private final DeviceRepository deviceRepository;
     private final MotelRepository motelRepository;
-    private final ActivityLogService activityLogService;
+    private final ApplicationEventPublisher eventPublisher;
 
-    public DeviceService(DeviceRepository deviceRepository, MotelRepository motelRepository, ActivityLogService activityLogService) {
+    public DeviceService(DeviceRepository deviceRepository, MotelRepository motelRepository, ApplicationEventPublisher eventPublisher) {
         this.deviceRepository = deviceRepository;
         this.motelRepository = motelRepository;
-        this.activityLogService = activityLogService;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -49,17 +51,9 @@ public class DeviceService {
 
         DeviceResult result = toResult(deviceRepository.save(device));
         UUID tenantId = SecurityUtils.requireTenantId();
-        activityLogService.log(new ActivityLogCreateCommand(
-                tenantId,
-                SecurityUtils.getCurrentUserId(),
-                SecurityUtils.getCurrentRole(),
-                "CREATE_DEVICE",
-                "Device",
-                result.id().toString(),
-                null,
-                result.name(),
-                null
-        ));
+        eventPublisher.publishEvent(new DeviceCreatedEvent(
+                tenantId, SecurityUtils.getCurrentUserId(), SecurityUtils.getCurrentRole(),
+                result.id(), result.name()));
         return result;
     }
 
@@ -90,17 +84,9 @@ public class DeviceService {
 
         DeviceResult result = toResult(deviceRepository.save(device));
         UUID tenantId = SecurityUtils.requireTenantId();
-        activityLogService.log(new ActivityLogCreateCommand(
-                tenantId,
-                SecurityUtils.getCurrentUserId(),
-                SecurityUtils.getCurrentRole(),
-                "UPDATE_DEVICE",
-                "Device",
-                result.id().toString(),
-                oldName,
-                result.name(),
-                null
-        ));
+        eventPublisher.publishEvent(new DeviceUpdatedEvent(
+                tenantId, SecurityUtils.getCurrentUserId(), SecurityUtils.getCurrentRole(),
+                result.id(), oldName, result.name()));
         return result;
     }
 
@@ -111,17 +97,9 @@ public class DeviceService {
         deviceRepository.save(device);
 
         UUID tenantId = SecurityUtils.requireTenantId();
-        activityLogService.log(new ActivityLogCreateCommand(
-                tenantId,
-                SecurityUtils.getCurrentUserId(),
-                SecurityUtils.getCurrentRole(),
-                "DELETE_DEVICE",
-                "Device",
-                deviceId.toString(),
-                device.getName(),
-                "DELETED",
-                null
-        ));
+        eventPublisher.publishEvent(new DeviceDeletedEvent(
+                tenantId, SecurityUtils.getCurrentUserId(), SecurityUtils.getCurrentRole(),
+                deviceId, device.getName()));
     }
 
     private Motel requireMotel(Long motelId) {

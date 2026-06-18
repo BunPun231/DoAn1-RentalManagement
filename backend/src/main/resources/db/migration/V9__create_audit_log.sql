@@ -1,3 +1,5 @@
+DROP TABLE IF EXISTS audit_logs CASCADE;
+
 CREATE TABLE audit_logs (
     id BIGSERIAL PRIMARY KEY,
     actor_id UUID NOT NULL,
@@ -13,7 +15,7 @@ CREATE TABLE audit_logs (
     metadata JSONB
 );
 
-CREATE INDEX idx_audit_logs_actor_id ON audit_logs(actor_id);
-CREATE INDEX idx_audit_logs_action ON audit_logs(action);
-CREATE INDEX idx_audit_logs_timestamp ON audit_logs(timestamp DESC);
-CREATE INDEX idx_audit_logs_entity ON audit_logs(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_actor_id ON audit_logs(actor_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp ON audit_logs(timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_entity ON audit_logs(entity_type, entity_id);
