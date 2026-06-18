@@ -24,17 +24,6 @@ public class OpenApiConfig {
                         .description("""
                                 REST API for **Smart Room Rental Management** — a multi-tenant SaaS platform
                                 for boarding house owners.
-
-                                ## Authentication
-                                All secured endpoints require a **Bearer JWT** token obtained via `/api/public/auth/login`.
-
-                                ## Multi-Tenancy
-                                Tenant context is automatically resolved from the JWT `tenantId` claim.
-                                No need to pass `X-Tenant-Id` header manually.
-
-                                ## Pagination
-                                List endpoints accept `page` (0-indexed), `size`, and `sort` query parameters.
-                                Example: `?page=0&size=20&sort=createdAt,desc`
                                 """)
                         .contact(new Contact()
                                 .name("SE356 Team")

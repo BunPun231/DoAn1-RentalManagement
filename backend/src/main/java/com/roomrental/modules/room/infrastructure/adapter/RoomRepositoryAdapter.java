@@ -27,6 +27,11 @@ public class RoomRepositoryAdapter implements RoomRepository {
     }
 
     @Override
+    public Optional<Room> findById(Long id) {
+        return jpa.findById(id).map(mapper::toDomain);
+    }
+
+    @Override
     public Optional<Room> findByIdAndMotelId(Long id, Long motelId) {
         return jpa.findByIdAndMotelId(id, motelId).map(mapper::toDomain);
     }

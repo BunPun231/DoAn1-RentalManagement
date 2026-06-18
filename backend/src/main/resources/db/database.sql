@@ -276,8 +276,10 @@ CREATE TABLE device_movement_logs (
 -- ------------------------------------------------------------------
 CREATE TABLE contracts (
     id                      BIGSERIAL PRIMARY KEY,
+    tenant_id               UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
     room_id                 BIGINT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
     primary_resident_user_id UUID NOT NULL REFERENCES users(id),
+    rent_price              DECIMAL(12,2) NOT NULL,
     start_date              DATE NOT NULL,
     end_date                DATE NOT NULL,
     deposit_amount          DECIMAL(12,2) NOT NULL DEFAULT 0,
@@ -285,7 +287,10 @@ CREATE TABLE contracts (
                             CHECK (deposit_status IN ('UNPAID','PAID','REFUNDED','DEDUCTED')),
     status                  VARCHAR(20) NOT NULL DEFAULT 'DRAFT'
                             CHECK (status IN ('DRAFT','ACTIVE','LIQUIDATED','CANCELED','PENDING_LIQUIDATION')),
+    billing_cycle           VARCHAR(20) NOT NULL DEFAULT 'MONTHLY'
+                            CHECK (billing_cycle IN ('MONTHLY','QUARTERLY','YEARLY')),
     intended_move_out_date  DATE,
+    cancel_reason           TEXT,
     pdf_url                 TEXT,
     created_at              TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at              TIMESTAMP,
@@ -296,6 +301,7 @@ CREATE TABLE contracts (
 -- 19. contract_residents (thay cho contract_tenants)
 -- ------------------------------------------------------------------
 CREATE TABLE contract_residents (
+    tenant_id       UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
     contract_id     BIGINT NOT NULL REFERENCES contracts(id) ON DELETE CASCADE,
     resident_user_id UUID NOT NULL REFERENCES users(id),
     is_active       BOOLEAN NOT NULL DEFAULT TRUE,
@@ -309,14 +315,25 @@ CREATE TABLE contract_residents (
 -- ------------------------------------------------------------------
 CREATE TABLE contract_appendixes (
     id                BIGSERIAL PRIMARY KEY,
+    tenant_id          UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
     contract_id       BIGINT NOT NULL REFERENCES contracts(id) ON DELETE CASCADE,
     effective_date    DATE NOT NULL,
-    new_base_price    DECIMAL(12,2),
-    new_service_prices JSONB,
-    reason            TEXT NOT NULL,
-    pdf_url           TEXT,
+    new_rent_price    DECIMAL(12,2),
+    appendix_type     VARCHAR(30) NOT NULL,
+    metadata          JSONB,
     created_by        UUID NOT NULL REFERENCES users(id),
     created_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ------------------------------------------------------------------
+-- 20b. contract_service_items
+-- ------------------------------------------------------------------
+CREATE TABLE contract_service_items (
+    tenant_id   UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    contract_id BIGINT NOT NULL REFERENCES contracts(id) ON DELETE CASCADE,
+    service_id  BIGINT NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+    quantity    INT NOT NULL DEFAULT 1,
+    PRIMARY KEY (contract_id, service_id)
 );
 
 -- ------------------------------------------------------------------

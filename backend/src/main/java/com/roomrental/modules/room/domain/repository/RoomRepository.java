@@ -13,6 +13,8 @@ public interface RoomRepository {
 
     Room save(Room room);
 
+    Optional<Room> findById(Long id);
+
     Optional<Room> findByIdAndMotelId(Long id, Long motelId);
 
     Page<Room> findByMotelId(Long motelId, Pageable pageable);
