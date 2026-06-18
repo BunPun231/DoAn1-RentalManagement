@@ -3,6 +3,8 @@ package com.roomrental.modules.room.application.service;
 import com.roomrental.common.dto.PageResponse;
 import com.roomrental.common.exception.BaseException;
 import com.roomrental.common.util.SecurityUtils;
+import com.roomrental.modules.activity.application.dto.ActivityLogCreateCommand;
+import com.roomrental.modules.activity.application.service.ActivityLogService;
 import com.roomrental.modules.motel.domain.model.Motel;
 import com.roomrental.modules.motel.domain.repository.MotelRepository;
 import com.roomrental.modules.room.application.dto.RoomCreateCommand;
@@ -26,10 +28,12 @@ public class RoomService {
 
     private final RoomRepository roomRepository;
     private final MotelRepository motelRepository;
+    private final ActivityLogService activityLogService;
 
-    public RoomService(RoomRepository roomRepository, MotelRepository motelRepository) {
+    public RoomService(RoomRepository roomRepository, MotelRepository motelRepository, ActivityLogService activityLogService) {
         this.roomRepository = roomRepository;
         this.motelRepository = motelRepository;
+        this.activityLogService = activityLogService;
     }
 
     /**
@@ -56,7 +60,20 @@ public class RoomService {
         room.setCurrentResidentsCount(0);
         room.setDescription(command.description());
 
-        return toResult(roomRepository.save(room));
+        RoomResult result = toResult(roomRepository.save(room));
+        UUID tenantId = SecurityUtils.requireTenantId();
+        activityLogService.log(new ActivityLogCreateCommand(
+                tenantId,
+                SecurityUtils.getCurrentUserId(),
+                SecurityUtils.getCurrentRole(),
+                "CREATE_ROOM",
+                "Room",
+                result.id().toString(),
+                null,
+                result.roomNumber(),
+                null
+        ));
+        return result;
     }
 
     /**
@@ -82,6 +99,7 @@ public class RoomService {
     @Transactional
     public RoomResult update(Long motelId, Long roomId, RoomUpdateCommand command) {
         Room room = findRoom(motelId, roomId);
+        String oldNumber = room.getRoomNumber();
 
         if (command.roomNumber() != null && !command.roomNumber().isBlank()) {
             if (!command.roomNumber().equals(room.getRoomNumber())
@@ -103,7 +121,20 @@ public class RoomService {
             room.setDescription(command.description());
         }
 
-        return toResult(roomRepository.save(room));
+        RoomResult result = toResult(roomRepository.save(room));
+        UUID tenantId = SecurityUtils.requireTenantId();
+        activityLogService.log(new ActivityLogCreateCommand(
+                tenantId,
+                SecurityUtils.getCurrentUserId(),
+                SecurityUtils.getCurrentRole(),
+                "UPDATE_ROOM",
+                "Room",
+                result.id().toString(),
+                oldNumber,
+                result.roomNumber(),
+                null
+        ));
+        return result;
     }
 
     /**
@@ -112,9 +143,24 @@ public class RoomService {
     @Transactional
     public RoomResult updateStatus(Long motelId, Long roomId, String newStatus) {
         Room room = findRoom(motelId, roomId);
+        String oldStatus = room.getStatus().name();
         RoomStatus target = parseStatus(newStatus);
         room.setStatus(target);
-        return toResult(roomRepository.save(room));
+
+        RoomResult result = toResult(roomRepository.save(room));
+        UUID tenantId = SecurityUtils.requireTenantId();
+        activityLogService.log(new ActivityLogCreateCommand(
+                tenantId,
+                SecurityUtils.getCurrentUserId(),
+                SecurityUtils.getCurrentRole(),
+                "UPDATE_ROOM_STATUS",
+                "Room",
+                result.id().toString(),
+                oldStatus,
+                result.status(),
+                null
+        ));
+        return result;
     }
 
     /**
@@ -130,6 +176,19 @@ public class RoomService {
         }
         room.setDeleted(true);
         roomRepository.save(room);
+
+        UUID tenantId = SecurityUtils.requireTenantId();
+        activityLogService.log(new ActivityLogCreateCommand(
+                tenantId,
+                SecurityUtils.getCurrentUserId(),
+                SecurityUtils.getCurrentRole(),
+                "DELETE_ROOM",
+                "Room",
+                roomId.toString(),
+                room.getRoomNumber(),
+                "DELETED",
+                null
+        ));
     }
 
     // ── Private helpers ──────────────────────────────────────────────

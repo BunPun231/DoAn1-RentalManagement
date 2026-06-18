@@ -3,6 +3,8 @@ package com.roomrental.modules.device.application.service;
 import com.roomrental.common.dto.PageResponse;
 import com.roomrental.common.exception.BaseException;
 import com.roomrental.common.util.SecurityUtils;
+import com.roomrental.modules.activity.application.dto.ActivityLogCreateCommand;
+import com.roomrental.modules.activity.application.service.ActivityLogService;
 import com.roomrental.modules.device.application.dto.DeviceCreateCommand;
 import com.roomrental.modules.device.application.dto.DeviceResult;
 import com.roomrental.modules.device.application.dto.DeviceUpdateCommand;
@@ -25,10 +27,12 @@ public class DeviceService {
 
     private final DeviceRepository deviceRepository;
     private final MotelRepository motelRepository;
+    private final ActivityLogService activityLogService;
 
-    public DeviceService(DeviceRepository deviceRepository, MotelRepository motelRepository) {
+    public DeviceService(DeviceRepository deviceRepository, MotelRepository motelRepository, ActivityLogService activityLogService) {
         this.deviceRepository = deviceRepository;
         this.motelRepository = motelRepository;
+        this.activityLogService = activityLogService;
     }
 
     @Transactional
@@ -43,7 +47,20 @@ public class DeviceService {
         device.setPurchaseDate(command.purchaseDate());
         device.setStatus(DeviceStatus.IN_STOCK);
 
-        return toResult(deviceRepository.save(device));
+        DeviceResult result = toResult(deviceRepository.save(device));
+        UUID tenantId = SecurityUtils.requireTenantId();
+        activityLogService.log(new ActivityLogCreateCommand(
+                tenantId,
+                SecurityUtils.getCurrentUserId(),
+                SecurityUtils.getCurrentRole(),
+                "CREATE_DEVICE",
+                "Device",
+                result.id().toString(),
+                null,
+                result.name(),
+                null
+        ));
+        return result;
     }
 
     @Transactional(readOnly = true)
@@ -60,6 +77,7 @@ public class DeviceService {
     @Transactional
     public DeviceResult update(Long motelId, Long deviceId, DeviceUpdateCommand command) {
         Device device = findDevice(motelId, deviceId);
+        String oldName = device.getName();
 
         if (command.name() != null) device.setName(command.name());
         if (command.brand() != null) device.setBrand(command.brand());
@@ -70,7 +88,20 @@ public class DeviceService {
             catch (IllegalArgumentException e) { throw BaseException.badRequest("Invalid device status: " + command.status()); }
         }
 
-        return toResult(deviceRepository.save(device));
+        DeviceResult result = toResult(deviceRepository.save(device));
+        UUID tenantId = SecurityUtils.requireTenantId();
+        activityLogService.log(new ActivityLogCreateCommand(
+                tenantId,
+                SecurityUtils.getCurrentUserId(),
+                SecurityUtils.getCurrentRole(),
+                "UPDATE_DEVICE",
+                "Device",
+                result.id().toString(),
+                oldName,
+                result.name(),
+                null
+        ));
+        return result;
     }
 
     @Transactional
@@ -78,6 +109,19 @@ public class DeviceService {
         Device device = findDevice(motelId, deviceId);
         device.setDeleted(true);
         deviceRepository.save(device);
+
+        UUID tenantId = SecurityUtils.requireTenantId();
+        activityLogService.log(new ActivityLogCreateCommand(
+                tenantId,
+                SecurityUtils.getCurrentUserId(),
+                SecurityUtils.getCurrentRole(),
+                "DELETE_DEVICE",
+                "Device",
+                deviceId.toString(),
+                device.getName(),
+                "DELETED",
+                null
+        ));
     }
 
     private Motel requireMotel(Long motelId) {

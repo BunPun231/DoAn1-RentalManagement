@@ -2,6 +2,10 @@ package com.roomrental.modules.auth.application.service;
 
 import com.roomrental.common.exception.BaseException;
 import com.roomrental.common.security.JwtTokenService;
+import com.roomrental.modules.activity.application.dto.ActivityLogCreateCommand;
+import com.roomrental.modules.activity.application.service.ActivityLogService;
+import com.roomrental.modules.audit.application.dto.AuditLogCreateCommand;
+import com.roomrental.modules.audit.application.service.AuditLogService;
 import com.roomrental.modules.auth.application.dto.AuthResult;
 import com.roomrental.modules.auth.application.dto.LoginCommand;
 import com.roomrental.modules.auth.application.dto.RegisterCommand;
@@ -32,9 +36,10 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenService jwtTokenService;
-
     private final PasswordHistoryService passwordHistoryService;
     private final org.springframework.data.redis.core.StringRedisTemplate redisTemplate;
+    private final ActivityLogService activityLogService;
+    private final AuditLogService auditLogService;
 
     public AuthService(
             TenantRepository tenantRepository,
@@ -42,7 +47,9 @@ public class AuthService {
             PasswordEncoder passwordEncoder,
             JwtTokenService jwtTokenService,
             PasswordHistoryService passwordHistoryService,
-            org.springframework.data.redis.core.StringRedisTemplate redisTemplate
+            org.springframework.data.redis.core.StringRedisTemplate redisTemplate,
+            ActivityLogService activityLogService,
+            AuditLogService auditLogService
     ) {
         this.tenantRepository = tenantRepository;
         this.userRepository = userRepository;
@@ -50,6 +57,8 @@ public class AuthService {
         this.jwtTokenService = jwtTokenService;
         this.passwordHistoryService = passwordHistoryService;
         this.redisTemplate = redisTemplate;
+        this.activityLogService = activityLogService;
+        this.auditLogService = auditLogService;
     }
 
     /**
@@ -95,6 +104,18 @@ public class AuthService {
         user.setTenantId(tenant.getId());
         user = userRepository.save(user);
 
+        activityLogService.log(new ActivityLogCreateCommand(
+                tenant.getId(),
+                user.getId(),
+                "MANAGER",
+                "REGISTER_MANAGER",
+                "User",
+                user.getId().toString(),
+                null,
+                user.getFullName(),
+                null
+        ));
+
         return buildAuthResult(user, tenant);
     }
 
@@ -136,6 +157,31 @@ public class AuthService {
             tenant = tenantRepository.findById(user.getTenantId()).orElse(null);
         }
 
+        if (user.getRole() == UserRole.ADMIN) {
+            auditLogService.log(new AuditLogCreateCommand(
+                    user.getId(),
+                    user.getRole().name(),
+                    "ADMIN_LOGIN",
+                    "User",
+                    user.getId().toString(),
+                    null,
+                    "SUCCESS",
+                    null, null, null
+            ));
+        } else {
+            activityLogService.log(new ActivityLogCreateCommand(
+                    user.getTenantId(),
+                    user.getId(),
+                    user.getRole().name(),
+                    "USER_LOGIN",
+                    "User",
+                    user.getId().toString(),
+                    null,
+                    "SUCCESS",
+                    null
+            ));
+        }
+
         return buildAuthResult(user, tenant);
     }
 
@@ -163,6 +209,31 @@ public class AuthService {
         userRepository.save(user);
 
         passwordHistoryService.save(user.getId(), encodedPassword);
+
+        if (user.getRole() == UserRole.ADMIN) {
+            auditLogService.log(new AuditLogCreateCommand(
+                    user.getId(),
+                    user.getRole().name(),
+                    "CHANGE_PASSWORD",
+                    "User",
+                    user.getId().toString(),
+                    null,
+                    "CHANGED",
+                    null, null, null
+            ));
+        } else {
+            activityLogService.log(new ActivityLogCreateCommand(
+                    user.getTenantId(),
+                    user.getId(),
+                    user.getRole().name(),
+                    "CHANGE_PASSWORD",
+                    "User",
+                    user.getId().toString(),
+                    null,
+                    "CHANGED",
+                    null
+            ));
+        }
     }
 
     @Transactional
@@ -211,6 +282,31 @@ public class AuthService {
 
         passwordHistoryService.save(user.getId(), encodedPassword);
         redisTemplate.delete(redisKey);
+
+        if (user.getRole() == UserRole.ADMIN) {
+            auditLogService.log(new AuditLogCreateCommand(
+                    user.getId(),
+                    user.getRole().name(),
+                    "RESET_PASSWORD",
+                    "User",
+                    user.getId().toString(),
+                    null,
+                    "RESET",
+                    null, null, null
+            ));
+        } else {
+            activityLogService.log(new ActivityLogCreateCommand(
+                    user.getTenantId(),
+                    user.getId(),
+                    user.getRole().name(),
+                    "RESET_PASSWORD",
+                    "User",
+                    user.getId().toString(),
+                    null,
+                    "RESET",
+                    null
+            ));
+        }
     }
 
     private AuthResult buildAuthResult(User user, Tenant tenant) {

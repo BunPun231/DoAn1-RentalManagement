@@ -3,6 +3,8 @@ package com.roomrental.modules.motel.application.service;
 import com.roomrental.common.dto.PageResponse;
 import com.roomrental.common.exception.BaseException;
 import com.roomrental.common.util.SecurityUtils;
+import com.roomrental.modules.activity.application.dto.ActivityLogCreateCommand;
+import com.roomrental.modules.activity.application.service.ActivityLogService;
 import com.roomrental.modules.motel.application.dto.MotelResult;
 import com.roomrental.modules.motel.application.dto.MotelUpsertCommand;
 import com.roomrental.modules.motel.domain.model.Motel;
@@ -22,9 +24,11 @@ import java.util.UUID;
 public class MotelService {
 
     private final MotelRepository motelRepository;
+    private final ActivityLogService activityLogService;
 
-    public MotelService(MotelRepository motelRepository) {
+    public MotelService(MotelRepository motelRepository, ActivityLogService activityLogService) {
         this.motelRepository = motelRepository;
+        this.activityLogService = activityLogService;
     }
 
     /**
@@ -41,7 +45,19 @@ public class MotelService {
         motel.setTotalFloors(command.totalFloors());
         motel.setDescription(command.description());
 
-        return toResult(motelRepository.save(motel));
+        MotelResult result = toResult(motelRepository.save(motel));
+        activityLogService.log(new ActivityLogCreateCommand(
+                tenantId,
+                SecurityUtils.getCurrentUserId(),
+                SecurityUtils.getCurrentRole(),
+                "CREATE_MOTEL",
+                "Motel",
+                result.id().toString(),
+                null,
+                result.name(),
+                null
+        ));
+        return result;
     }
 
     /**
@@ -68,6 +84,7 @@ public class MotelService {
     @Transactional
     public MotelResult update(Long id, MotelUpsertCommand command) {
         Motel motel = findMotel(id);
+        String oldName = motel.getName();
 
         if (command.name() != null && !command.name().isBlank()) {
             motel.setName(command.name());
@@ -85,7 +102,20 @@ public class MotelService {
             motel.setDescription(command.description());
         }
 
-        return toResult(motelRepository.save(motel));
+        MotelResult result = toResult(motelRepository.save(motel));
+        UUID tenantId = SecurityUtils.requireTenantId();
+        activityLogService.log(new ActivityLogCreateCommand(
+                tenantId,
+                SecurityUtils.getCurrentUserId(),
+                SecurityUtils.getCurrentRole(),
+                "UPDATE_MOTEL",
+                "Motel",
+                result.id().toString(),
+                oldName,
+                result.name(),
+                null
+        ));
+        return result;
     }
 
     /**
@@ -96,6 +126,19 @@ public class MotelService {
         Motel motel = findMotel(id);
         motel.setDeleted(true);
         motelRepository.save(motel);
+
+        UUID tenantId = SecurityUtils.requireTenantId();
+        activityLogService.log(new ActivityLogCreateCommand(
+                tenantId,
+                SecurityUtils.getCurrentUserId(),
+                SecurityUtils.getCurrentRole(),
+                "DELETE_MOTEL",
+                "Motel",
+                id.toString(),
+                motel.getName(),
+                "DELETED",
+                null
+        ));
     }
 
     private Motel findMotel(Long id) {

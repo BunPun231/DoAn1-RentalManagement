@@ -3,6 +3,8 @@ package com.roomrental.modules.resident.application.service;
 import com.roomrental.common.dto.PageResponse;
 import com.roomrental.common.exception.BaseException;
 import com.roomrental.common.util.SecurityUtils;
+import com.roomrental.modules.activity.application.dto.ActivityLogCreateCommand;
+import com.roomrental.modules.activity.application.service.ActivityLogService;
 import com.roomrental.modules.auth.infrastructure.entity.UserEntity;
 import com.roomrental.modules.auth.infrastructure.repository.UserJpaRepository;
 import com.roomrental.modules.resident.application.dto.ResidentCreateCommand;
@@ -28,15 +30,18 @@ public class ResidentService {
     private final UserJpaRepository userJpaRepository;
     private final ResidentProfileJpaRepository profileRepository;
     private final PasswordEncoder passwordEncoder;
+    private final ActivityLogService activityLogService;
 
     public ResidentService(
             UserJpaRepository userJpaRepository,
             ResidentProfileJpaRepository profileRepository,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            ActivityLogService activityLogService
     ) {
         this.userJpaRepository = userJpaRepository;
         this.profileRepository = profileRepository;
         this.passwordEncoder = passwordEncoder;
+        this.activityLogService = activityLogService;
     }
 
     /**
@@ -68,7 +73,19 @@ public class ResidentService {
                 profile.setIdCardBackUrl(command.idCardBackUrl());
                 profileRepository.save(profile);
 
-                return toResult(user, profile);
+                ResidentResult result = toResult(user, profile);
+                activityLogService.log(new ActivityLogCreateCommand(
+                        tenantId,
+                        SecurityUtils.getCurrentUserId(),
+                        SecurityUtils.getCurrentRole(),
+                        "REACTIVATE_RESIDENT",
+                        "Resident",
+                        result.userId().toString(),
+                        "INACTIVE",
+                        "ACTIVE",
+                        null
+                ));
+                return result;
             }
             // If ACTIVE, throw conflict
             throw new BaseException(HttpStatus.CONFLICT, "PHONE_EXISTS", "Phone already registered");
@@ -97,7 +114,19 @@ public class ResidentService {
         profile.setIdCardBackUrl(command.idCardBackUrl());
         profileRepository.save(profile);
 
-        return toResult(user, profile);
+        ResidentResult result = toResult(user, profile);
+        activityLogService.log(new ActivityLogCreateCommand(
+                tenantId,
+                SecurityUtils.getCurrentUserId(),
+                SecurityUtils.getCurrentRole(),
+                "CREATE_RESIDENT",
+                "Resident",
+                result.userId().toString(),
+                null,
+                result.fullName(),
+                null
+        ));
+        return result;
     }
 
     /**
@@ -135,8 +164,21 @@ public class ResidentService {
         UserEntity user = userJpaRepository.findById(residentId)
                 .filter(u -> tenantId.equals(u.getTenantId()) && "RESIDENT".equals(u.getRole()))
                 .orElseThrow(() -> BaseException.notFound("Resident", residentId));
+        String oldStatus = user.getStatus();
         user.setStatus("INACTIVE");
         userJpaRepository.save(user);
+
+        activityLogService.log(new ActivityLogCreateCommand(
+                tenantId,
+                SecurityUtils.getCurrentUserId(),
+                SecurityUtils.getCurrentRole(),
+                "DEACTIVATE_RESIDENT",
+                "Resident",
+                residentId.toString(),
+                oldStatus,
+                "INACTIVE",
+                null
+        ));
     }
 
     private ResidentResult toResult(UserEntity user, ResidentProfileEntity profile) {

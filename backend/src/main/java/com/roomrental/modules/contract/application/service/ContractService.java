@@ -2,6 +2,8 @@ package com.roomrental.modules.contract.application.service;
 
 import com.roomrental.common.exception.BaseException;
 import com.roomrental.common.util.SecurityUtils;
+import com.roomrental.modules.activity.application.dto.ActivityLogCreateCommand;
+import com.roomrental.modules.activity.application.service.ActivityLogService;
 import com.roomrental.modules.contract.application.adjustment.ContractAdjustmentStrategy;
 import com.roomrental.modules.contract.application.adjustment.ContractAdjustmentStrategyFactory;
 import com.roomrental.modules.contract.application.dto.ContractAdjustmentRequest;
@@ -58,6 +60,7 @@ public class ContractService {
     private final RentalServiceRepository rentalServiceRepository;
     private final ContractAdjustmentStrategyFactory strategyFactory;
     private final ApplicationEventPublisher eventPublisher;
+    private final ActivityLogService activityLogService;
 
     public ContractService(
             ContractRepository contractRepository,
@@ -69,7 +72,8 @@ public class ContractService {
             ResidentService residentService,
             RentalServiceRepository rentalServiceRepository,
             ContractAdjustmentStrategyFactory strategyFactory,
-            ApplicationEventPublisher eventPublisher
+            ApplicationEventPublisher eventPublisher,
+            ActivityLogService activityLogService
     ) {
         this.contractRepository = contractRepository;
         this.contractResidentRepository = contractResidentRepository;
@@ -81,6 +85,7 @@ public class ContractService {
         this.rentalServiceRepository = rentalServiceRepository;
         this.strategyFactory = strategyFactory;
         this.eventPublisher = eventPublisher;
+        this.activityLogService = activityLogService;
     }
 
     @Transactional
@@ -157,7 +162,19 @@ public class ContractService {
         room.setCurrentResidentsCount(residents.isEmpty() ? 1 : residents.size());
         roomRepository.save(room);
 
-        return toResult(saved);
+        ContractResult result = toResult(saved);
+        activityLogService.log(new ActivityLogCreateCommand(
+                tenantId,
+                currentUserId,
+                SecurityUtils.getCurrentRole(),
+                "CREATE_CONTRACT",
+                "Contract",
+                result.id().toString(),
+                null,
+                result.status(),
+                null
+        ));
+        return result;
     }
 
     @Transactional
@@ -184,7 +201,19 @@ public class ContractService {
         room.setCurrentResidentsCount(residentsCount > 0 ? residentsCount : 1);
         roomRepository.save(room);
 
-        return toResult(saved);
+        ContractResult result = toResult(saved);
+        activityLogService.log(new ActivityLogCreateCommand(
+                tenantId,
+                SecurityUtils.getCurrentUserId(),
+                SecurityUtils.getCurrentRole(),
+                "ACTIVATE_CONTRACT",
+                "Contract",
+                result.id().toString(),
+                "DRAFT",
+                result.status(),
+                null
+        ));
+        return result;
     }
 
 
@@ -347,6 +376,18 @@ public class ContractService {
                 LocalDateTime.now()
         ));
 
+        activityLogService.log(new ActivityLogCreateCommand(
+                tenantId,
+                actorId,
+                SecurityUtils.getCurrentRole(),
+                "ADJUST_CONTRACT",
+                "Contract",
+                contractId.toString(),
+                null,
+                type.name(),
+                null
+        ));
+
         // Build result from the created appendix, or return minimal result
         if (appendixId != null) {
             ContractAppendix appendix = contractAppendixRepository.findByContractId(contractId).stream()
@@ -381,6 +422,7 @@ public class ContractService {
             throw BaseException.badRequest("Cannot cancel a liquidated contract");
         }
 
+        String oldStatus = contract.getStatus().name();
         contract.setStatus(Contract.ContractStatus.CANCELED);
         contract.setCancelReason(reason);
         contract.setUpdatedAt(LocalDateTime.now());
@@ -394,7 +436,19 @@ public class ContractService {
         room.setCurrentResidentsCount(0);
         roomRepository.save(room);
 
-        return toResult(saved);
+        ContractResult result = toResult(saved);
+        activityLogService.log(new ActivityLogCreateCommand(
+                tenantId,
+                SecurityUtils.getCurrentUserId(),
+                SecurityUtils.getCurrentRole(),
+                "CANCEL_CONTRACT",
+                "Contract",
+                result.id().toString(),
+                oldStatus,
+                "CANCELED",
+                reason
+        ));
+        return result;
     }
 
     // ========================
@@ -411,6 +465,7 @@ public class ContractService {
             throw BaseException.badRequest("Deposit must be UNPAID to collect");
         }
 
+        String oldDepositStatus = contract.getDepositStatus().name();
         contract.setDepositStatus(Contract.DepositStatus.PAID);
         contract.setUpdatedAt(LocalDateTime.now());
 
@@ -431,7 +486,19 @@ public class ContractService {
             roomRepository.save(room);
         }
 
-        return toResult(saved);
+        ContractResult result = toResult(saved);
+        activityLogService.log(new ActivityLogCreateCommand(
+                tenantId,
+                SecurityUtils.getCurrentUserId(),
+                SecurityUtils.getCurrentRole(),
+                "COLLECT_DEPOSIT",
+                "Contract",
+                result.id().toString(),
+                oldDepositStatus,
+                "PAID",
+                null
+        ));
+        return result;
     }
 
     @Transactional
@@ -444,10 +511,24 @@ public class ContractService {
             throw BaseException.badRequest("Deposit must be PAID to refund");
         }
 
+        String oldDepositStatus = contract.getDepositStatus().name();
         contract.setDepositStatus(Contract.DepositStatus.REFUNDED);
         contract.setUpdatedAt(LocalDateTime.now());
         Contract saved = contractRepository.save(contract);
-        return toResult(saved);
+
+        ContractResult result = toResult(saved);
+        activityLogService.log(new ActivityLogCreateCommand(
+                tenantId,
+                SecurityUtils.getCurrentUserId(),
+                SecurityUtils.getCurrentRole(),
+                "REFUND_DEPOSIT",
+                "Contract",
+                result.id().toString(),
+                oldDepositStatus,
+                "REFUNDED",
+                null
+        ));
+        return result;
     }
 
     @Transactional
@@ -460,10 +541,24 @@ public class ContractService {
             throw BaseException.badRequest("Deposit must be PAID to deduct");
         }
 
+        String oldDepositStatus = contract.getDepositStatus().name();
         contract.setDepositStatus(Contract.DepositStatus.DEDUCTED);
         contract.setUpdatedAt(LocalDateTime.now());
         Contract saved = contractRepository.save(contract);
-        return toResult(saved);
+
+        ContractResult result = toResult(saved);
+        activityLogService.log(new ActivityLogCreateCommand(
+                tenantId,
+                SecurityUtils.getCurrentUserId(),
+                SecurityUtils.getCurrentRole(),
+                "DEDUCT_DEPOSIT",
+                "Contract",
+                result.id().toString(),
+                oldDepositStatus,
+                "DEDUCTED",
+                null
+        ));
+        return result;
     }
 
     // Helper methods

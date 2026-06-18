@@ -3,6 +3,8 @@ package com.roomrental.modules.service.application.service;
 import com.roomrental.common.dto.PageResponse;
 import com.roomrental.common.exception.BaseException;
 import com.roomrental.common.util.SecurityUtils;
+import com.roomrental.modules.activity.application.dto.ActivityLogCreateCommand;
+import com.roomrental.modules.activity.application.service.ActivityLogService;
 import com.roomrental.modules.motel.domain.model.Motel;
 import com.roomrental.modules.motel.domain.repository.MotelRepository;
 import com.roomrental.modules.service.application.dto.ServiceCreateCommand;
@@ -25,10 +27,12 @@ public class RentalServiceService {
 
     private final RentalServiceRepository serviceRepository;
     private final MotelRepository motelRepository;
+    private final ActivityLogService activityLogService;
 
-    public RentalServiceService(RentalServiceRepository serviceRepository, MotelRepository motelRepository) {
+    public RentalServiceService(RentalServiceRepository serviceRepository, MotelRepository motelRepository, ActivityLogService activityLogService) {
         this.serviceRepository = serviceRepository;
         this.motelRepository = motelRepository;
+        this.activityLogService = activityLogService;
     }
 
     @Transactional
@@ -46,7 +50,20 @@ public class RentalServiceService {
         svc.setUnit(command.unit());
         svc.setMandatory(command.mandatory() != null && command.mandatory());
 
-        return toResult(serviceRepository.save(svc));
+        ServiceResult result = toResult(serviceRepository.save(svc));
+        UUID tenantId = SecurityUtils.requireTenantId();
+        activityLogService.log(new ActivityLogCreateCommand(
+                tenantId,
+                SecurityUtils.getCurrentUserId(),
+                SecurityUtils.getCurrentRole(),
+                "CREATE_SERVICE",
+                "RentalService",
+                result.id().toString(),
+                null,
+                result.name(),
+                null
+        ));
+        return result;
     }
 
     @Transactional(readOnly = true)
@@ -63,6 +80,7 @@ public class RentalServiceService {
     @Transactional
     public ServiceResult update(Long motelId, Long serviceId, ServiceUpdateCommand command) {
         RentalService svc = findService(motelId, serviceId);
+        String oldName = svc.getName();
 
         if (command.name() != null && !command.name().isBlank()) {
             if (!command.name().equals(svc.getName()) && serviceRepository.existsByMotelIdAndName(motelId, command.name())) {
@@ -80,7 +98,20 @@ public class RentalServiceService {
             svc.setMandatory(command.mandatory());
         }
 
-        return toResult(serviceRepository.save(svc));
+        ServiceResult result = toResult(serviceRepository.save(svc));
+        UUID tenantId = SecurityUtils.requireTenantId();
+        activityLogService.log(new ActivityLogCreateCommand(
+                tenantId,
+                SecurityUtils.getCurrentUserId(),
+                SecurityUtils.getCurrentRole(),
+                "UPDATE_SERVICE",
+                "RentalService",
+                result.id().toString(),
+                oldName,
+                result.name(),
+                null
+        ));
+        return result;
     }
 
     @Transactional
@@ -88,6 +119,19 @@ public class RentalServiceService {
         RentalService svc = findService(motelId, serviceId);
         svc.setDeleted(true);
         serviceRepository.save(svc);
+
+        UUID tenantId = SecurityUtils.requireTenantId();
+        activityLogService.log(new ActivityLogCreateCommand(
+                tenantId,
+                SecurityUtils.getCurrentUserId(),
+                SecurityUtils.getCurrentRole(),
+                "DELETE_SERVICE",
+                "RentalService",
+                serviceId.toString(),
+                svc.getName(),
+                "DELETED",
+                null
+        ));
     }
 
     private Motel requireMotel(Long motelId) {

@@ -3,6 +3,8 @@ package com.roomrental.modules.technician.application.service;
 import com.roomrental.common.dto.PageResponse;
 import com.roomrental.common.exception.BaseException;
 import com.roomrental.common.util.SecurityUtils;
+import com.roomrental.modules.activity.application.dto.ActivityLogCreateCommand;
+import com.roomrental.modules.activity.application.service.ActivityLogService;
 import com.roomrental.modules.auth.infrastructure.entity.UserEntity;
 import com.roomrental.modules.auth.infrastructure.repository.UserJpaRepository;
 import com.roomrental.modules.technician.application.dto.TechnicianCreateCommand;
@@ -28,15 +30,18 @@ public class TechnicianService {
     private final UserJpaRepository userJpaRepository;
     private final TechnicianProfileJpaRepository profileRepository;
     private final PasswordEncoder passwordEncoder;
+    private final ActivityLogService activityLogService;
 
     public TechnicianService(
             UserJpaRepository userJpaRepository,
             TechnicianProfileJpaRepository profileRepository,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            ActivityLogService activityLogService
     ) {
         this.userJpaRepository = userJpaRepository;
         this.profileRepository = profileRepository;
         this.passwordEncoder = passwordEncoder;
+        this.activityLogService = activityLogService;
     }
 
     /**
@@ -69,7 +74,19 @@ public class TechnicianService {
         profile.setAvailable(true);
         profileRepository.save(profile);
 
-        return toResult(user, profile);
+        TechnicianResult result = toResult(user, profile);
+        activityLogService.log(new ActivityLogCreateCommand(
+                tenantId,
+                SecurityUtils.getCurrentUserId(),
+                SecurityUtils.getCurrentRole(),
+                "CREATE_TECHNICIAN",
+                "Technician",
+                result.userId().toString(),
+                null,
+                result.fullName(),
+                null
+        ));
+        return result;
     }
 
     @Transactional(readOnly = true)
@@ -103,9 +120,22 @@ public class TechnicianService {
         UserEntity user = userJpaRepository.findById(techId)
                 .filter(u -> tenantId.equals(u.getTenantId()) && "TECHNICIAN".equals(u.getRole()))
                 .orElseThrow(() -> BaseException.notFound("Technician", techId));
+        String oldStatus = user.getStatus();
         user.setStatus("LOCKED");
         user.setLockReason(reason);
         userJpaRepository.save(user);
+
+        activityLogService.log(new ActivityLogCreateCommand(
+                tenantId,
+                SecurityUtils.getCurrentUserId(),
+                SecurityUtils.getCurrentRole(),
+                "LOCK_TECHNICIAN",
+                "Technician",
+                techId.toString(),
+                oldStatus,
+                "LOCKED",
+                reason
+        ));
     }
 
     /**
@@ -120,6 +150,18 @@ public class TechnicianService {
         user.setPasswordHash(passwordEncoder.encode(user.getPhone()));
         user.setMustChangePassword(true);
         userJpaRepository.save(user);
+
+        activityLogService.log(new ActivityLogCreateCommand(
+                tenantId,
+                SecurityUtils.getCurrentUserId(),
+                SecurityUtils.getCurrentRole(),
+                "RESET_TECHNICIAN_PASSWORD",
+                "Technician",
+                techId.toString(),
+                null,
+                "PASSWORD_RESET",
+                null
+        ));
     }
 
     private TechnicianResult toResult(UserEntity user, TechnicianProfileEntity p) {
