@@ -44,6 +44,8 @@ function CreateContractModal({
   const [form, setForm] = useState<Partial<ContractCreateRequest>>({
     startDate: new Date().toISOString().slice(0, 10),
     endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+    billingDate: new Date().toISOString().slice(0, 10),
+    depositStatus: "UNPAID",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -174,17 +176,6 @@ function CreateContractModal({
               💡 Chỉ khách thuê đã có hồ sơ trong hệ thống mới có thể chọn. <br />
               Nếu chưa có, hãy <strong>thêm khách thuê trước</strong> tại mục Khách thuê.
             </p>
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-slate-700">Ghi chú hợp đồng</label>
-              <textarea
-                id="contract-notes"
-                value={form.notes ?? ""}
-                onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                rows={3}
-                placeholder="Điều khoản bổ sung, ghi chú đặc biệt..."
-                className={`${inputClass} resize-none`}
-              />
-            </div>
           </>
         )}
 
@@ -197,16 +188,16 @@ function CreateContractModal({
                 <input
                   id="contract-rent"
                   type="number"
-                  value={form.monthlyRent ?? ""}
-                  onChange={(e) => setForm({ ...form, monthlyRent: Number(e.target.value) })}
+                  value={form.rentPrice ?? ""}
+                  onChange={(e) => setForm({ ...form, rentPrice: Number(e.target.value) })}
                   required
                   placeholder={selectedRoom ? String(selectedRoom.basePrice) : "0"}
                   min={0}
                   className={inputClass}
                 />
-                {selectedRoom && !form.monthlyRent && (
+                {selectedRoom && !form.rentPrice && (
                   <button type="button" className="text-xs text-brand-deep underline mt-0.5"
-                    onClick={() => setForm({ ...form, monthlyRent: selectedRoom.basePrice })}>
+                    onClick={() => setForm({ ...form, rentPrice: selectedRoom.basePrice })}>
                     Dùng giá phòng ({formatCurrency(selectedRoom.basePrice)})
                   </button>
                 )}
@@ -225,11 +216,23 @@ function CreateContractModal({
                 />
               </div>
             </div>
-            {form.monthlyRent && form.depositAmount && (
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-slate-700">Ngày bắt đầu tính phí *</label>
+              <input
+                id="contract-billing"
+                type="date"
+                value={form.billingDate ?? ""}
+                onChange={(e) => setForm({ ...form, billingDate: e.target.value })}
+                required
+                className={inputClass}
+              />
+              <p className="text-xs text-slate-400">Ngày hàng tháng hệ thống sẽ tính tiền thuê</p>
+            </div>
+            {form.rentPrice && form.depositAmount && (
               <div className="bg-brand-deep/5 rounded-xl p-4 space-y-2 text-sm border border-brand-deep/10">
                 <div className="flex justify-between">
                   <span className="text-slate-500">Giá thuê/tháng</span>
-                  <span className="font-semibold">{formatCurrency(form.monthlyRent)}</span>
+                  <span className="font-semibold">{formatCurrency(form.rentPrice)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Tiền cọc</span>
@@ -237,7 +240,7 @@ function CreateContractModal({
                 </div>
                 <div className="flex justify-between border-t border-brand-deep/10 pt-2 font-semibold text-brand-deep">
                   <span>Thanh toán ban đầu</span>
-                  <span>{formatCurrency(form.monthlyRent + form.depositAmount)}</span>
+                  <span>{formatCurrency(form.rentPrice + form.depositAmount)}</span>
                 </div>
               </div>
             )}
@@ -289,7 +292,7 @@ function ContractDetailModal({
     if (!reason) return;
     setLoading(true);
     try {
-      await contractService.cancel(contract.id, { reason });
+      await contractService.cancel(contract.id, reason);
       onClose();
       onRefresh();
     } catch (err) {
@@ -303,7 +306,7 @@ function ContractDetailModal({
     if (!confirm(`Xác nhận thu cọc ${formatCurrency(contract.depositAmount)}?`)) return;
     setLoading(true);
     try {
-      await contractService.collectDeposit(contract.id, { amount: contract.depositAmount });
+      await contractService.collectDeposit(contract.id);
       onRefresh();
       onClose();
     } catch (err) {
@@ -332,12 +335,13 @@ function ContractDetailModal({
   };
 
   const rows = [
-    { label: "Mã hợp đồng", value: contract.contractCode },
+    { label: "Mã hợp đồng", value: contract.contractCode ?? `#${contract.id}` },
     { label: "Phòng", value: `Phòng ${contract.roomId}` },
     { label: "Thời hạn", value: `${contract.startDate} → ${contract.endDate}` },
-    { label: "Tiền thuê", value: formatCurrency(contract.monthlyRent) + "/tháng" },
+    { label: "Tiền thuê", value: formatCurrency(contract.rentPrice) + "/tháng" },
     { label: "Tiền cọc", value: formatCurrency(contract.depositAmount) },
     { label: "Trạng thái cọc", value: DEPOSIT_BADGE[contract.depositStatus] },
+    { label: "Ngày tính phí", value: contract.billingDate ?? "-" },
   ];
 
   return (
@@ -363,22 +367,14 @@ function ContractDetailModal({
           </div>
         )}
 
-        {contract.appendices && contract.appendices.length > 0 && (
-          <div className="pt-2">
-            <h4 className="text-sm font-medium text-slate-700 mb-2">Phụ lục điều chỉnh</h4>
-            <div className="space-y-2">
-              {contract.appendices.map((app) => (
-                <div key={app.id} className="text-xs p-3 rounded-lg border border-slate-200 bg-slate-50 flex justify-between">
-                  <div>
-                    <span className="font-semibold">{app.type}</span>
-                    {app.newEndDate && <span> - Gia hạn đến: {app.newEndDate}</span>}
-                    {app.newMonthlyRent && <span> - Giá mới: {formatCurrency(app.newMonthlyRent)}</span>}
-                    {app.note && <p className="text-slate-500 mt-1">{app.note}</p>}
-                  </div>
-                  <span className="text-slate-400">{new Date(app.createdAt).toLocaleDateString('vi-VN')}</span>
-                </div>
+        {contract.residentUserIds && contract.residentUserIds.length > 0 && (
+          <div className="rounded-xl bg-slate-50 border border-slate-100 p-4">
+            <p className="text-xs text-slate-400 mb-1">Người cư trú</p>
+            <ul className="text-sm text-slate-700 space-y-1">
+              {contract.residentUserIds.map((id) => (
+                <li key={id} className="font-mono text-xs">{id.slice(0, 12)}...</li>
               ))}
-            </div>
+            </ul>
           </div>
         )}
       </div>
@@ -406,7 +402,7 @@ function ContractDetailModal({
                 onClick={() => {
                   const newEndDate = prompt("Gia hạn đến ngày (YYYY-MM-DD):");
                   if (!newEndDate) return;
-                  contractService.addAppendix(contract.id, { type: "EXTENSION", newEndDate })
+                  contractService.addAppendix(contract.id, { type: "RENEW", newEndDate })
                     .then(() => { onClose(); onRefresh(); })
                     .catch((err) => alert(extractError(err)));
                 }}
@@ -630,7 +626,7 @@ export function ContractListPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="text-sm font-medium text-brand-ink">{formatCurrency(contract.monthlyRent)}/tháng</div>
+                      <div className="text-sm font-medium text-brand-ink">{formatCurrency(contract.rentPrice)}/tháng</div>
                       <div className="text-xs text-slate-400">
                         Cọc: {formatCurrency(contract.depositAmount)} • {DEPOSIT_BADGE[contract.depositStatus]}
                       </div>

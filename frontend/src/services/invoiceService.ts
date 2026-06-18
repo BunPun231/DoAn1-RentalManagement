@@ -84,18 +84,24 @@ export interface InvoiceAdjustRequest {
 export const invoiceService = {
   /** UC73: Generate invoices for a motel */
   async generate(data: InvoiceGenerateRequest): Promise<InvoiceGenerationResult> {
-    const billingMonth = data.billingMonth + "-01"; // Convert YYYY-MM to YYYY-MM-01
-    const res = await api.post<InvoiceGenerationResult>("/api/v1/invoices/generate", {
+    const billingMonth = data.billingMonth.includes('T') ? data.billingMonth.slice(0, 7) + '-01' : data.billingMonth.endsWith('-01') ? data.billingMonth : data.billingMonth + '-01';
+    const res = await api.post<{ invoices: unknown[]; skippedRooms: unknown[] }>("/api/v1/invoices/generate", {
       motelId: data.motelId,
       billingMonth,
     });
-    return res.data;
+    // Backend returns {invoices, skippedRooms} - map to our type
+    return {
+      generatedCount: (res.data.invoices || []).length,
+      invoiceIds: [],
+      billingMonth: data.billingMonth,
+      motelId: data.motelId,
+    };
   },
 
-  /** UC74: List invoices */
-  async list(status?: string, page = 0, size = 20): Promise<PageResponse<InvoiceResult>> {
+  /** UC74: List invoices (backend returns raw PageResponse) */
+  async list(motelId?: number, status?: string, page = 0, size = 50): Promise<PageResponse<InvoiceResult>> {
     const res = await api.get<PageResponse<InvoiceResult>>("/api/v1/invoices", {
-      params: { status, page, size },
+      params: { motelId, status, page, size },
     });
     return res.data;
   },
@@ -108,7 +114,7 @@ export const invoiceService = {
     return res.data;
   },
 
-  /** UC75: Get invoice details */
+  /** UC75: Get invoice details (backend returns raw InvoiceResult) */
   async get(invoiceId: number): Promise<InvoiceResult> {
     const res = await api.get<InvoiceResult>(`/api/v1/invoices/${invoiceId}`);
     return res.data;
@@ -129,7 +135,7 @@ export const invoiceService = {
 // ============ METER READING APIs ============
 
 export const meterReadingService = {
-  /** List meter readings (UC72) */
+  /** List meter readings (UC72) - backend returns raw PageResponse */
   async list(roomId?: number, status?: string, page = 0, size = 100): Promise<PageResponse<MeterReadingResult>> {
     const res = await api.get<PageResponse<MeterReadingResult>>("/api/v1/meter-readings", {
       params: { roomId, status, page, size },
@@ -139,30 +145,30 @@ export const meterReadingService = {
 
   /** UC70: Submit meter reading */
   async submit(data: MeterReadingSubmitRequest): Promise<MeterReadingResult> {
-    const res = await api.post<MeterReadingResult>("/api/v1/meter-readings", data);
-    return res.data;
+    const res = await api.post<{ data: MeterReadingResult }>("/api/v1/meter-readings", data);
+    return res.data.data;
   },
 
   /** UC72: Get reading history for a room */
   async getHistory(roomId: number): Promise<MeterReadingResult[]> {
-    const res = await api.get<MeterReadingResult[]>(`/api/v1/meter-readings/rooms/${roomId}/history`);
-    return res.data;
+    const res = await api.get<{ data: MeterReadingResult[] }>(`/api/v1/meter-readings/rooms/${roomId}/history`);
+    return res.data.data;
   },
 
   /** UC70: Approve meter reading */
   async approve(readingId: number): Promise<MeterReadingResult> {
-    const res = await api.post<MeterReadingResult>(`/api/v1/meter-readings/${readingId}/approve`);
-    return res.data;
+    const res = await api.post<{ data: MeterReadingResult }>(`/api/v1/meter-readings/${readingId}/approve`);
+    return res.data.data;
   },
 
   /** UC70: Reject meter reading */
   async reject(readingId: number, reason?: string): Promise<MeterReadingResult> {
-    const res = await api.post<MeterReadingResult>(
+    const res = await api.post<{ data: MeterReadingResult }>(
       `/api/v1/meter-readings/${readingId}/reject`,
       null,
       { params: { reason } }
     );
-    return res.data;
+    return res.data.data;
   },
 };
 

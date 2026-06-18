@@ -139,7 +139,7 @@ export function InvoiceListPage() {
   const fetchInvoices = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await invoiceService.list(statusFilter || undefined, page, 20);
+      const result = await invoiceService.list(undefined, statusFilter || undefined, page, 20);
       setInvoices(result.content);
       setTotalPages(result.totalPages);
       setError(null);

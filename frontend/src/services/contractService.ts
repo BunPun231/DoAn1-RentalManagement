@@ -5,59 +5,67 @@ import type { ApiResponse, PageResponse } from "./motelService";
 
 export interface ContractResult {
   id: number;
-  contractCode: string;
+  contractCode?: string;
   tenantId: string;
   roomId: number;
   primaryResidentUserId: string;
   startDate: string;
   endDate: string;
-  monthlyRent: number;
+  /** Backend returns rentPrice (not monthlyRent) */
+  rentPrice: number;
   depositAmount: number;
-  depositStatus: "PENDING" | "HOLDING" | "REFUNDED" | "DEDUCTED";
-  status: "ACTIVE" | "PENDING_LIQUIDATION" | "LIQUIDATED" | "CANCELLED";
+  depositStatus: "PENDING" | "UNPAID" | "HOLDING" | "PAID" | "REFUNDED" | "DEDUCTED";
+  status: "ACTIVE" | "DRAFT" | "PENDING_LIQUIDATION" | "LIQUIDATED" | "CANCELLED" | "CANCELED";
+  billingDate?: string;
+  intendedMoveOutDate?: string;
+  pdfUrl?: string;
+  createdAt?: string;
+  updatedAt?: string;
   notes?: string;
-  appendices?: ContractAppendix[];
-  residents?: string[];
+  residentUserIds?: string[];
 }
 
 export interface ContractAppendix {
   id: number;
   contractId: number;
   type: string;
+  effectiveDate?: string;
   newEndDate?: string;
-  newMonthlyRent?: number;
-  noticeDate?: string;
-  note?: string;
+  newRentPrice?: number;
+  intendedMoveOutDate?: string;
+  metadata?: string;
   createdAt: string;
 }
 
 export interface ContractCreateRequest {
   roomId: number;
-  primaryResidentUserId: string;
+  /** Pass existing resident's userId */
+  primaryResidentUserId?: string;
+  /** Or pass phone to create a new resident inline */
+  primaryResidentPhone?: string;
+  primaryResidentFullName?: string;
+  primaryResidentEmail?: string;
+  primaryResidentIdCardNumber?: string;
   startDate: string;
   endDate: string;
-  monthlyRent: number;
+  /** billingDate: day of month when rent is due (YYYY-MM-DD) */
+  billingDate: string;
+  rentPrice: number;
   depositAmount: number;
-  notes?: string;
-  serviceIds?: number[];
-  additionalResidentIds?: string[];
+  /** UNPAID | PAID */
+  depositStatus?: string;
+  residentUserIds?: string[];
+  serviceItems?: Array<{ serviceId: number; quantity?: number }>;
 }
 
 export interface ContractAdjustmentRequest {
-  type: "EXTENSION" | "RENT_CHANGE" | "NOTICE_TO_VACATE";
+  /** PRICE_CHANGE | RENEW | MOVE_OUT_NOTICE | MANUAL_CLAUSE */
+  type: string;
+  effectiveDate?: string;
+  newRentPrice?: number;
   newEndDate?: string;
-  newMonthlyRent?: number;
-  noticeDate?: string;
-  note?: string;
-}
-
-export interface ContractCancelRequest {
-  reason: string;
-}
-
-export interface DepositCollectRequest {
-  amount: number;
-  notes?: string;
+  intendedMoveOutDate?: string;
+  metadata?: string;
 }
 
 export interface DepositDeductRequest {
@@ -98,6 +106,14 @@ export interface SettlementConfirmRequest {
 // ============ CONTRACT APIs ============
 
 export const contractService = {
+  /** UC64: List contracts (all, by tenant) */
+  async list(page = 0, size = 20): Promise<PageResponse<ContractResult>> {
+    const res = await api.get<ApiResponse<PageResponse<ContractResult>>>("/api/contracts", {
+      params: { page, size },
+    });
+    return res.data.data;
+  },
+
   /** UC64: List contracts for a motel */
   async listByMotel(motelId: number, page = 0, size = 20, status?: string): Promise<PageResponse<ContractResult>> {
     const res = await api.get<ApiResponse<PageResponse<ContractResult>>>(
@@ -107,9 +123,21 @@ export const contractService = {
     return res.data.data;
   },
 
+  /** UC64: List all active contracts */
+  async listActive(): Promise<ContractResult[]> {
+    const res = await api.get<ApiResponse<ContractResult[]>>("/api/contracts/active");
+    return res.data.data;
+  },
+
   /** UC65: Get contract detail */
   async get(contractId: number): Promise<ContractResult> {
-    const res = await api.get<ApiResponse<ContractResult>>(`/api/contracts/${contractId}/detail`);
+    const res = await api.get<ApiResponse<ContractResult>>(`/api/contracts/${contractId}`);
+    return res.data.data;
+  },
+
+  /** UC65: Get full contract detail (with residents & services) */
+  async getDetail(contractId: number): Promise<ContractResult & { residentUserIds: string[]; serviceItems: unknown[]; appendicesCount: number }> {
+    const res = await api.get<ApiResponse<ContractResult & { residentUserIds: string[]; serviceItems: unknown[]; appendicesCount: number }>>(`/api/contracts/${contractId}/detail`);
     return res.data.data;
   },
 
@@ -120,22 +148,30 @@ export const contractService = {
   },
 
   /** UC66: Add appendix (extension, rent change, notice) */
-  async addAppendix(contractId: number, data: ContractAdjustmentRequest): Promise<ContractResult> {
-    const res = await api.post<ApiResponse<ContractResult>>(
+  async addAppendix(contractId: number, data: ContractAdjustmentRequest): Promise<ContractAppendix> {
+    const res = await api.post<ApiResponse<ContractAppendix>>(
       `/api/contracts/${contractId}/adjustments`,
       data
     );
     return res.data.data;
   },
 
-  /** UC67: Cancel contract */
-  async cancel(contractId: number, data: ContractCancelRequest): Promise<void> {
-    await api.post(`/api/contracts/${contractId}/cancel`, data);
+  /** UC67: Cancel contract (reason as query param) */
+  async cancel(contractId: number, reason?: string): Promise<ContractResult> {
+    const res = await api.post<ApiResponse<ContractResult>>(
+      `/api/contracts/${contractId}/cancel`,
+      null,
+      { params: reason ? { reason } : {} }
+    );
+    return res.data.data;
   },
 
-  /** UC69: Collect deposit */
-  async collectDeposit(contractId: number, data: DepositCollectRequest): Promise<void> {
-    await api.post(`/api/contracts/${contractId}/deposit/collect`, data);
+  /** UC69: Collect deposit (mark as PAID, no body needed) */
+  async collectDeposit(contractId: number): Promise<ContractResult> {
+    const res = await api.post<ApiResponse<ContractResult>>(
+      `/api/contracts/${contractId}/deposit/collect`
+    );
+    return res.data.data;
   },
 
   /** UC69: Deduct from deposit */
@@ -150,11 +186,11 @@ export const contractService = {
 
   /** UC80: Calculate settlement */
   async calculateSettlement(data: SettlementRequest): Promise<SettlementCalculateResult> {
-    const res = await api.post<SettlementCalculateResult>(
+    const res = await api.post<ApiResponse<SettlementCalculateResult>>(
       "/api/v1/settlements/calculate",
       data
     );
-    return res.data;
+    return res.data.data;
   },
 
   /** UC80: Confirm settlement */
@@ -164,7 +200,7 @@ export const contractService = {
 
   /** UC68: Export PDF */
   async exportPdf(contractId: number): Promise<Blob> {
-    const res = await api.get(`/api/contracts/${contractId}/pdf`, { responseType: 'blob' });
+    const res = await api.get(`/api/contracts/${contractId}/pdf`, { responseType: "blob" });
     return res.data;
   },
 };

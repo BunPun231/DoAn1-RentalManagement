@@ -27,6 +27,10 @@ export function LoginPage() {
     try {
       const result = await authService.login({ identity: phone, password });
 
+      if (!result) {
+        throw new Error("Phản hồi từ máy chủ không hợp lệ (Không có dữ liệu).");
+      }
+
       // Store tenant if present
       if (result.tenantId) {
         setTenantId(result.tenantId);
