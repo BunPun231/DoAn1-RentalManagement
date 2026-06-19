@@ -9,6 +9,7 @@ import { motelService, type MotelResult } from "@/services/motelService";
 import { extractError } from "@/lib/api";
 import { Modal } from "@/components/ui/Modal";
 import { PaymentModal } from "../components/PaymentModal";
+import { VietQrPaymentModal } from "../components/VietQrPaymentModal";
 import { InvoiceDetailModal } from "../components/InvoiceDetailModal";
 import { useAuthStore } from "@/store/authStore";
 
@@ -377,7 +378,14 @@ export function InvoiceListPage() {
         onSuccess={() => { setIsGenerateOpen(false); fetchInvoices(); }}
       />
 
-      {paymentInvoice && (
+      {paymentInvoice && isTenant ? (
+        <VietQrPaymentModal
+          isOpen={!!paymentInvoice}
+          onClose={() => setPaymentInvoice(null)}
+          invoiceId={paymentInvoice.id}
+          onSuccess={() => { setPaymentInvoice(null); fetchInvoices(); }}
+        />
+      ) : paymentInvoice ? (
         <PaymentModal
           isOpen={!!paymentInvoice}
           onClose={() => setPaymentInvoice(null)}
@@ -385,7 +393,7 @@ export function InvoiceListPage() {
           totalDebt={paymentInvoice.totalAmount - (paymentInvoice.paidAmount || 0)}
           onSuccess={() => { setPaymentInvoice(null); fetchInvoices(); }}
         />
-      )}
+      ) : null}
     </div>
   );
 }

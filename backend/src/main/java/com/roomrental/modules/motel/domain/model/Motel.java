@@ -12,6 +12,7 @@ public class Motel {
     private String description;
     private Integer billingCycleDay;
     private java.math.BigDecimal depositPercent;
+    private String bankConfig;
     private boolean deleted;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
@@ -78,6 +79,14 @@ public class Motel {
 
     public void setDepositPercent(java.math.BigDecimal depositPercent) {
         this.depositPercent = depositPercent;
+    }
+
+    public String getBankConfig() {
+        return bankConfig;
+    }
+
+    public void setBankConfig(String bankConfig) {
+        this.bankConfig = bankConfig;
     }
 
     public boolean isDeleted() {

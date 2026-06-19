@@ -20,6 +20,9 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       GOOGLE_APPLICATION_CREDENTIALS: /app/gcp-credentials.json
+      SEPAY_API_KEY: ${SEPAY_API_KEY}
+      FIREBASE_CREDENTIALS_PATH: ${FIREBASE_CREDENTIALS_PATH}
+
     entrypoint: ["java", "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005", "-jar", "app.jar"]
     volumes:
       - ./backend/gcp-credentials.json:/app/gcp-credentials.json:ro

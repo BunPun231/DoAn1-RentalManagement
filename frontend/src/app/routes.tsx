@@ -14,6 +14,7 @@ import { InvoiceListPage } from "@/features/invoices/pages/InvoiceListPage";
 import { ReportPage } from "@/features/reports/pages/ReportPage";
 import { AuditLogPage } from "@/features/reports/pages/AuditLogPage";
 import { SettingsPage } from "@/features/settings/pages/SettingsPage";
+import { NotificationListPage } from "@/features/notifications/pages/NotificationListPage";
 
 export const router = createBrowserRouter([
   {
@@ -71,6 +72,10 @@ export const router = createBrowserRouter([
       {
         path: "settings",
         element: <SettingsPage />
+      },
+      {
+        path: "notifications",
+        element: <NotificationListPage />
       }
     ]
   }

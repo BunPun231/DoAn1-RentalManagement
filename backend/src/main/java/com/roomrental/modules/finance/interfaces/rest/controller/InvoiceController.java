@@ -4,6 +4,7 @@ import com.roomrental.modules.finance.application.dto.*;
 import com.roomrental.modules.finance.application.service.InvoiceService;
 import com.roomrental.modules.finance.interfaces.rest.dto.InvoiceAdjustRequest;
 import com.roomrental.modules.finance.interfaces.rest.dto.InvoiceGenerateRequest;
+import com.roomrental.modules.finance.interfaces.rest.dto.InvoicePaymentInfoResult;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -53,6 +54,13 @@ public class InvoiceController {
     @Operation(summary = "Get invoice details (UC75)")
     public ResponseEntity<InvoiceResult> getDetail(@PathVariable Long id) {
         return ResponseEntity.ok(service.getDetail(id));
+    }
+
+    @GetMapping("/{id}/payment-info")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN', 'RESIDENT')")
+    @Operation(summary = "Get VietQR payment info and dynamic QR code (UC78)")
+    public ResponseEntity<InvoicePaymentInfoResult> getPaymentInfo(@PathVariable Long id) {
+        return ResponseEntity.ok(service.getPaymentInfo(id));
     }
 
     @PostMapping("/{id}/adjust")

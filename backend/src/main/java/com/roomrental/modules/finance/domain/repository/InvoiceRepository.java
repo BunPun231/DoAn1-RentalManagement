@@ -20,5 +20,6 @@ public interface InvoiceRepository {
     Page<Invoice> findByTenantIdAndContractIdInAndStatus(UUID tenantId, List<Long> contractIds, String status, Pageable pageable);
     boolean existsByContractIdAndBillingMonth(Long contractId, LocalDate billingMonth);
     List<Invoice> findUnpaidByContractId(Long contractId);
+    Optional<UUID> findTenantIdByInvoiceIdNative(Long invoiceId);
     void softDelete(Long id);
 }

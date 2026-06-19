@@ -18,6 +18,10 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
   const [description, setDescription] = useState(motel?.description ?? "");
   const [closingDay, setClosingDay] = useState("5");
   const [depositRate, setDepositRate] = useState("100");
+  const [bankId, setBankId] = useState("");
+  const [bankAccount, setBankAccount] = useState("");
+  const [accountHolder, setAccountHolder] = useState("");
+  const [bankName, setBankName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -29,6 +33,22 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
       setDescription(motel.description ?? "");
       setClosingDay(motel.billingCycleDay !== undefined && motel.billingCycleDay !== null ? motel.billingCycleDay.toString() : "last");
       setDepositRate(motel.depositPercent !== undefined && motel.depositPercent !== null ? motel.depositPercent.toString() : "100");
+      if (motel.bankConfig) {
+        try {
+          const cfg = JSON.parse(motel.bankConfig);
+          setBankId(cfg.bankId || "");
+          setBankAccount(cfg.bankAccount || "");
+          setAccountHolder(cfg.accountHolder || "");
+          setBankName(cfg.bankName || "");
+        } catch (e) {
+          console.error("Failed to parse bank config", e);
+        }
+      } else {
+        setBankId("");
+        setBankAccount("");
+        setAccountHolder("");
+        setBankName("");
+      }
     } else {
       setName("");
       setAddress("");
@@ -36,6 +56,10 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
       setDescription("");
       setClosingDay("5");
       setDepositRate("100");
+      setBankId("");
+      setBankAccount("");
+      setAccountHolder("");
+      setBankName("");
     }
     setError("");
   }, [motel, isOpen]);
@@ -45,6 +69,13 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
     setError("");
     setIsLoading(true);
     try {
+      const bankConfigObj = {
+        bankId,
+        bankAccount,
+        accountHolder,
+        bankName,
+      };
+
       const payload = {
         name: name.trim(),
         address: address.trim(),
@@ -52,6 +83,7 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
         description: description.trim() || undefined,
         billingCycleDay: closingDay === "last" ? undefined : parseInt(closingDay, 10),
         depositPercent: parseFloat(depositRate) || 0,
+        bankConfig: bankId && bankAccount && accountHolder ? JSON.stringify(bankConfigObj) : undefined,
       };
 
       let savedMotel;
@@ -149,6 +181,61 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
               onChange={(e) => setDepositRate(e.target.value)}
               min={0}
               required
+              className={inputClass}
+            />
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50/50 space-y-3">
+          <h4 className="font-semibold text-sm text-slate-800">Cấu hình tài khoản nhận tiền (VietQR)</h4>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-slate-600">Ngân hàng</label>
+              <select
+                value={bankId}
+                onChange={(e) => {
+                  setBankId(e.target.value);
+                  const bankNames: Record<string, string> = {
+                    MB: "MBBank",
+                    VCB: "Vietcombank",
+                    ICB: "VietinBank",
+                    ACB: "ACB",
+                    BIDV: "BIDV",
+                    TCB: "Techcombank",
+                    VIB: "VIB",
+                  };
+                  setBankName(bankNames[e.target.value] || e.target.value);
+                }}
+                className={inputClass}
+              >
+                <option value="">Chọn ngân hàng</option>
+                <option value="MB">MB Bank (Quân Đội)</option>
+                <option value="VCB">Vietcombank</option>
+                <option value="ICB">VietinBank</option>
+                <option value="ACB">ACB</option>
+                <option value="BIDV">BIDV</option>
+                <option value="TCB">Techcombank</option>
+                <option value="VIB">VIB</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-slate-600">Số tài khoản</label>
+              <input
+                type="text"
+                value={bankAccount}
+                onChange={(e) => setBankAccount(e.target.value)}
+                placeholder="VD: 190304567899"
+                className={inputClass}
+              />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-slate-600">Tên chủ tài khoản (Không dấu)</label>
+            <input
+              type="text"
+              value={accountHolder}
+              onChange={(e) => setAccountHolder(e.target.value.toUpperCase())}
+              placeholder="VD: NGUYEN TRAN PHUONG"
               className={inputClass}
             />
           </div>

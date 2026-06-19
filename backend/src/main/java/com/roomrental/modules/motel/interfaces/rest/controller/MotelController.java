@@ -80,7 +80,8 @@ public class MotelController {
                 body.totalFloors(),
                 body.description(),
                 body.billingCycleDay(),
-                body.depositPercent()
+                body.depositPercent(),
+                body.bankConfig()
         );
     }
 
@@ -91,7 +92,8 @@ public class MotelController {
                 body.totalFloors(),
                 body.description(),
                 body.billingCycleDay(),
-                body.depositPercent()
+                body.depositPercent(),
+                body.bankConfig()
         );
     }
 }

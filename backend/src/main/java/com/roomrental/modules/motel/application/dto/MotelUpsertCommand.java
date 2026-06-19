@@ -6,6 +6,7 @@ public record MotelUpsertCommand(
         Integer totalFloors,
         String description,
         Integer billingCycleDay,
-        java.math.BigDecimal depositPercent
+        java.math.BigDecimal depositPercent,
+        String bankConfig
 ) {
 }

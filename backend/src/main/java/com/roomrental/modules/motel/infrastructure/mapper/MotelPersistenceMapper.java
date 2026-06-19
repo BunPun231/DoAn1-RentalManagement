@@ -16,6 +16,7 @@ public interface MotelPersistenceMapper {
     @Mapping(target = "description", source = "description")
     @Mapping(target = "billingCycleDay", source = "billingCycleDay")
     @Mapping(target = "depositPercent", source = "depositPercent")
+    @Mapping(target = "bankConfig", source = "bankConfig")
     @Mapping(target = "deleted", source = "deleted")
     @Mapping(target = "createdAt", source = "createdAt")
     @Mapping(target = "updatedAt", source = "updatedAt")
