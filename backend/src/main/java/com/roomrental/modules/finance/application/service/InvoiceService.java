@@ -513,9 +513,14 @@ public class InvoiceService {
         }
 
         String memo = "PT" + invoice.getId();
+        // SePay requires SEVQR prefix for VietinBank (ICB) personal/household accounts to route webhooks
+        if ("ICB".equalsIgnoreCase(bankId) || (bankId != null && bankId.toLowerCase().contains("vietin"))) {
+            memo = "SEVQR " + memo;
+        }
         BigDecimal remainingAmount = invoice.getRemainingAmount();
 
         String encodedHolder = "";
+
         try {
             encodedHolder = java.net.URLEncoder.encode(accountHolder, java.nio.charset.StandardCharsets.UTF_8.toString());
         } catch (Exception ignored) {

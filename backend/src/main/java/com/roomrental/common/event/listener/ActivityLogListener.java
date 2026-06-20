@@ -36,10 +36,25 @@ public class ActivityLogListener {
                     src.entityId(),
                     src.oldValue(),
                     src.newValue(),
-                    src.metadata()
+                    formatMetadataAsJson(src.metadata())
             ));
         } catch (Exception e) {
             log.error("Failed to write activity log for action={}: {}", event.source().action(), e.getMessage(), e);
         }
     }
+
+    private String formatMetadataAsJson(String metadata) {
+        if (metadata == null || metadata.isBlank()) {
+            return null;
+        }
+        String trimmed = metadata.trim();
+        if ((trimmed.startsWith("{") && trimmed.endsWith("}")) || 
+            (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
+            return trimmed;
+        }
+        // Wrap plain text in a valid JSON object
+        String escaped = trimmed.replace("\"", "\\\"");
+        return "{\"value\":\"" + escaped + "\"}";
+    }
 }
+

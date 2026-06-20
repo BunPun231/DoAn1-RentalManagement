@@ -32,7 +32,14 @@ export default defineConfig({
         target: process.env.VITE_BACKEND_URL || "http://localhost:8080",
         changeOrigin: true,
         secure: false,
+      },
+      "/ws": {
+        target: process.env.VITE_BACKEND_URL || "http://localhost:8080",
+        ws: true,
+        changeOrigin: true,
+        secure: false,
       }
     }
   }
+
 });

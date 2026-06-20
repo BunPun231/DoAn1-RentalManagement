@@ -14,9 +14,10 @@ import com.roomrental.modules.room.domain.model.Room;
 import com.roomrental.modules.room.domain.repository.RoomRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.util.UUID;
 
@@ -45,7 +46,7 @@ public class NotificationEventListener {
     }
 
     @Async
-    @EventListener
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void handleInvoiceCreatedEvent(InvoiceCreatedEvent event) {
         log.info("Handling InvoiceCreatedEvent asynchronously for invoice ID: {}", event.invoiceId());
         try {
@@ -82,7 +83,7 @@ public class NotificationEventListener {
     }
 
     @Async
-    @EventListener
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void handlePaymentReceivedEvent(PaymentReceivedEvent event) {
         log.info("Handling PaymentReceivedEvent asynchronously for transaction ID: {}, invoice ID: {}", event.transactionId(), event.invoiceId());
         try {
