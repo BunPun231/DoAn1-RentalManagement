@@ -259,6 +259,7 @@ export function ResidentListPage() {
   const [selectedResident, setSelectedResident] = useState<ResidentResult | null>(null);
   const [selectedResidentBalance, setSelectedResidentBalance] = useState<number | null>(null);
   const [loadingBalance, setLoadingBalance] = useState(false);
+  const [balances, setBalances] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (selectedResident) {
@@ -279,6 +280,19 @@ export function ResidentListPage() {
       setSelectedResidentBalance(null);
     }
   }, [selectedResident]);
+
+  useEffect(() => {
+    if (residents.length === 0) return;
+    const ids = residents.map((r) => r.userId);
+    invoiceService.getResidentBalances(ids)
+      .then((res) => {
+        setBalances(res);
+      })
+      .catch((err) => {
+        console.error("Failed to fetch resident balances", err);
+      });
+  }, [residents]);
+
 
 
   const fetchResidents = useCallback(async () => {
@@ -413,10 +427,12 @@ export function ResidentListPage() {
                 <TableHead>Họ tên</TableHead>
                 <TableHead>Liên hệ</TableHead>
                 <TableHead>CCCD/CMND</TableHead>
+                <TableHead>Số dư tài khoản</TableHead>
                 <TableHead>Trạng thái</TableHead>
                 <TableHead className="text-right">Thao tác</TableHead>
               </TableRow>
             </TableHeader>
+
             <TableBody>
               {filtered.map((resident) => (
                 <TableRow key={resident.userId} className="hover:bg-slate-50/50 transition-colors">
@@ -451,10 +467,16 @@ export function ResidentListPage() {
                     </div>
                   </TableCell>
                   <TableCell>
+                    <div className="font-semibold text-brand-deep font-mono">
+                      {balances[resident.userId] !== undefined ? formatCurrency(balances[resident.userId]) : "..."}
+                    </div>
+                  </TableCell>
+                  <TableCell>
                     <Badge variant={resident.status === "ACTIVE" ? "success" : "default"}>
                       {resident.status === "ACTIVE" ? "Hoạt động" : "Không hoạt động"}
                     </Badge>
                   </TableCell>
+
                   <TableCell className="text-right">
                     <Button
                       variant="outline"

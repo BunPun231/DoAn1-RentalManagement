@@ -143,6 +143,9 @@ export function InvoiceListPage() {
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceResult | null>(null);
   const [invoiceDetails, setInvoiceDetails] = useState<InvoiceResult | null>(null);
   const [paymentInvoice, setPaymentInvoice] = useState<InvoiceResult | null>(null);
+  const [motels, setMotels] = useState<MotelResult[]>([]);
+  const [selectedMotelId, setSelectedMotelId] = useState<number | null>(null);
+
 
   useEffect(() => {
     if (queryInvoiceId) {
@@ -160,12 +163,21 @@ export function InvoiceListPage() {
     }
   }, [queryInvoiceId, setSearchParams]);
 
+  // Fetch motels for manager
+  useEffect(() => {
+    if (!isTenant) {
+      motelService.list().then((res) => {
+        setMotels(res.content);
+      }).catch((err) => console.error("Error loading motels", err));
+    }
+  }, [isTenant]);
+
   const fetchInvoices = useCallback(async () => {
     setLoading(true);
     try {
       const result = isTenant
         ? await invoiceService.listMine(statusFilter || undefined, page, 20)
-        : await invoiceService.list(undefined, statusFilter || undefined, page, 20);
+        : await invoiceService.list(selectedMotelId || undefined, statusFilter || undefined, page, 20);
       setInvoices(result.content);
       setTotalPages(result.totalPages);
       setError(null);
@@ -174,7 +186,8 @@ export function InvoiceListPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, statusFilter, isTenant]);
+  }, [page, statusFilter, selectedMotelId, isTenant]);
+
 
   useEffect(() => {
     fetchInvoices();
@@ -270,18 +283,34 @@ export function InvoiceListPage() {
               className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm focus:border-brand-deep focus:outline-none focus:ring-2 focus:ring-brand-deep/20 transition-all"
             />
           </div>
-          <select
-            id="invoice-status-filter"
-            value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
-            className="h-10 rounded-xl border border-slate-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-deep/20 bg-white"
-          >
-            <option value="">Tất cả trạng thái</option>
-            <option value="PENDING">Chưa thanh toán</option>
-            <option value="PARTIAL">Một phần</option>
-            <option value="PAID">Đã thanh toán</option>
-            <option value="VOID">Đã hủy</option>
-          </select>
+          <div className="flex items-center gap-3 flex-wrap w-full sm:w-auto">
+            {!isTenant && (
+              <select
+                id="invoice-motel-filter"
+                value={selectedMotelId ?? ""}
+                onChange={(e) => { setSelectedMotelId(e.target.value ? Number(e.target.value) : null); setPage(0); }}
+                className="h-10 rounded-xl border border-slate-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-deep/20 bg-white"
+              >
+                <option value="">Tất cả khu trọ</option>
+                {motels.map((m) => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
+            )}
+            <select
+              id="invoice-status-filter"
+              value={statusFilter}
+              onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
+              className="h-10 rounded-xl border border-slate-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-deep/20 bg-white"
+            >
+              <option value="">Tất cả trạng thái</option>
+              <option value="PENDING">Chưa thanh toán</option>
+              <option value="PARTIAL">Một phần</option>
+              <option value="PAID">Đã thanh toán</option>
+              <option value="VOID">Đã hủy</option>
+            </select>
+          </div>
+
         </div>
 
         {loading ? (

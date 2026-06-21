@@ -32,6 +32,7 @@ function SubmitRoomReadingsModal({
   billingMonth,
   services,
   onSuccess,
+  onShowLightbox,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -45,6 +46,7 @@ function SubmitRoomReadingsModal({
     currentReading?: MeterReadingResult;
   }>;
   onSuccess: () => void;
+  onShowLightbox: (url: string) => void;
 }) {
   const [inputs, setInputs] = useState<Record<number, ServiceInput>>({});
   const [ocrLoadings, setOcrLoadings] = useState<Record<number, boolean>>({});
@@ -220,54 +222,71 @@ function SubmitRoomReadingsModal({
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <div className="flex gap-2">
-                      <div className="flex-1">
-                        <span className="text-[10px] text-slate-400 block mb-0.5">Đầu kỳ</span>
-                        <div className="px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700">
-                          {svc.oldReading}
-                        </div>
-                      </div>
-                      <div className="flex-1">
-                        <span className="text-[10px] text-slate-400 block mb-0.5">Cuối kỳ *</span>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={inputs[svc.serviceId]?.newReading || ""}
-                          onChange={(e) => handleInputChange(svc.serviceId, "newReading", e.target.value)}
-                          min={svc.oldReading}
-                          placeholder={`Nhập số (> ${svc.oldReading})`}
-                          className={inputClass}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {/* Left Column: Proof Image (Large) */}
+                  <div className="flex flex-col justify-center items-center bg-slate-100 rounded-xl p-2 border border-slate-200/60 min-h-[220px]">
+                    {inputs[svc.serviceId]?.readingImageUrl ? (
+                      <div className="relative group w-full flex flex-col items-center justify-center p-1">
+                        <img
+                          src={inputs[svc.serviceId].readingImageUrl}
+                          alt="preview"
+                          className="max-h-56 w-auto rounded-lg object-contain border bg-white shadow-sm cursor-zoom-in hover:opacity-95 transition-opacity"
+                          onClick={() => onShowLightbox(inputs[svc.serviceId].readingImageUrl)}
                         />
+                        <span className="text-[10px] text-slate-400 mt-2 font-medium">🔍 Click để xem phóng to</span>
                       </div>
-                    </div>
-                    {val && parsedVal >= svc.oldReading && (
-                      <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-2 text-xs">
-                        <span className="text-slate-500 font-medium">Tiêu thụ: </span>
-                        <span className="font-bold text-emerald-700">
-                          {consumption.toFixed(2)}
-                        </span>
+                    ) : (
+                      <div className="text-slate-400 text-xs flex flex-col items-center gap-1.5 p-6 text-center">
+                        <Camera size={32} className="text-slate-300" />
+                        <span>Chưa có ảnh minh chứng điện nước</span>
                       </div>
                     )}
                   </div>
 
-                  <div className="space-y-2">
-                    <span className="text-[10px] font-medium text-slate-600 block">Ảnh minh chứng & Tự động ghi (OCR)</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => handleFileChange(svc.serviceId, e.target.files?.[0] || null)}
-                      className="text-[10px] text-slate-500 w-full file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:bg-brand-deep/10 file:text-brand-deep"
-                    />
-                    {inputs[svc.serviceId]?.readingImageUrl && (
-                      <div className="flex items-center gap-4 bg-white p-3 border border-slate-200 rounded-xl mt-2 shadow-sm">
-                        <img
-                          src={inputs[svc.serviceId].readingImageUrl}
-                          alt="preview"
-                          className="h-32 w-auto max-w-[160px] object-contain rounded-lg border border-slate-150 flex-shrink-0"
-                        />
-                        <div className="flex-1 space-y-2">
+                  {/* Right Column: Inputs & Controls */}
+                  <div className="space-y-3 flex flex-col justify-between">
+                    <div className="space-y-2">
+                      <span className="text-[10px] font-semibold text-slate-600 block">Chỉ số ghi nhận</span>
+                      <div className="flex gap-2">
+                        <div className="flex-1">
+                          <span className="text-[10px] text-slate-400 block mb-0.5">Đầu kỳ</span>
+                          <div className="px-2.5 py-2 bg-slate-100 border border-slate-200 rounded-lg text-xs font-bold text-slate-400 text-center">
+                            {svc.oldReading}
+                          </div>
+                        </div>
+                        <div className="flex-1">
+                          <span className="text-[10px] text-slate-400 block mb-0.5">Cuối kỳ *</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={inputs[svc.serviceId]?.newReading || ""}
+                            onChange={(e) => handleInputChange(svc.serviceId, "newReading", e.target.value)}
+                            min={svc.oldReading}
+                            placeholder={`Nhập số (> ${svc.oldReading})`}
+                            className={inputClass}
+                          />
+                        </div>
+                      </div>
+                      {val && parsedVal >= svc.oldReading && (
+                        <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-2 text-xs flex justify-between items-center">
+                          <span className="text-slate-500 font-medium">Lượng tiêu thụ:</span>
+                          <span className="font-bold text-emerald-700 font-mono">
+                            {consumption.toFixed(2)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-2 pt-1 border-t border-slate-200/50">
+                      <span className="text-[10px] font-semibold text-slate-600 block">Tải ảnh lên & Tự động nhận diện</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleFileChange(svc.serviceId, e.target.files?.[0] || null)}
+                        className="text-[10px] text-slate-500 w-full file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:bg-brand-deep/10 file:text-brand-deep"
+                      />
+                      {inputs[svc.serviceId]?.readingImageUrl && (
+                        <div className="pt-1.5">
                           <Button
                             type="button"
                             variant="outline"
@@ -280,12 +299,11 @@ function SubmitRoomReadingsModal({
                             {ocrLoadings[svc.serviceId] ? "Đang nhận diện..." : "Tự động nhận diện (OCR)"}
                           </Button>
                           {inputs[svc.serviceId]?.ocrSuccess && (
-                            <p className="text-xs text-emerald-600 font-semibold text-center bg-emerald-50 py-1 rounded-lg">✓ Thành công!</p>
+                            <p className="text-[10px] text-emerald-600 font-semibold text-center mt-1.5">✓ Tự động ghi thành công!</p>
                           )}
                         </div>
-                      </div>
-                    )}
-
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -881,6 +899,7 @@ export function MeterReadingPage() {
           roomNumber={submittingRoom.roomNumber}
           billingMonth={billingMonth}
           services={submittingRoom.services}
+          onShowLightbox={setLightboxImage}
           onSuccess={() => {
             setSubmittingRoom(null);
             fetchData();

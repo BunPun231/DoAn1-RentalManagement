@@ -282,13 +282,28 @@ public class InvoiceService {
     }
 
     @Transactional(readOnly = true)
-    public Page<InvoiceResult> list(String status, Pageable pageable) {
+    public Page<InvoiceResult> list(Long motelId, String status, Pageable pageable) {
         UUID tenantId = SecurityUtils.requireTenantId();
+        if (motelId != null) {
+            Page<Contract> contractsPage = contractRepository.findByTenantIdAndMotelId(tenantId, motelId, Pageable.unpaged());
+            List<Long> contractIds = contractsPage.getContent().stream()
+                .map(Contract::getId)
+                .collect(Collectors.toList());
+            if (contractIds.isEmpty()) {
+                return Page.empty(pageable);
+            }
+            if (status != null && !status.isEmpty()) {
+                return invoiceRepository.findByTenantIdAndContractIdInAndStatus(tenantId, contractIds, status, pageable).map(this::toResult);
+            }
+            return invoiceRepository.findByTenantIdAndContractIdIn(tenantId, contractIds, pageable).map(this::toResult);
+        }
+
         if (status != null && !status.isEmpty()) {
             return invoiceRepository.findByTenantIdAndStatus(tenantId, status, pageable).map(this::toResult);
         }
         return invoiceRepository.findByTenantId(tenantId, pageable).map(this::toResult);
     }
+
 
     @Transactional(readOnly = true)
     public Page<InvoiceResult> listMyInvoices(String status, Pageable pageable) {
@@ -324,6 +339,20 @@ public class InvoiceService {
             .map(rb -> rb.getBalance() != null ? rb.getBalance() : java.math.BigDecimal.ZERO)
             .orElse(java.math.BigDecimal.ZERO);
     }
+
+    @Transactional(readOnly = true)
+    public Map<UUID, java.math.BigDecimal> getResidentBalances(List<UUID> residentIds) {
+        if (residentIds == null || residentIds.isEmpty()) {
+            return java.util.Collections.emptyMap();
+        }
+        return residentIds.stream().collect(Collectors.toMap(
+            id -> id,
+            id -> residentBalanceRepository.findById(id)
+                .map(rb -> rb.getBalance() != null ? rb.getBalance() : java.math.BigDecimal.ZERO)
+                .orElse(java.math.BigDecimal.ZERO)
+        ));
+    }
+
 
 
     @Transactional(readOnly = true)

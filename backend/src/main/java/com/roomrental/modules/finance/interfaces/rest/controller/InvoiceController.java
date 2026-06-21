@@ -40,9 +40,13 @@ public class InvoiceController {
     @GetMapping
     @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     @Operation(summary = "List invoices (UC74)")
-    public ResponseEntity<Page<InvoiceResult>> list(@RequestParam(required = false) String status, Pageable pageable) {
-        return ResponseEntity.ok(service.list(status, pageable));
+    public ResponseEntity<Page<InvoiceResult>> list(
+            @RequestParam(required = false) Long motelId,
+            @RequestParam(required = false) String status,
+            Pageable pageable) {
+        return ResponseEntity.ok(service.list(motelId, status, pageable));
     }
+
 
     @GetMapping("/me")
     @PreAuthorize("hasAnyRole('RESIDENT')")
@@ -64,6 +68,14 @@ public class InvoiceController {
     public ResponseEntity<java.math.BigDecimal> getResidentBalance(@PathVariable UUID residentId) {
         return ResponseEntity.ok(service.getResidentBalance(residentId));
     }
+
+    @GetMapping("/balances")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
+    @Operation(summary = "Get multiple residents' current balances (Manager)")
+    public ResponseEntity<java.util.Map<UUID, java.math.BigDecimal>> getResidentBalances(@RequestParam java.util.List<UUID> residentIds) {
+        return ResponseEntity.ok(service.getResidentBalances(residentIds));
+    }
+
 
 
     @GetMapping("/{id}")

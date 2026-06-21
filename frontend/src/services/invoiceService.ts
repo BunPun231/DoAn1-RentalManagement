@@ -144,6 +144,14 @@ export const invoiceService = {
     const res = await api.get<number>(`/api/v1/invoices/balance/${residentId}`);
     return res.data;
   },
+
+  /** Get multiple residents' credit balances (Manager/Admin) */
+  async getResidentBalances(residentIds: string[]): Promise<Record<string, number>> {
+    const res = await api.get<Record<string, number>>("/api/v1/invoices/balances", {
+      params: { residentIds: residentIds.join(",") },
+    });
+    return res.data;
+  },
 };
 
 // ============ METER READING APIs ============
