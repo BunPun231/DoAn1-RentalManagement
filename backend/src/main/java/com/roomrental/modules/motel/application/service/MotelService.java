@@ -54,6 +54,9 @@ public class MotelService {
             validateDepositPercent(command.depositPercent());
             motel.setDepositPercent(command.depositPercent());
         }
+        if (command.bankConfig() != null) {
+            motel.setBankConfig(command.bankConfig());
+        }
 
         MotelResult result = toResult(motelRepository.save(motel));
         eventPublisher.publishEvent(new MotelCreatedEvent(
@@ -111,6 +114,9 @@ public class MotelService {
             validateDepositPercent(command.depositPercent());
             motel.setDepositPercent(command.depositPercent());
         }
+        if (command.bankConfig() != null) {
+            motel.setBankConfig(command.bankConfig());
+        }
 
         MotelResult result = toResult(motelRepository.save(motel));
         UUID tenantId = SecurityUtils.requireTenantId();
@@ -150,7 +156,8 @@ public class MotelService {
                 motel.getTotalFloors(),
                 motel.getDescription(),
                 motel.getBillingCycleDay(),
-                motel.getDepositPercent()
+                motel.getDepositPercent(),
+                motel.getBankConfig()
         );
     }
 

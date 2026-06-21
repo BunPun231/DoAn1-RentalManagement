@@ -25,6 +25,7 @@ export interface MotelResult {
   createdAt: string;
   billingCycleDay?: number;
   depositPercent?: number;
+  bankConfig?: string;
 }
 
 export interface MotelCreateRequest {
@@ -34,6 +35,7 @@ export interface MotelCreateRequest {
   description?: string;
   billingCycleDay?: number;
   depositPercent?: number;
+  bankConfig?: string;
 }
 
 export interface MotelUpdateRequest {
@@ -43,6 +45,7 @@ export interface MotelUpdateRequest {
   description?: string;
   billingCycleDay?: number;
   depositPercent?: number;
+  bankConfig?: string;
 }
 
 export interface RoomResult {

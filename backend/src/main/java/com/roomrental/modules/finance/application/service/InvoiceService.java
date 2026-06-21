@@ -6,6 +6,9 @@ import com.roomrental.modules.finance.application.dto.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.roomrental.modules.finance.application.event.*;
+import com.roomrental.modules.motel.domain.model.Motel;
+import com.roomrental.modules.motel.domain.repository.MotelRepository;
+import com.roomrental.modules.finance.interfaces.rest.dto.InvoicePaymentInfoResult;
 import com.roomrental.modules.finance.application.strategy.BillingContext;
 import com.roomrental.modules.finance.application.strategy.BillingStrategy;
 import com.roomrental.modules.finance.application.strategy.BillingStrategyFactory;
@@ -21,6 +24,8 @@ import com.roomrental.modules.finance.domain.repository.ServiceUsageRepository;
 import com.roomrental.modules.finance.domain.repository.ResidentBalanceRepository;
 import com.roomrental.modules.contract.domain.model.Contract;
 import com.roomrental.modules.contract.domain.repository.ContractRepository;
+import com.roomrental.modules.contract.domain.repository.ContractServiceItemRepository;
+import com.roomrental.modules.contract.domain.model.ContractServiceItem;
 import com.roomrental.modules.room.domain.model.Room;
 import com.roomrental.modules.room.domain.repository.RoomRepository;
 import com.roomrental.modules.service.domain.model.ServicePricing;
@@ -64,6 +69,8 @@ public class InvoiceService {
     private final BillingStrategyFactory strategyFactory;
     private final ApplicationEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
+    private final MotelRepository motelRepository;
+    private final ContractServiceItemRepository contractServiceItemRepository;
 
     public InvoiceService(
             InvoiceRepository invoiceRepository,
@@ -77,7 +84,9 @@ public class InvoiceService {
             ResidentBalanceRepository residentBalanceRepository,
             BillingStrategyFactory strategyFactory,
             ApplicationEventPublisher eventPublisher,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            MotelRepository motelRepository,
+            ContractServiceItemRepository contractServiceItemRepository) {
         this.invoiceRepository = invoiceRepository;
         this.invoiceDetailRepository = invoiceDetailRepository;
         this.contractRepository = contractRepository;
@@ -90,6 +99,8 @@ public class InvoiceService {
         this.strategyFactory = strategyFactory;
         this.eventPublisher = eventPublisher;
         this.objectMapper = objectMapper;
+        this.motelRepository = motelRepository;
+        this.contractServiceItemRepository = contractServiceItemRepository;
     }
 
     @Async("taskExecutor")
@@ -146,7 +157,13 @@ public class InvoiceService {
         Room room = roomRepository.findById(contract.getRoomId())
                 .orElseThrow(() -> BaseException.notFound("Room", contract.getRoomId()));
 
-        List<ServiceUsage> billableUsages = serviceUsageRepository.findBillableByRoomId(room.getId());
+        List<ContractServiceItem> contractServices = contractServiceItemRepository.findByContractId(contract.getId());
+        java.util.Set<Long> registeredServiceIds = contractServices.stream()
+                .map(ContractServiceItem::getServiceId)
+                .collect(Collectors.toSet());
+        List<ServiceUsage> billableUsages = serviceUsageRepository.findBillableByRoomId(room.getId()).stream()
+                .filter(usage -> registeredServiceIds.contains(usage.getServiceId()))
+                .collect(Collectors.toList());
         Map<Long, MeterReading> approvedReadings = meterReadingRepository.findByRoomIdAndBillingMonth(room.getId(), billingMonth)
                 .stream()
                 .filter(r -> r.getStatus() == MeterReading.MeterReadingStatus.APPROVED)
@@ -265,13 +282,28 @@ public class InvoiceService {
     }
 
     @Transactional(readOnly = true)
-    public Page<InvoiceResult> list(String status, Pageable pageable) {
+    public Page<InvoiceResult> list(Long motelId, String status, Pageable pageable) {
         UUID tenantId = SecurityUtils.requireTenantId();
+        if (motelId != null) {
+            Page<Contract> contractsPage = contractRepository.findByTenantIdAndMotelId(tenantId, motelId, Pageable.unpaged());
+            List<Long> contractIds = contractsPage.getContent().stream()
+                .map(Contract::getId)
+                .collect(Collectors.toList());
+            if (contractIds.isEmpty()) {
+                return Page.empty(pageable);
+            }
+            if (status != null && !status.isEmpty()) {
+                return invoiceRepository.findByTenantIdAndContractIdInAndStatus(tenantId, contractIds, status, pageable).map(this::toResult);
+            }
+            return invoiceRepository.findByTenantIdAndContractIdIn(tenantId, contractIds, pageable).map(this::toResult);
+        }
+
         if (status != null && !status.isEmpty()) {
             return invoiceRepository.findByTenantIdAndStatus(tenantId, status, pageable).map(this::toResult);
         }
         return invoiceRepository.findByTenantId(tenantId, pageable).map(this::toResult);
     }
+
 
     @Transactional(readOnly = true)
     public Page<InvoiceResult> listMyInvoices(String status, Pageable pageable) {
@@ -292,6 +324,36 @@ public class InvoiceService {
         }
         return invoiceRepository.findByTenantIdAndContractIdIn(tenantId, contractIds, pageable).map(this::toResult);
     }
+
+    @Transactional(readOnly = true)
+    public java.math.BigDecimal getMyBalance() {
+        UUID userId = SecurityUtils.getCurrentUserId();
+        return residentBalanceRepository.findById(userId)
+            .map(rb -> rb.getBalance() != null ? rb.getBalance() : java.math.BigDecimal.ZERO)
+            .orElse(java.math.BigDecimal.ZERO);
+    }
+
+    @Transactional(readOnly = true)
+    public java.math.BigDecimal getResidentBalance(UUID residentId) {
+        return residentBalanceRepository.findById(residentId)
+            .map(rb -> rb.getBalance() != null ? rb.getBalance() : java.math.BigDecimal.ZERO)
+            .orElse(java.math.BigDecimal.ZERO);
+    }
+
+    @Transactional(readOnly = true)
+    public Map<UUID, java.math.BigDecimal> getResidentBalances(List<UUID> residentIds) {
+        if (residentIds == null || residentIds.isEmpty()) {
+            return java.util.Collections.emptyMap();
+        }
+        return residentIds.stream().collect(Collectors.toMap(
+            id -> id,
+            id -> residentBalanceRepository.findById(id)
+                .map(rb -> rb.getBalance() != null ? rb.getBalance() : java.math.BigDecimal.ZERO)
+                .orElse(java.math.BigDecimal.ZERO)
+        ));
+    }
+
+
 
     @Transactional(readOnly = true)
     public InvoiceResult getDetail(Long id) {
@@ -467,6 +529,66 @@ public class InvoiceService {
         } catch (JsonProcessingException ex) {
             throw new IllegalStateException("Failed to serialize invoice calculation snapshot", ex);
         }
+    }
+
+    @Transactional(readOnly = true)
+    public InvoicePaymentInfoResult getPaymentInfo(Long id) {
+        UUID tenantId = SecurityUtils.requireTenantId();
+        Invoice invoice = invoiceRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> BaseException.notFound("Invoice", id));
+
+        Room room = roomRepository.findById(invoice.getRoomId())
+                .orElseThrow(() -> BaseException.notFound("Room", invoice.getRoomId()));
+
+        Motel motel = motelRepository.findByIdAndTenantId(room.getMotelId(), tenantId)
+                .orElseThrow(() -> BaseException.notFound("Motel", room.getMotelId()));
+
+        String bankConfigStr = motel.getBankConfig();
+        if (bankConfigStr == null || bankConfigStr.isBlank()) {
+            throw BaseException.badRequest("Khu trọ chưa được cấu hình tài khoản ngân hàng nhận tiền");
+        }
+
+        String bankId = "";
+        String bankAccount = "";
+        String accountHolder = "";
+        String bankName = "";
+
+        try {
+            com.fasterxml.jackson.databind.JsonNode node = objectMapper.readTree(bankConfigStr);
+            bankId = node.has("bankId") ? node.get("bankId").asText() : "";
+            bankAccount = node.has("bankAccount") ? node.get("bankAccount").asText() : "";
+            accountHolder = node.has("accountHolder") ? node.get("accountHolder").asText() : "";
+            bankName = node.has("bankName") ? node.get("bankName").asText() : "";
+        } catch (Exception e) {
+            log.error("Failed to parse bank config for motel: " + motel.getId(), e);
+            throw BaseException.badRequest("Cấu hình tài khoản ngân hàng của khu trọ không hợp lệ");
+        }
+
+        if (bankId.isBlank() || bankAccount.isBlank() || accountHolder.isBlank()) {
+            throw BaseException.badRequest("Cấu hình tài khoản ngân hàng của khu trọ thiếu thông tin bắt buộc (bankId, bankAccount, accountHolder)");
+        }
+
+        String memo = "PT" + invoice.getId();
+        // SePay requires SEVQR prefix for VietinBank (ICB) personal/household accounts to route webhooks
+        if ("ICB".equalsIgnoreCase(bankId) || (bankId != null && bankId.toLowerCase().contains("vietin"))) {
+            memo = "SEVQR " + memo;
+        }
+        BigDecimal remainingAmount = invoice.getRemainingAmount();
+
+        String encodedHolder = "";
+
+        try {
+            encodedHolder = java.net.URLEncoder.encode(accountHolder, java.nio.charset.StandardCharsets.UTF_8.toString());
+        } catch (Exception ignored) {
+            encodedHolder = accountHolder;
+        }
+
+        String qrUrl = String.format("https://img.vietqr.io/image/%s-%s-compact2.png?amount=%s&addInfo=%s&accountName=%s",
+                bankId, bankAccount, remainingAmount.toPlainString(), memo, encodedHolder);
+
+        return new InvoicePaymentInfoResult(
+                bankId, bankAccount, accountHolder, bankName, remainingAmount, memo, qrUrl
+        );
     }
 }
 

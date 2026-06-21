@@ -70,6 +70,7 @@ class MotelServiceTest {
             3,
             "desc",
             25,
+            null,
             null
         ));
 

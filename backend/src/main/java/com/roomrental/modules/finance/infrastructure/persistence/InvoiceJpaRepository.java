@@ -35,6 +35,9 @@ public interface InvoiceJpaRepository extends JpaRepository<InvoiceEntity, Long>
     @Query("SELECT i FROM FinanceInvoiceEntity i WHERE i.contractId = :contractId AND i.status IN ('PENDING', 'PARTIAL') AND i.isDeleted = false")
     List<InvoiceEntity> findUnpaidByContractId(@Param("contractId") Long contractId);
 
+    @Query(value = "SELECT CAST(tenant_id AS VARCHAR) FROM invoices WHERE id = :invoiceId AND is_deleted = false", nativeQuery = true)
+    Optional<String> findTenantIdByInvoiceIdNative(@Param("invoiceId") Long invoiceId);
+
     @Modifying
     @Query("UPDATE FinanceInvoiceEntity i SET i.isDeleted = true WHERE i.id = :id")
     void softDelete(@Param("id") Long id);

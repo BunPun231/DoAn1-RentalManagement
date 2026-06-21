@@ -4,6 +4,7 @@ import com.roomrental.modules.finance.application.dto.*;
 import com.roomrental.modules.finance.application.service.InvoiceService;
 import com.roomrental.modules.finance.interfaces.rest.dto.InvoiceAdjustRequest;
 import com.roomrental.modules.finance.interfaces.rest.dto.InvoiceGenerateRequest;
+import com.roomrental.modules.finance.interfaces.rest.dto.InvoicePaymentInfoResult;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -13,6 +14,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import java.util.UUID;
+
 
 @RestController
 @RequestMapping("/api/v1/invoices")
@@ -37,9 +40,13 @@ public class InvoiceController {
     @GetMapping
     @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     @Operation(summary = "List invoices (UC74)")
-    public ResponseEntity<Page<InvoiceResult>> list(@RequestParam(required = false) String status, Pageable pageable) {
-        return ResponseEntity.ok(service.list(status, pageable));
+    public ResponseEntity<Page<InvoiceResult>> list(
+            @RequestParam(required = false) Long motelId,
+            @RequestParam(required = false) String status,
+            Pageable pageable) {
+        return ResponseEntity.ok(service.list(motelId, status, pageable));
     }
+
 
     @GetMapping("/me")
     @PreAuthorize("hasAnyRole('RESIDENT')")
@@ -48,11 +55,41 @@ public class InvoiceController {
         return ResponseEntity.ok(service.listMyInvoices(status, pageable));
     }
 
+    @GetMapping("/my-balance")
+    @PreAuthorize("hasAnyRole('RESIDENT')")
+    @Operation(summary = "Get my current balance (Tenant)")
+    public ResponseEntity<java.math.BigDecimal> getMyBalance() {
+        return ResponseEntity.ok(service.getMyBalance());
+    }
+
+    @GetMapping("/balance/{residentId}")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
+    @Operation(summary = "Get resident's balance (Manager)")
+    public ResponseEntity<java.math.BigDecimal> getResidentBalance(@PathVariable UUID residentId) {
+        return ResponseEntity.ok(service.getResidentBalance(residentId));
+    }
+
+    @GetMapping("/balances")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
+    @Operation(summary = "Get multiple residents' current balances (Manager)")
+    public ResponseEntity<java.util.Map<UUID, java.math.BigDecimal>> getResidentBalances(@RequestParam java.util.List<UUID> residentIds) {
+        return ResponseEntity.ok(service.getResidentBalances(residentIds));
+    }
+
+
+
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN', 'RESIDENT')")
     @Operation(summary = "Get invoice details (UC75)")
     public ResponseEntity<InvoiceResult> getDetail(@PathVariable Long id) {
         return ResponseEntity.ok(service.getDetail(id));
+    }
+
+    @GetMapping("/{id}/payment-info")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN', 'RESIDENT')")
+    @Operation(summary = "Get VietQR payment info and dynamic QR code (UC78)")
+    public ResponseEntity<InvoicePaymentInfoResult> getPaymentInfo(@PathVariable Long id) {
+        return ResponseEntity.ok(service.getPaymentInfo(id));
     }
 
     @PostMapping("/{id}/adjust")

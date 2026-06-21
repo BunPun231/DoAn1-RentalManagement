@@ -44,3 +44,6 @@ app:
   gemini:
     api-key: ${GEMINI_API_KEY:}
     model: ${GEMINI_MODEL:gemini-3.5-flash}
+  sepay:
+    apikey: ${SEPAY_API_KEY:}
+

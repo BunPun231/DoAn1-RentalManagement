@@ -280,6 +280,9 @@ public class ContractService {
         Contract contract = contractRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> BaseException.notFound("Contract", id));
 
+        com.roomrental.modules.room.domain.model.Room room = roomRepository.findById(contract.getRoomId()).orElse(null);
+        Long motelId = room != null ? room.getMotelId() : null;
+
         List<String> residentIds = contractResidentRepository.findByContractId(id).stream()
                 .map(r -> r.getResidentUserId().toString())
                 .toList();
@@ -292,6 +295,7 @@ public class ContractService {
                 contract.getId(),
                 contract.getTenantId().toString(),
                 contract.getRoomId(),
+                motelId,
                 contract.getPrimaryResidentUserId().toString(),
                 contract.getRentPrice(),
                 contract.getStartDate(),

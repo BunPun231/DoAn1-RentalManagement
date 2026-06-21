@@ -10,7 +10,7 @@ import { reportService, activityService, type DashboardSummaryResult } from "@/s
 import { extractError } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import { invoiceService, type InvoiceResult } from "@/services/invoiceService";
-import { PaymentModal } from "@/features/invoices/components/PaymentModal";
+import { VietQrPaymentModal } from "@/features/invoices/components/VietQrPaymentModal";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 
@@ -71,6 +71,7 @@ export function DashboardPage() {
   const [tenantInvoices, setTenantInvoices] = useState<InvoiceResult[]>([]);
   const [paymentInvoice, setPaymentInvoice] = useState<InvoiceResult | null>(null);
   const [managerActivities, setManagerActivities] = useState<any[]>([]);
+  const [creditBalance, setCreditBalance] = useState<number>(0);
  
   const fetchData = async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -78,9 +79,13 @@ export function DashboardPage() {
     setError(null);
     try {
       if (isTenant) {
-        // Fetch only tenant invoices
-        const res = await invoiceService.listMine(undefined, 0, 50);
+        // Fetch only tenant invoices and balance
+        const [res, bal] = await Promise.all([
+          invoiceService.listMine(undefined, 0, 50),
+          invoiceService.getMyBalance().catch(() => 0)
+        ]);
         setTenantInvoices(res.content || []);
+        setCreditBalance(bal);
       } else {
         // Fetch manager dashboard summary
         const result = await reportService.getDashboardSummary();
@@ -175,7 +180,7 @@ export function DashboardPage() {
         </div>
 
         {/* Tenant KPI Cards */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             title="Số hóa đơn cần thanh toán"
             value={`${unpaidCount} hóa đơn`}
@@ -191,6 +196,14 @@ export function DashboardPage() {
             iconBg="bg-amber-100"
             iconColor="text-amber-600"
             sub="Cần thanh toán qua ngân hàng"
+          />
+          <StatCard
+            title="Số dư tài khoản"
+            value={formatCurrency(creditBalance)}
+            icon={Wallet}
+            iconBg="bg-blue-100"
+            iconColor="text-blue-600"
+            sub="Dùng để cấn trừ hóa đơn tự động"
           />
           <StatCard
             title="Phòng thuê của tôi"
@@ -299,11 +312,10 @@ export function DashboardPage() {
         </div>
 
         {paymentInvoice && (
-          <PaymentModal
+          <VietQrPaymentModal
             isOpen={!!paymentInvoice}
             onClose={() => setPaymentInvoice(null)}
             invoiceId={paymentInvoice.id}
-            totalDebt={paymentInvoice.totalAmount - (paymentInvoice.paidAmount || 0)}
             onSuccess={() => {
               setPaymentInvoice(null);
               fetchData();

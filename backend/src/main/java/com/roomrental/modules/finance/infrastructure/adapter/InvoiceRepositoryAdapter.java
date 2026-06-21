@@ -79,6 +79,11 @@ public class InvoiceRepositoryAdapter implements InvoiceRepository {
     }
 
     @Override
+    public Optional<UUID> findTenantIdByInvoiceIdNative(Long invoiceId) {
+        return jpaRepository.findTenantIdByInvoiceIdNative(invoiceId).map(UUID::fromString);
+    }
+
+    @Override
     public void softDelete(Long id) {
         jpaRepository.softDelete(id);
     }

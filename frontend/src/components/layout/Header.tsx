@@ -1,5 +1,6 @@
 import { Search } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
+import { NotificationBell } from "./NotificationBell";
 
 export function Header() {
   const { user } = useAuthStore();
@@ -33,6 +34,7 @@ export function Header() {
         </div>
       </div>
       <div className="flex items-center gap-4">
+        <NotificationBell />
         <div className="text-sm font-medium text-slate-600 border border-slate-200 rounded-lg px-3 py-1.5 bg-slate-50">
           Vai trò: {getRoleLabel(user?.role)}
         </div>

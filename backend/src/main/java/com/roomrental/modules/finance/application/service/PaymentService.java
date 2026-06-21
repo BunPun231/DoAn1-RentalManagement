@@ -25,9 +25,12 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import com.roomrental.common.util.TenantContext;
 
 @Service
 public class PaymentService {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(PaymentService.class);
 
     private final TransactionRepository transactionRepository;
     private final InvoiceRepository invoiceRepository;
@@ -50,61 +53,88 @@ public class PaymentService {
 
     @Transactional(rollbackFor = Exception.class)
     public TransactionResult processWebhook(PaymentWebhookCommand command) {
+        // Handle SePay test webhook signal cleanly
+        if ("SEPAYTEST".equalsIgnoreCase(command.memo())) {
+            log.info("Received SePay test webhook request. Returning dummy success payload.");
+            return new TransactionResult(
+                    0L,
+                    0L,
+                    command.amount(),
+                    BigDecimal.ZERO,
+                    BigDecimal.ZERO,
+                    command.transactionRef() != null ? command.transactionRef() : "SEPAY-TEST-REF",
+                    "VIETQR",
+                    command.bankCode(),
+                    "SUCCESS",
+                    OffsetDateTime.now()
+            );
+        }
+
+
         // Idempotency check
         if (transactionRepository.findByTransactionRef(command.transactionRef()).isPresent()) {
             throw BaseException.conflict("Transaction already processed");
         }
 
-        // Parse invoice ID from memo. e.g. "INV-1234"
+        // Parse invoice ID from memo. e.g. "PT88" -> 88
         Long invoiceId = parseInvoiceIdFromMemo(command.memo());
-
-        Transaction tx = new Transaction();
-        tx.setAmount(command.amount());
-        tx.setTransactionRef(command.transactionRef());
-        tx.setPaymentMethod(PaymentMethod.VIETQR);
-        tx.setBankCode(command.bankCode());
-        tx.setRawWebhookData(command.rawData());
-        tx.setPaidAt(OffsetDateTime.now());
-        tx.setCreatedAt(OffsetDateTime.now());
-        // For webhook we assume system actor or tenant is determined later.
-        // We'll leave tenantId null if it's a generic webhook, but here we require a tenant lookup.
-        // Usually, the invoice gives the tenantId.
-        
-        if (invoiceId != null) {
-            invoiceRepository.findById(invoiceId).ifPresentOrElse(invoice -> {
-                if (invoice.isDeleted() || invoice.getStatus() == Invoice.InvoiceStatus.VOID) {
-                    throw BaseException.badRequest("Cannot pay a deleted or voided invoice");
-                }
-                if (invoice.getStatus() == Invoice.InvoiceStatus.PAID) {
-                    throw BaseException.badRequest("Invoice is already paid");
-                }
-                
-                tx.setTenantId(invoice.getTenantId());
-                tx.setInvoiceId(invoiceId);
-                tx.setStatus(TransactionStatus.SUCCESS);
-                
-                BigDecimal overpaidAmount = handleInvoicePayment(invoice, command.amount());
-                tx.setOverpaidAmount(overpaidAmount);
-                tx.setCreditBalanceSnapshot(getCurrentResidentBalance(invoice.getContractId()));
-                
-                // If overpaid, ideally add to resident balance.
-            }, () -> {
-                tx.setStatus(TransactionStatus.PENDING_RECONCILE);
-            });
-        } else {
-            tx.setStatus(TransactionStatus.PENDING_RECONCILE);
+        if (invoiceId == null) {
+            throw BaseException.badRequest("Cannot resolve invoice ID from memo: " + command.memo());
         }
 
-        Transaction saved = transactionRepository.save(tx);
 
-        if (saved.getStatus() == TransactionStatus.SUCCESS) {
+        // 1. Bypass tenant filter to resolve tenant ID natively
+        UUID tenantId = invoiceRepository.findTenantIdByInvoiceIdNative(invoiceId)
+                .orElseThrow(() -> BaseException.notFound("Invoice", invoiceId));
+
+        String previousTenantId = TenantContext.getCurrentTenantId();
+        try {
+            // 2. Bound the execution context securely to this tenant
+            TenantContext.setCurrentTenantId(tenantId.toString());
+
+            Invoice invoice = invoiceRepository.findById(invoiceId)
+                    .orElseThrow(() -> BaseException.notFound("Invoice", invoiceId));
+
+            if (invoice.isDeleted() || invoice.getStatus() == Invoice.InvoiceStatus.VOID) {
+                throw BaseException.badRequest("Cannot pay a deleted or voided invoice");
+            }
+            if (invoice.getStatus() == Invoice.InvoiceStatus.PAID) {
+                throw BaseException.badRequest("Invoice is already paid");
+            }
+
+            Transaction tx = new Transaction();
+            tx.setAmount(command.amount());
+            tx.setTransactionRef(command.transactionRef());
+            tx.setPaymentMethod(PaymentMethod.VIETQR);
+            tx.setBankCode(command.bankCode());
+            tx.setRawWebhookData(command.rawData());
+            tx.setPaidAt(OffsetDateTime.now());
+            tx.setCreatedAt(OffsetDateTime.now());
+            tx.setTenantId(tenantId);
+            tx.setInvoiceId(invoiceId);
+            tx.setStatus(TransactionStatus.SUCCESS);
+
+            BigDecimal overpaidAmount = handleInvoicePayment(invoice, command.amount());
+            tx.setOverpaidAmount(overpaidAmount);
+            tx.setCreditBalanceSnapshot(getCurrentResidentBalance(invoice.getContractId()));
+
+            Transaction saved = transactionRepository.save(tx);
+
             eventPublisher.publishEvent(new PaymentReceivedEvent(
-                saved.getTenantId(), SecurityUtils.isAuthenticated() ? SecurityUtils.getCurrentUserId() : null, "SYSTEM",
+                saved.getTenantId(), null, "SYSTEM",
                 saved.getId(), saved.getInvoiceId(), saved.getAmount().toPlainString()
             ));
-        }
 
-        return toResult(saved);
+            return toResult(saved);
+
+        } finally {
+            // 3. Clear/restore TenantContext boundary in finally block
+            if (previousTenantId != null) {
+                TenantContext.setCurrentTenantId(previousTenantId);
+            } else {
+                TenantContext.clear();
+            }
+        }
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -189,10 +219,18 @@ public class PaymentService {
 
     private Long parseInvoiceIdFromMemo(String memo) {
         if (memo == null) return null;
-        Pattern pattern = Pattern.compile("INV-(\\d+)");
-        Matcher matcher = pattern.matcher(memo.toUpperCase());
+        String upper = memo.toUpperCase().trim();
+        // Match INV-88, PT88, INV88, PT-88, etc.
+        Pattern pattern = Pattern.compile("(?:INV|PT)-?(\\d+)");
+        Matcher matcher = pattern.matcher(upper);
         if (matcher.find()) {
             return Long.parseLong(matcher.group(1));
+        }
+        // Fallback: search for any sequence of digits if there's no prefix
+        Pattern fallbackPattern = Pattern.compile("(\\d+)");
+        Matcher fallbackMatcher = fallbackPattern.matcher(upper);
+        if (fallbackMatcher.find()) {
+            return Long.parseLong(fallbackMatcher.group(1));
         }
         return null;
     }

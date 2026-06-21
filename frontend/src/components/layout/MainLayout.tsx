@@ -2,9 +2,13 @@ import { Outlet, Navigate } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { useAuthStore } from "@/store/authStore";
+import { useWebSocket } from "@/hooks/useWebSocket";
 
 export function MainLayout() {
   const { accessToken } = useAuthStore();
+  
+  // Connect WebSocket to listen to real-time events
+  useWebSocket();
 
   // Protect route
   if (!accessToken) {

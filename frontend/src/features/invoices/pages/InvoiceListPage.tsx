@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Plus, Search, FileText, CreditCard, RefreshCw, AlertCircle, Zap } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -9,6 +10,7 @@ import { motelService, type MotelResult } from "@/services/motelService";
 import { extractError } from "@/lib/api";
 import { Modal } from "@/components/ui/Modal";
 import { PaymentModal } from "../components/PaymentModal";
+import { VietQrPaymentModal } from "../components/VietQrPaymentModal";
 import { InvoiceDetailModal } from "../components/InvoiceDetailModal";
 import { useAuthStore } from "@/store/authStore";
 
@@ -127,6 +129,9 @@ export function InvoiceListPage() {
   const { user } = useAuthStore();
   const isTenant = (user?.role as string) === "TENANT" || (user?.role as string) === "RESIDENT";
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const queryInvoiceId = searchParams.get("id");
+
   const [invoices, setInvoices] = useState<InvoiceResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -138,13 +143,41 @@ export function InvoiceListPage() {
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceResult | null>(null);
   const [invoiceDetails, setInvoiceDetails] = useState<InvoiceResult | null>(null);
   const [paymentInvoice, setPaymentInvoice] = useState<InvoiceResult | null>(null);
+  const [motels, setMotels] = useState<MotelResult[]>([]);
+  const [selectedMotelId, setSelectedMotelId] = useState<number | null>(null);
+
+
+  useEffect(() => {
+    if (queryInvoiceId) {
+      const invId = parseInt(queryInvoiceId, 10);
+      if (!isNaN(invId)) {
+        invoiceService.get(invId)
+          .then((res) => {
+            setInvoiceDetails(res);
+            setSearchParams({});
+          })
+          .catch((err) => {
+            console.error("Failed to load invoice from query param", err);
+          });
+      }
+    }
+  }, [queryInvoiceId, setSearchParams]);
+
+  // Fetch motels for manager
+  useEffect(() => {
+    if (!isTenant) {
+      motelService.list().then((res) => {
+        setMotels(res.content);
+      }).catch((err) => console.error("Error loading motels", err));
+    }
+  }, [isTenant]);
 
   const fetchInvoices = useCallback(async () => {
     setLoading(true);
     try {
       const result = isTenant
         ? await invoiceService.listMine(statusFilter || undefined, page, 20)
-        : await invoiceService.list(undefined, statusFilter || undefined, page, 20);
+        : await invoiceService.list(selectedMotelId || undefined, statusFilter || undefined, page, 20);
       setInvoices(result.content);
       setTotalPages(result.totalPages);
       setError(null);
@@ -153,7 +186,8 @@ export function InvoiceListPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, statusFilter, isTenant]);
+  }, [page, statusFilter, selectedMotelId, isTenant]);
+
 
   useEffect(() => {
     fetchInvoices();
@@ -249,18 +283,34 @@ export function InvoiceListPage() {
               className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm focus:border-brand-deep focus:outline-none focus:ring-2 focus:ring-brand-deep/20 transition-all"
             />
           </div>
-          <select
-            id="invoice-status-filter"
-            value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
-            className="h-10 rounded-xl border border-slate-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-deep/20 bg-white"
-          >
-            <option value="">Tất cả trạng thái</option>
-            <option value="PENDING">Chưa thanh toán</option>
-            <option value="PARTIAL">Một phần</option>
-            <option value="PAID">Đã thanh toán</option>
-            <option value="VOID">Đã hủy</option>
-          </select>
+          <div className="flex items-center gap-3 flex-wrap w-full sm:w-auto">
+            {!isTenant && (
+              <select
+                id="invoice-motel-filter"
+                value={selectedMotelId ?? ""}
+                onChange={(e) => { setSelectedMotelId(e.target.value ? Number(e.target.value) : null); setPage(0); }}
+                className="h-10 rounded-xl border border-slate-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-deep/20 bg-white"
+              >
+                <option value="">Tất cả khu trọ</option>
+                {motels.map((m) => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
+            )}
+            <select
+              id="invoice-status-filter"
+              value={statusFilter}
+              onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
+              className="h-10 rounded-xl border border-slate-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-deep/20 bg-white"
+            >
+              <option value="">Tất cả trạng thái</option>
+              <option value="PENDING">Chưa thanh toán</option>
+              <option value="PARTIAL">Một phần</option>
+              <option value="PAID">Đã thanh toán</option>
+              <option value="VOID">Đã hủy</option>
+            </select>
+          </div>
+
         </div>
 
         {loading ? (
@@ -377,7 +427,14 @@ export function InvoiceListPage() {
         onSuccess={() => { setIsGenerateOpen(false); fetchInvoices(); }}
       />
 
-      {paymentInvoice && (
+      {paymentInvoice && isTenant ? (
+        <VietQrPaymentModal
+          isOpen={!!paymentInvoice}
+          onClose={() => setPaymentInvoice(null)}
+          invoiceId={paymentInvoice.id}
+          onSuccess={() => { setPaymentInvoice(null); fetchInvoices(); }}
+        />
+      ) : paymentInvoice ? (
         <PaymentModal
           isOpen={!!paymentInvoice}
           onClose={() => setPaymentInvoice(null)}
@@ -385,7 +442,7 @@ export function InvoiceListPage() {
           totalDebt={paymentInvoice.totalAmount - (paymentInvoice.paidAmount || 0)}
           onSuccess={() => { setPaymentInvoice(null); fetchInvoices(); }}
         />
-      )}
+      ) : null}
     </div>
   );
 }

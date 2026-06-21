@@ -13,6 +13,7 @@ public record ContractDetailResult(
         Long id,
         String tenantId,
         Long roomId,
+        Long motelId,
         String primaryResidentUserId,
         BigDecimal rentPrice,
         LocalDate startDate,
