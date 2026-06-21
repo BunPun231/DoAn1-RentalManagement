@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { api } from "@/lib/api";
@@ -32,6 +32,14 @@ export function VietQrPaymentModal({ isOpen, onClose, invoiceId, onSuccess }: Vi
   const [isPaid, setIsPaid] = useState(false);
 
   const notifications = useNotificationStore((state) => state.notifications);
+  const processedNotifIds = useRef<Set<number>>(new Set());
+
+  // Reset processed IDs on open/change
+  useEffect(() => {
+    if (isOpen) {
+      processedNotifIds.current = new Set();
+    }
+  }, [isOpen, invoiceId]);
 
   // 1. Fetch payment details
   useEffect(() => {
@@ -56,17 +64,46 @@ export function VietQrPaymentModal({ isOpen, onClose, invoiceId, onSuccess }: Vi
   useEffect(() => {
     if (!isOpen || isPaid) return;
 
-    // Check if a new payment notification matching this invoice has arrived
-    const hasPaymentNotif = notifications.some(
-      (n) => n.type === "PAYMENT" && n.actionUrl?.endsWith(`/${invoiceId}`)
+    // Find a payment notification matching this invoice that has not been processed yet
+    const newPaymentNotif = notifications.find(
+      (n) => n.type === "PAYMENT" && 
+             n.actionUrl?.endsWith(`/${invoiceId}`) && 
+             !processedNotifIds.current.has(n.id)
     );
 
-    if (hasPaymentNotif) {
-      setIsPaid(true);
-      const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2013/2013-84.wav");
-      audio.play().catch(() => {}); // Play sound safely
+    if (newPaymentNotif) {
+      // Mark it as processed immediately to prevent double processing
+      processedNotifIds.current.add(newPaymentNotif.id);
+
+      // Re-fetch invoice details to determine if fully or partially paid
+      api.get<any>(`/api/v1/invoices/${invoiceId}`)
+        .then((res) => {
+          const inv = res.data;
+          const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2013/2013-84.wav");
+          audio.play().catch(() => {});
+
+          if (inv.status === "PAID") {
+            setIsPaid(true);
+          } else {
+            // Partially paid!
+            // Refresh payment info to get updated QR and remaining amount
+            api.get<PaymentInfo>(`/api/v1/invoices/${invoiceId}/payment-info`)
+              .then((piRes) => {
+                setPaymentInfo(piRes.data);
+                alert(`Bạn đã thanh toán một phần thành công! Số tiền còn lại cần thanh toán: ${formatCurrency(piRes.data.amount)}`);
+                // Trigger onSuccess to update parent invoice lists in the background
+                onSuccess();
+              })
+              .catch((err) => {
+                console.error("Failed to refresh payment info after partial payment", err);
+              });
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to load invoice status after payment notification", err);
+        });
     }
-  }, [notifications, invoiceId, isOpen, isPaid]);
+  }, [notifications, invoiceId, isOpen, isPaid, onSuccess]);
 
   const copyToClipboard = (text: string, field: string) => {
     navigator.clipboard.writeText(text);

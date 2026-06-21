@@ -110,7 +110,14 @@ public class ServiceController {
     public ResponseEntity<ApiResponse<List<ServiceResult>>> listByRoom(
             @PathVariable Long motelId, @PathVariable String roomId) {
         Long decoded = hashidsCodec.decode(roomId);
-        if (decoded == null) throw BaseException.badRequest("roomId: invalid");
+        if (decoded == null) {
+            try {
+                decoded = Long.parseLong(roomId);
+            } catch (NumberFormatException e) {
+                throw BaseException.badRequest("roomId: invalid");
+            }
+        }
         return ResponseEntity.ok(ApiResponse.ok(svc.listByRoom(motelId, decoded)));
     }
+
 }

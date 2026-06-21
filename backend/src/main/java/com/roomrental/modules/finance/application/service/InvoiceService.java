@@ -24,6 +24,8 @@ import com.roomrental.modules.finance.domain.repository.ServiceUsageRepository;
 import com.roomrental.modules.finance.domain.repository.ResidentBalanceRepository;
 import com.roomrental.modules.contract.domain.model.Contract;
 import com.roomrental.modules.contract.domain.repository.ContractRepository;
+import com.roomrental.modules.contract.domain.repository.ContractServiceItemRepository;
+import com.roomrental.modules.contract.domain.model.ContractServiceItem;
 import com.roomrental.modules.room.domain.model.Room;
 import com.roomrental.modules.room.domain.repository.RoomRepository;
 import com.roomrental.modules.service.domain.model.ServicePricing;
@@ -68,6 +70,7 @@ public class InvoiceService {
     private final ApplicationEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
     private final MotelRepository motelRepository;
+    private final ContractServiceItemRepository contractServiceItemRepository;
 
     public InvoiceService(
             InvoiceRepository invoiceRepository,
@@ -82,7 +85,8 @@ public class InvoiceService {
             BillingStrategyFactory strategyFactory,
             ApplicationEventPublisher eventPublisher,
             ObjectMapper objectMapper,
-            MotelRepository motelRepository) {
+            MotelRepository motelRepository,
+            ContractServiceItemRepository contractServiceItemRepository) {
         this.invoiceRepository = invoiceRepository;
         this.invoiceDetailRepository = invoiceDetailRepository;
         this.contractRepository = contractRepository;
@@ -96,6 +100,7 @@ public class InvoiceService {
         this.eventPublisher = eventPublisher;
         this.objectMapper = objectMapper;
         this.motelRepository = motelRepository;
+        this.contractServiceItemRepository = contractServiceItemRepository;
     }
 
     @Async("taskExecutor")
@@ -152,7 +157,13 @@ public class InvoiceService {
         Room room = roomRepository.findById(contract.getRoomId())
                 .orElseThrow(() -> BaseException.notFound("Room", contract.getRoomId()));
 
-        List<ServiceUsage> billableUsages = serviceUsageRepository.findBillableByRoomId(room.getId());
+        List<ContractServiceItem> contractServices = contractServiceItemRepository.findByContractId(contract.getId());
+        java.util.Set<Long> registeredServiceIds = contractServices.stream()
+                .map(ContractServiceItem::getServiceId)
+                .collect(Collectors.toSet());
+        List<ServiceUsage> billableUsages = serviceUsageRepository.findBillableByRoomId(room.getId()).stream()
+                .filter(usage -> registeredServiceIds.contains(usage.getServiceId()))
+                .collect(Collectors.toList());
         Map<Long, MeterReading> approvedReadings = meterReadingRepository.findByRoomIdAndBillingMonth(room.getId(), billingMonth)
                 .stream()
                 .filter(r -> r.getStatus() == MeterReading.MeterReadingStatus.APPROVED)
@@ -298,6 +309,22 @@ public class InvoiceService {
         }
         return invoiceRepository.findByTenantIdAndContractIdIn(tenantId, contractIds, pageable).map(this::toResult);
     }
+
+    @Transactional(readOnly = true)
+    public java.math.BigDecimal getMyBalance() {
+        UUID userId = SecurityUtils.getCurrentUserId();
+        return residentBalanceRepository.findById(userId)
+            .map(rb -> rb.getBalance() != null ? rb.getBalance() : java.math.BigDecimal.ZERO)
+            .orElse(java.math.BigDecimal.ZERO);
+    }
+
+    @Transactional(readOnly = true)
+    public java.math.BigDecimal getResidentBalance(UUID residentId) {
+        return residentBalanceRepository.findById(residentId)
+            .map(rb -> rb.getBalance() != null ? rb.getBalance() : java.math.BigDecimal.ZERO)
+            .orElse(java.math.BigDecimal.ZERO);
+    }
+
 
     @Transactional(readOnly = true)
     public InvoiceResult getDetail(Long id) {

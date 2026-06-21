@@ -94,7 +94,15 @@ public class MeterReadingService {
         reading.setNewReading(command.newReading());
         reading.calculateConsumption();
         reading.setReadingImageUrl(command.readingImageUrl());
-        reading.setStatus(MeterReadingStatus.PENDING);
+        
+        String role = SecurityUtils.getCurrentRole();
+        if ("MANAGER".equals(role) || "ADMIN".equals(role)) {
+            reading.setStatus(MeterReadingStatus.APPROVED);
+            reading.setApprovedBy(actorId);
+        } else {
+            reading.setStatus(MeterReadingStatus.PENDING);
+        }
+        
         reading.setSubmittedBy(actorId);
         reading.setCreatedAt(OffsetDateTime.now());
         reading.setUpdatedAt(OffsetDateTime.now());

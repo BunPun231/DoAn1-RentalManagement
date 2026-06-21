@@ -210,4 +210,10 @@ export const contractService = {
     const res = await api.get(`/api/contracts/${contractId}/pdf`, { responseType: "blob" });
     return res.data;
   },
+
+  /** List contracts for a resident */
+  async listByResident(residentUserId: string): Promise<ContractResult[]> {
+    const res = await api.get<ApiResponse<ContractResult[]>>(`/api/contracts/resident/${residentUserId}`);
+    return res.data.data;
+  },
 };

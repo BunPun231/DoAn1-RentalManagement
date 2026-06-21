@@ -6,6 +6,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { residentService, type ResidentResult, type ResidentCreateRequest } from "@/services/residentService";
 import { extractError } from "@/lib/api";
 import { Modal } from "@/components/ui/Modal";
+import { invoiceService } from "@/services/invoiceService";
+import { formatCurrency } from "@/lib/utils";
+
 
 function AddResidentModal({
   isOpen,
@@ -254,6 +257,29 @@ export function ResidentListPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingResident, setEditingResident] = useState<ResidentResult | undefined>();
   const [selectedResident, setSelectedResident] = useState<ResidentResult | null>(null);
+  const [selectedResidentBalance, setSelectedResidentBalance] = useState<number | null>(null);
+  const [loadingBalance, setLoadingBalance] = useState(false);
+
+  useEffect(() => {
+    if (selectedResident) {
+      setLoadingBalance(true);
+      setSelectedResidentBalance(null);
+      invoiceService.getResidentBalance(selectedResident.userId)
+        .then((balance) => {
+          setSelectedResidentBalance(balance);
+        })
+        .catch((err) => {
+          console.error("Failed to fetch resident balance", err);
+          setSelectedResidentBalance(0);
+        })
+        .finally(() => {
+          setLoadingBalance(false);
+        });
+    } else {
+      setSelectedResidentBalance(null);
+    }
+  }, [selectedResident]);
+
 
   const fetchResidents = useCallback(async () => {
     setLoading(true);
@@ -504,7 +530,26 @@ export function ResidentListPage() {
               </div>
             </div>
 
+            {/* Account Balance Display */}
+            <div className="flex items-center gap-3 py-2.5 bg-brand-deep/5 px-3 rounded-xl border border-brand-deep/10 my-2">
+              <span className="text-brand-deep flex-shrink-0">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
+                </svg>
+              </span>
+              <div className="flex-1 flex justify-between items-center">
+                <div>
+                  <p className="text-xs text-brand-deep font-bold">Số dư tài khoản</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Khấu trừ trực tiếp vào hóa đơn tiếp theo</p>
+                </div>
+                <span className="font-extrabold text-sm text-brand-deep font-mono">
+                  {loadingBalance ? "Đang tải..." : formatCurrency(selectedResidentBalance ?? 0)}
+                </span>
+              </div>
+            </div>
+
             {/* Display CCCD Images */}
+
             <div className="space-y-2 pt-2">
               <p className="text-xs text-slate-400 font-medium">Ảnh CCCD minh chứng</p>
               <div className="grid grid-cols-2 gap-4">

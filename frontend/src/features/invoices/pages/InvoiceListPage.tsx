@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Plus, Search, FileText, CreditCard, RefreshCw, AlertCircle, Zap } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -128,6 +129,9 @@ export function InvoiceListPage() {
   const { user } = useAuthStore();
   const isTenant = (user?.role as string) === "TENANT" || (user?.role as string) === "RESIDENT";
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const queryInvoiceId = searchParams.get("id");
+
   const [invoices, setInvoices] = useState<InvoiceResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -139,6 +143,22 @@ export function InvoiceListPage() {
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceResult | null>(null);
   const [invoiceDetails, setInvoiceDetails] = useState<InvoiceResult | null>(null);
   const [paymentInvoice, setPaymentInvoice] = useState<InvoiceResult | null>(null);
+
+  useEffect(() => {
+    if (queryInvoiceId) {
+      const invId = parseInt(queryInvoiceId, 10);
+      if (!isNaN(invId)) {
+        invoiceService.get(invId)
+          .then((res) => {
+            setInvoiceDetails(res);
+            setSearchParams({});
+          })
+          .catch((err) => {
+            console.error("Failed to load invoice from query param", err);
+          });
+      }
+    }
+  }, [queryInvoiceId, setSearchParams]);
 
   const fetchInvoices = useCallback(async () => {
     setLoading(true);

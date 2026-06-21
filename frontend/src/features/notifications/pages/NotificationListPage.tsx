@@ -22,7 +22,12 @@ export function NotificationListPage() {
   const handleNotificationClick = async (id: number, actionUrl?: string) => {
     await markAsRead(id);
     if (actionUrl) {
-      navigate(actionUrl);
+      const invoiceMatch = actionUrl.match(/\/(resident|manager)\/invoices\/(\d+)/);
+      if (invoiceMatch) {
+        navigate(`/invoices?id=${invoiceMatch[2]}`);
+      } else {
+        navigate(actionUrl);
+      }
     }
   };
 

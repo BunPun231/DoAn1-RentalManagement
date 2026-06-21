@@ -14,6 +14,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import java.util.UUID;
+
 
 @RestController
 @RequestMapping("/api/v1/invoices")
@@ -48,6 +50,21 @@ public class InvoiceController {
     public ResponseEntity<Page<InvoiceResult>> getMyInvoices(@RequestParam(required = false) String status, Pageable pageable) {
         return ResponseEntity.ok(service.listMyInvoices(status, pageable));
     }
+
+    @GetMapping("/my-balance")
+    @PreAuthorize("hasAnyRole('RESIDENT')")
+    @Operation(summary = "Get my current balance (Tenant)")
+    public ResponseEntity<java.math.BigDecimal> getMyBalance() {
+        return ResponseEntity.ok(service.getMyBalance());
+    }
+
+    @GetMapping("/balance/{residentId}")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
+    @Operation(summary = "Get resident's balance (Manager)")
+    public ResponseEntity<java.math.BigDecimal> getResidentBalance(@PathVariable UUID residentId) {
+        return ResponseEntity.ok(service.getResidentBalance(residentId));
+    }
+
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN', 'RESIDENT')")

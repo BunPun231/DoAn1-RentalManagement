@@ -35,7 +35,12 @@ export function NotificationBell() {
     await markAsRead(id);
     setIsOpen(false);
     if (actionUrl) {
-      navigate(actionUrl);
+      const invoiceMatch = actionUrl.match(/\/(resident|manager)\/invoices\/(\d+)/);
+      if (invoiceMatch) {
+        navigate(`/invoices?id=${invoiceMatch[2]}`);
+      } else {
+        navigate(actionUrl);
+      }
     }
   };
 

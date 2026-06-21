@@ -7,63 +7,98 @@ import { Modal } from "@/components/ui/Modal";
 import { meterReadingService, type MeterReadingResult, type MeterReadingSubmitRequest } from "@/services/invoiceService";
 import { motelService, roomService, type MotelResult, type RoomResult } from "@/services/motelService";
 import { serviceService, type ServiceResult } from "@/services/serviceService";
+import { contractService } from "@/services/contractService";
 import { extractError } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 
 const STATUS_BADGE: Record<string, React.ReactNode> = {
-  PENDING: <Badge variant="warning">Chờ ghi / Chưa duyệt</Badge>,
+  PENDING: <Badge variant="warning">Chờ duyệt</Badge>,
   SUBMITTED: <Badge variant="default">Đã nộp</Badge>,
   APPROVED: <Badge variant="success">Đã duyệt</Badge>,
   REJECTED: <Badge variant="danger">Từ chối</Badge>,
 };
 
-function SubmitReadingModal({
+interface ServiceInput {
+  newReading: string;
+  readingImageUrl: string;
+  ocrSuccess: boolean;
+}
+
+function SubmitRoomReadingsModal({
   isOpen,
   onClose,
   roomId,
   roomNumber,
-  serviceId,
-  serviceName,
   billingMonth,
-  oldReading,
+  services,
   onSuccess,
 }: {
   isOpen: boolean;
   onClose: () => void;
   roomId: number;
   roomNumber: string;
-  serviceId: number;
-  serviceName: string;
   billingMonth: string;
-  oldReading: number;
+  services: Array<{
+    serviceId: number;
+    serviceName: string;
+    oldReading: number;
+    currentReading?: MeterReadingResult;
+  }>;
   onSuccess: () => void;
 }) {
-  const [newReading, setNewReading] = useState("");
-  const [readingImageUrl, setReadingImageUrl] = useState("");
+  const [inputs, setInputs] = useState<Record<number, ServiceInput>>({});
+  const [ocrLoadings, setOcrLoadings] = useState<Record<number, boolean>>({});
   const [loading, setLoading] = useState(false);
-  const [ocrLoading, setOcrLoading] = useState(false);
-  const [ocrSuccess, setOcrSuccess] = useState(false);
   const [error, setError] = useState("");
 
-  const handleFileChange = (file: File | null) => {
+  // Initialize inputs when modal opens or services change
+  useEffect(() => {
+    if (isOpen) {
+      const initialInputs: Record<number, ServiceInput> = {};
+      for (const s of services) {
+        initialInputs[s.serviceId] = {
+          newReading: s.currentReading?.newReading?.toString() || "",
+          readingImageUrl: s.currentReading?.imageUrl || "",
+          ocrSuccess: false,
+        };
+      }
+      setInputs(initialInputs);
+      setOcrLoadings({});
+      setError("");
+    }
+  }, [isOpen, services]);
+
+  const handleInputChange = (serviceId: number, field: keyof ServiceInput, value: any) => {
+    setInputs(prev => ({
+      ...prev,
+      [serviceId]: {
+        ...prev[serviceId],
+        [field]: value
+      }
+    }));
+  };
+
+  const handleFileChange = (serviceId: number, file: File | null) => {
     if (!file) return;
     const reader = new FileReader();
     reader.onloadend = () => {
-      setReadingImageUrl(reader.result as string);
-      setOcrSuccess(false);
+      handleInputChange(serviceId, "readingImageUrl", reader.result as string);
+      handleInputChange(serviceId, "ocrSuccess", false);
     };
     reader.readAsDataURL(file);
   };
 
-  const handleOcr = async () => {
-    if (!readingImageUrl) return;
-    setOcrLoading(true);
+  const handleOcr = async (serviceId: number, oldReading: number) => {
+    const imgUrl = inputs[serviceId]?.readingImageUrl;
+    if (!imgUrl) return;
+
+    setOcrLoadings(prev => ({ ...prev, [serviceId]: true }));
     setError("");
 
-    const match = readingImageUrl.match(/^data:(image\/[a-zA-Z+.-]+);base64,(.+)$/);
+    const match = imgUrl.match(/^data:(image\/[a-zA-Z+.-]+);base64,(.+)$/);
     if (!match) {
       setError("Định dạng ảnh không hợp lệ");
-      setOcrLoading(false);
+      setOcrLoadings(prev => ({ ...prev, [serviceId]: false }));
       return;
     }
     const mimeType = match[1];
@@ -77,23 +112,21 @@ function SubmitReadingModal({
         base64Image,
         mimeType,
       });
-      if (res && res.newReading != null) {
-        setNewReading(res.newReading.toString());
-      } else if (res && res.ocrReading != null) {
-        setNewReading(res.ocrReading.toString());
+      const extractedVal = res?.newReading ?? res?.ocrReading;
+      if (extractedVal != null) {
+        handleInputChange(serviceId, "newReading", extractedVal.toString());
+        handleInputChange(serviceId, "ocrSuccess", true);
       } else {
         throw new Error("Không trích xuất được chỉ số");
       }
-      setOcrSuccess(true);
     } catch (err) {
       console.warn("Real OCR API call failed, falling back to mock OCR:", err);
-      // Simulate OCR engine analysis fallback
       await new Promise((resolve) => setTimeout(resolve, 1000));
       const simulatedVal = oldReading + Math.floor(Math.random() * 80) + 15;
-      setNewReading(simulatedVal.toString());
-      setOcrSuccess(true);
+      handleInputChange(serviceId, "newReading", simulatedVal.toString());
+      handleInputChange(serviceId, "ocrSuccess", true);
     } finally {
-      setOcrLoading(false);
+      setOcrLoadings(prev => ({ ...prev, [serviceId]: false }));
     }
   };
 
@@ -101,18 +134,39 @@ function SubmitReadingModal({
     e.preventDefault();
     setError("");
     setLoading(true);
+
     try {
-      const payload: MeterReadingSubmitRequest = {
-        roomId,
-        serviceId,
-        billingMonth: billingMonth + "-01", // format YYYY-MM-01
-        newReading: parseFloat(newReading),
-        readingImageUrl: readingImageUrl || undefined
-      };
-      await meterReadingService.submit(payload);
-      setNewReading("");
-      setReadingImageUrl("");
-      setOcrSuccess(false);
+      const submitPromises = [];
+      for (const s of services) {
+        // Skip services that are already approved
+        if (s.currentReading?.status === "APPROVED") continue;
+
+        const val = inputs[s.serviceId]?.newReading;
+        if (!val || val.trim() === "") continue;
+
+        const newReadingNum = parseFloat(val);
+        if (isNaN(newReadingNum)) {
+          throw new Error(`Chỉ số của dịch vụ ${s.serviceName} không hợp lệ`);
+        }
+        if (newReadingNum < s.oldReading) {
+          throw new Error(`Chỉ số cuối kỳ của dịch vụ ${s.serviceName} không được nhỏ hơn đầu kỳ (${s.oldReading})`);
+        }
+
+        const payload: MeterReadingSubmitRequest = {
+          roomId,
+          serviceId: s.serviceId,
+          billingMonth: billingMonth + "-01",
+          newReading: newReadingNum,
+          readingImageUrl: inputs[s.serviceId]?.readingImageUrl || undefined
+        };
+        submitPromises.push(meterReadingService.submit(payload));
+      }
+
+      if (submitPromises.length === 0) {
+        throw new Error("Vui lòng nhập ít nhất một chỉ số");
+      }
+
+      await Promise.all(submitPromises);
       onSuccess();
     } catch (err) {
       setError(extractError(err));
@@ -122,95 +176,127 @@ function SubmitReadingModal({
   };
 
   const inputClass =
-    "w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-deep/30 focus:border-brand-deep transition-all";
+    "w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-brand-deep/30 focus:border-brand-deep transition-all";
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`Ghi chỉ số ${serviceName} - Phòng P.${roomNumber}`} size="lg">
-      <form onSubmit={handleSubmit} className="space-y-5">
+    <Modal isOpen={isOpen} onClose={onClose} title={`Ghi chỉ số - Phòng P.${roomNumber}`} size="lg">
+      <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
           <div className="rounded-xl bg-red-50 border border-red-100 p-3 text-sm text-red-700">{error}</div>
         )}
 
-        <div className="flex gap-4 p-4 bg-brand-deep/5 rounded-xl border border-brand-deep/10">
-          <div className="flex-1">
-            <p className="text-xs text-slate-500 mb-1">Kỳ thanh toán</p>
-            <p className="font-bold text-slate-700">
-              {billingMonth}
-            </p>
-          </div>
-          <div className="flex-1">
-            <p className="text-xs text-slate-500 mb-1">Chỉ số đầu kỳ</p>
-            <p className="text-xl font-bold text-slate-700">{oldReading}</p>
+        <div className="p-3 bg-brand-deep/5 rounded-xl border border-brand-deep/10 flex justify-between items-center text-sm">
+          <div>
+            <span className="text-xs text-slate-500 block">Kỳ thanh toán</span>
+            <span className="font-bold text-slate-700">{billingMonth}</span>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-4">
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-slate-700">Chỉ số cuối kỳ *</label>
-              <input
-                id="meter-new-reading"
-                type="number"
-                step="0.01"
-                value={newReading}
-                onChange={(e) => {
-                  setNewReading(e.target.value);
-                  setOcrSuccess(false);
-                }}
-                min={oldReading}
-                required
-                placeholder={`Nhập chỉ số mới (> ${oldReading})`}
-                className={inputClass}
-              />
-            </div>
+        <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-1">
+          {services.map((svc) => {
+            const isApproved = svc.currentReading?.status === "APPROVED";
+            const val = inputs[svc.serviceId]?.newReading;
+            const parsedVal = val ? parseFloat(val) : NaN;
+            const consumption = !isNaN(parsedVal) && parsedVal >= svc.oldReading ? parsedVal - svc.oldReading : 0;
 
-            {newReading && parseFloat(newReading) >= oldReading && (
-              <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-sm">
-                <span className="text-slate-500">Tiêu thụ: </span>
-                <span className="font-bold text-emerald-700">
-                  {(parseFloat(newReading) - oldReading).toFixed(2)} đơn vị
-                </span>
-              </div>
-            )}
-          </div>
+            if (isApproved) {
+              return (
+                <div key={svc.serviceId} className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl flex justify-between items-center text-sm">
+                  <div>
+                    <span className="font-bold text-emerald-800">{svc.serviceName}</span>
+                    <span className="text-slate-500 ml-2">Đã chốt: {svc.currentReading?.newReading}</span>
+                  </div>
+                  <Badge variant="success">Đã duyệt</Badge>
+                </div>
+              );
+            }
 
-          <div className="space-y-3 bg-slate-50 p-4 border border-slate-200 rounded-xl">
-            <label className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
-              <Camera size={16} />
-              Ảnh chụp đồng hồ
-            </label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
-              className="text-xs text-slate-500 w-full file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-brand-deep/10 file:text-brand-deep hover:file:bg-brand-deep/20"
-            />
-            {readingImageUrl && (
-              <div className="space-y-2 mt-2">
-                <img src={readingImageUrl} alt="Đồng hồ" className="h-28 w-auto rounded border border-slate-200 object-cover" />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="w-full flex items-center justify-center gap-1.5 text-brand-deep border-brand-deep/20 hover:bg-brand-deep/5"
-                  disabled={ocrLoading}
-                  onClick={handleOcr}
-                >
-                  <Sparkles size={14} className={ocrLoading ? "animate-pulse text-amber-500" : ""} />
-                  {ocrLoading ? "Đang nhận diện..." : "Tự động nhận diện (OCR)"}
-                </Button>
-                {ocrSuccess && (
-                  <p className="text-xs text-emerald-600 font-medium text-center">✓ Nhận diện thành công!</p>
-                )}
+            return (
+              <div key={svc.serviceId} className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+                <div className="flex justify-between items-center border-b border-slate-200 pb-1.5">
+                  <h4 className="font-bold text-slate-800">{svc.serviceName}</h4>
+                  {svc.currentReading && (
+                    <span className="text-xs">{STATUS_BADGE[svc.currentReading.status]}</span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <span className="text-[10px] text-slate-400 block mb-0.5">Đầu kỳ</span>
+                        <div className="px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700">
+                          {svc.oldReading}
+                        </div>
+                      </div>
+                      <div className="flex-1">
+                        <span className="text-[10px] text-slate-400 block mb-0.5">Cuối kỳ *</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={inputs[svc.serviceId]?.newReading || ""}
+                          onChange={(e) => handleInputChange(svc.serviceId, "newReading", e.target.value)}
+                          min={svc.oldReading}
+                          placeholder={`Nhập số (> ${svc.oldReading})`}
+                          className={inputClass}
+                        />
+                      </div>
+                    </div>
+                    {val && parsedVal >= svc.oldReading && (
+                      <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-2 text-xs">
+                        <span className="text-slate-500 font-medium">Tiêu thụ: </span>
+                        <span className="font-bold text-emerald-700">
+                          {consumption.toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-medium text-slate-600 block">Ảnh minh chứng & Tự động ghi (OCR)</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleFileChange(svc.serviceId, e.target.files?.[0] || null)}
+                      className="text-[10px] text-slate-500 w-full file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:bg-brand-deep/10 file:text-brand-deep"
+                    />
+                    {inputs[svc.serviceId]?.readingImageUrl && (
+                      <div className="flex items-center gap-4 bg-white p-3 border border-slate-200 rounded-xl mt-2 shadow-sm">
+                        <img
+                          src={inputs[svc.serviceId].readingImageUrl}
+                          alt="preview"
+                          className="h-32 w-auto max-w-[160px] object-contain rounded-lg border border-slate-150 flex-shrink-0"
+                        />
+                        <div className="flex-1 space-y-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="py-2 px-3 h-auto text-xs flex items-center justify-center gap-1.5 text-brand-deep border-brand-deep/20 hover:bg-brand-deep/5 w-full font-medium"
+                            disabled={ocrLoadings[svc.serviceId]}
+                            onClick={() => handleOcr(svc.serviceId, svc.oldReading)}
+                          >
+                            <Sparkles size={13} className={ocrLoadings[svc.serviceId] ? "animate-pulse text-amber-500" : ""} />
+                            {ocrLoadings[svc.serviceId] ? "Đang nhận diện..." : "Tự động nhận diện (OCR)"}
+                          </Button>
+                          {inputs[svc.serviceId]?.ocrSuccess && (
+                            <p className="text-xs text-emerald-600 font-semibold text-center bg-emerald-50 py-1 rounded-lg">✓ Thành công!</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
+            );
+          })}
         </div>
 
-        <div className="pt-4 border-t border-slate-100 flex justify-end gap-2">
+        <div className="pt-3 border-t border-slate-100 flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={onClose} disabled={loading}>Hủy</Button>
           <Button type="submit" disabled={loading}>
-            {loading ? "Đang lưu..." : "Ghi chỉ số"}
+            {loading ? "Đang lưu..." : "Lưu tất cả"}
           </Button>
         </div>
       </form>
@@ -242,7 +328,6 @@ function TinderReviewModal({
 }) {
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  // Reset index when modal opens
   useEffect(() => {
     if (isOpen) {
       setCurrentIndex(0);
@@ -263,7 +348,6 @@ function TinderReviewModal({
     setCurrentIndex(prev => prev + 1);
   }, [currentItem, onReject]);
 
-  // Keyboard listeners
   useEffect(() => {
     if (!isOpen || !currentItem) return;
 
@@ -305,13 +389,14 @@ function TinderReviewModal({
           </div>
 
           {currentItem.currentReading.imageUrl ? (
-            <div className="flex justify-center bg-slate-50 rounded-xl p-2 border border-slate-200">
+            <div className="flex justify-center bg-slate-50 rounded-xl p-3 border border-slate-200">
               <img
                 src={currentItem.currentReading.imageUrl}
                 alt="Minh chứng"
-                className="max-h-60 w-auto rounded-lg object-contain"
+                className="max-h-96 w-auto rounded-xl object-contain shadow-sm"
               />
             </div>
+
           ) : (
             <div className="flex flex-col items-center justify-center bg-slate-50 rounded-xl p-8 border border-slate-200 text-slate-400">
               <Camera size={40} className="mb-2" />
@@ -375,66 +460,121 @@ export function MeterReadingPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [submittingData, setSubmittingData] = useState<{ roomId: number, roomNumber: string, serviceId: number, serviceName: string, oldReading: number } | null>(null);
+  const [submittingRoom, setSubmittingRoom] = useState<{
+    roomId: number;
+    roomNumber: string;
+    services: Array<{
+      serviceId: number;
+      serviceName: string;
+      oldReading: number;
+      currentReading?: MeterReadingResult;
+    }>;
+  } | null>(null);
+
   const [tinderOpen, setTinderOpen] = useState(false);
   const [bulkLoading, setBulkLoading] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
-  // Fetch motels
+  // Fetch motels for manager
   useEffect(() => {
-    motelService.list().then((res) => {
-      setMotels(res.content);
-      if (res.content.length > 0) setSelectedMotelId(res.content[0].id);
-    });
-  }, []);
+    if (isManager) {
+      motelService.list().then((res) => {
+        setMotels(res.content);
+        if (res.content.length > 0) setSelectedMotelId(res.content[0].id);
+      });
+    }
+  }, [isManager]);
 
   const fetchData = useCallback(async () => {
-    if (!selectedMotelId) return;
     setLoading(true);
     try {
-      const [roomsRes, servicesRes, readingsRes] = await Promise.all([
-        roomService.list(selectedMotelId),
-        serviceService.list(selectedMotelId),
-        meterReadingService.list(undefined, undefined, 0, 1000)
-      ]);
-      setRooms(roomsRes.content);
-      setServices(servicesRes.filter(s =>
-        s.chargeType === "METERED" ||
-        s.chargeType === "TIERED" ||
-        s.chargeType === "PER_QUANTITY" ||
-        s.chargeType === "PER_INDEX"
-      ));
-      setReadings(readingsRes.content);
+      if (isManager) {
+        if (!selectedMotelId) {
+          setLoading(false);
+          return;
+        }
+        const [roomsRes, servicesRes, readingsRes] = await Promise.all([
+          roomService.list(selectedMotelId),
+          serviceService.list(selectedMotelId),
+          meterReadingService.list(undefined, undefined, 0, 1000)
+        ]);
+        setRooms(roomsRes.content);
+        setServices(servicesRes.filter(s =>
+          s.chargeType === "METERED" ||
+          s.chargeType === "TIERED" ||
+          s.chargeType === "PER_QUANTITY" ||
+          s.chargeType === "PER_INDEX"
+        ));
+        setReadings(readingsRes.content);
+      } else {
+        // Tenant view
+        // 1. Fetch user's contracts
+        const contracts = await contractService.listByResident(user!.id);
+        const active = contracts.find(c => c.status === "ACTIVE");
+        if (!active) {
+          setRooms([]);
+          setServices([]);
+          setReadings([]);
+          setError("Bạn không có hợp đồng thuê phòng nào đang hoạt động.");
+          setLoading(false);
+          return;
+        }
+
+        // 2. Fetch contract detail to get motelId
+        const detail = await contractService.getDetail(active.id);
+        const motelId = (detail as any).motelId;
+        if (!motelId) {
+          setRooms([]);
+          setServices([]);
+          setReadings([]);
+          setError("Không xác định được khu trọ của bạn.");
+          setLoading(false);
+          return;
+        }
+
+        // 3. Fetch services assigned to this room and readings
+        const [servicesRes, readingsRes] = await Promise.all([
+          serviceService.listByRoom(motelId, active.roomId),
+          meterReadingService.list(active.roomId, undefined, 0, 1000)
+        ]);
+
+        setRooms([{ id: active.roomId, roomNumber: "của tôi" } as any]);
+        setServices(servicesRes.filter(s =>
+          s.chargeType === "METERED" ||
+          s.chargeType === "TIERED" ||
+          s.chargeType === "PER_QUANTITY" ||
+          s.chargeType === "PER_INDEX"
+        ));
+        setReadings(readingsRes.content);
+      }
       setError(null);
     } catch (err) {
       setError(extractError(err));
     } finally {
       setLoading(false);
     }
-  }, [selectedMotelId]);
+  }, [selectedMotelId, isManager, user]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  // Transform data into a matrix of Room x Service
+  // Transform data into a matrix of Room x Services list
   const tableData = useMemo(() => {
     const data = [];
     const targetMonth = billingMonth + "-01";
 
     for (const room of rooms) {
-      // Only skip empty, available or out of business rooms
       if (room.status === "EMPTY" || room.status === "AVAILABLE" || room.status === "OUT_OF_BUSINESS") continue;
 
+      const roomServices = [];
       for (const service of services) {
-        // Find existing reading for this month
         const currentReading = readings.find(r =>
           r.roomId === room.id &&
           r.serviceId === service.id &&
           r.billingMonth === targetMonth
         );
 
-        // Calculate old reading by finding the latest APPROVED reading before this month
         let oldReading = 0;
         const pastReadings = readings.filter(r =>
           r.roomId === room.id &&
@@ -447,30 +587,52 @@ export function MeterReadingPage() {
           oldReading = pastReadings[0].newReading || 0;
         }
 
-        data.push({
-          roomId: room.id,
-          roomNumber: room.roomNumber,
+        roomServices.push({
           serviceId: service.id,
           serviceName: service.name,
           oldReading,
           currentReading
         });
       }
+
+      data.push({
+        roomId: room.id,
+        roomNumber: room.roomNumber,
+        services: roomServices
+      });
     }
     return data;
   }, [rooms, services, readings, billingMonth]);
 
-  const pendingCount = tableData.filter(d => !d.currentReading || d.currentReading.status === "PENDING" || d.currentReading.status === "SUBMITTED").length;
-
   const pendingReadings = useMemo(() => {
-    return tableData.filter(d => d.currentReading && (d.currentReading.status === "PENDING" || d.currentReading.status === "SUBMITTED")) as Array<{
-      roomId: number;
-      roomNumber: string;
-      serviceId: number;
-      serviceName: string;
-      oldReading: number;
-      currentReading: MeterReadingResult;
-    }>;
+    const list: TinderPendingItem[] = [];
+    for (const room of tableData) {
+      for (const svc of room.services) {
+        if (svc.currentReading && (svc.currentReading.status === "PENDING" || svc.currentReading.status === "SUBMITTED")) {
+          list.push({
+            roomId: room.roomId,
+            roomNumber: room.roomNumber,
+            serviceId: svc.serviceId,
+            serviceName: svc.serviceName,
+            oldReading: svc.oldReading,
+            currentReading: svc.currentReading
+          });
+        }
+      }
+    }
+    return list;
+  }, [tableData]);
+
+  const pendingCount = useMemo(() => {
+    let count = 0;
+    for (const room of tableData) {
+      for (const svc of room.services) {
+        if (!svc.currentReading || svc.currentReading.status === "PENDING" || svc.currentReading.status === "SUBMITTED") {
+          count++;
+        }
+      }
+    }
+    return count;
   }, [tableData]);
 
   const handleBulkApprove = async () => {
@@ -546,16 +708,18 @@ export function MeterReadingPage() {
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3 flex-wrap">
-            <select
-              id="meter-motel"
-              value={selectedMotelId ?? ""}
-              onChange={(e) => setSelectedMotelId(Number(e.target.value))}
-              className={selectClass}
-            >
-              {motels.map((m) => (
-                <option key={m.id} value={m.id}>{m.name}</option>
-              ))}
-            </select>
+            {isManager && (
+              <select
+                id="meter-motel"
+                value={selectedMotelId ?? ""}
+                onChange={(e) => setSelectedMotelId(Number(e.target.value))}
+                className={selectClass}
+              >
+                {motels.map((m) => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
+            )}
             <input
               id="meter-billing-month"
               type="month"
@@ -611,82 +775,93 @@ export function MeterReadingPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Phòng</TableHead>
-                  <TableHead>Dịch vụ</TableHead>
-                  <TableHead>Chỉ số đầu kỳ</TableHead>
-                  <TableHead>Chỉ số cuối kỳ</TableHead>
-                  <TableHead>Tiêu thụ</TableHead>
-                  <TableHead>Trạng thái</TableHead>
+                  {services.map((s) => (
+                    <TableHead key={s.id}>{s.name}</TableHead>
+                  ))}
                   <TableHead className="text-right">Thao tác</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {tableData.map((row, idx) => (
-                  <TableRow key={idx} className="hover:bg-slate-50/50 transition-colors">
-                    <TableCell className="font-medium text-brand-ink">
-                      P.{row.roomNumber}
+                {tableData.map((row) => (
+                  <TableRow key={row.roomId} className="hover:bg-slate-50/50 transition-colors">
+                    <TableCell className="font-bold text-brand-ink">
+                      Phòng {row.roomNumber}
                     </TableCell>
-                    <TableCell>{row.serviceName}</TableCell>
-                    <TableCell>{row.oldReading}</TableCell>
-                    <TableCell className="font-medium">
-                      {row.currentReading?.newReading ?? "-"}
-                    </TableCell>
-                    <TableCell className="text-brand-deep font-semibold">
-                      {row.currentReading?.consumption != null ? row.currentReading.consumption : "-"}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {row.currentReading
-                          ? (STATUS_BADGE[row.currentReading.status] ?? <Badge>{row.currentReading.status}</Badge>)
-                          : <Badge variant="default" className="bg-slate-100 text-slate-500 border-slate-200">Chưa ghi</Badge>
-                        }
-                        {row.currentReading?.imageUrl && (
-                          <img
-                            src={row.currentReading.imageUrl}
-                            alt="Minh chứng"
-                            className="h-8 w-8 hover:scale-110 object-cover rounded cursor-pointer border border-slate-200 transition-all flex-shrink-0"
-                            onClick={() => setLightboxImage(row.currentReading!.imageUrl!)}
-                          />
-                        )}
-                      </div>
-                    </TableCell>
+                    {row.services.map((rs) => {
+                      const cur = rs.currentReading;
+                      return (
+                        <TableCell key={rs.serviceId}>
+                          <div className="space-y-1">
+                            {cur ? (
+                              <>
+                                <div className="text-xs">
+                                  <span className="text-slate-400">Đầu:</span> <span className="font-medium text-slate-700">{rs.oldReading}</span>
+                                  <span className="mx-1 text-slate-300">|</span>
+                                  <span className="text-slate-400">Cuối:</span> <span className="font-bold text-slate-800">{cur.newReading}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                                  <span className="text-[10px] font-semibold text-brand-deep bg-brand-deep/5 px-1.5 py-0.5 rounded">
+                                    Tiêu thụ: {cur.consumption}
+                                  </span>
+                                  {STATUS_BADGE[cur.status]}
+                                  {cur.imageUrl && (
+                                    <img
+                                      src={cur.imageUrl}
+                                      alt="Minh chứng"
+                                      className="h-6 w-6 hover:scale-110 object-cover rounded cursor-pointer border border-slate-200 transition-all"
+                                      onClick={() => setLightboxImage(cur.imageUrl!)}
+                                    />
+                                  )}
+                                </div>
+                              </>
+                            ) : (
+                              <span className="text-xs text-slate-400 italic">Chưa ghi chỉ số</span>
+                            )}
+                          </div>
+                        </TableCell>
+                      );
+                    })}
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        {!row.currentReading && (
+                      <div className="flex justify-end gap-2 flex-wrap items-center">
+                        {row.services.some(s => !s.currentReading || (isManager && (s.currentReading.status === "PENDING" || s.currentReading.status === "SUBMITTED"))) && (
                           <Button
                             size="sm"
-                            onClick={() => setSubmittingData({
+                            onClick={() => setSubmittingRoom({
                               roomId: row.roomId,
                               roomNumber: row.roomNumber,
-                              serviceId: row.serviceId,
-                              serviceName: row.serviceName,
-                              oldReading: row.oldReading
+                              services: row.services
                             })}
                           >
                             <Gauge size={14} className="mr-1.5" />
                             Ghi chỉ số
                           </Button>
                         )}
-                        {isManager && row.currentReading && (row.currentReading.status === "PENDING" || row.currentReading.status === "SUBMITTED") && (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-emerald-600 border-emerald-200 hover:bg-emerald-50"
-                              onClick={() => handleApprove(row.currentReading!.id)}
-                            >
-                              <CheckCircle2 size={14} className="mr-1" />
-                              Duyệt
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-red-600 border-red-200 hover:bg-red-50"
-                              onClick={() => handleReject(row.currentReading!.id)}
-                            >
-                              <XCircle size={14} className="mr-1" />
-                              Từ chối
-                            </Button>
-                          </>
+
+                        {isManager && row.services.some(s => s.currentReading && (s.currentReading.status === "PENDING" || s.currentReading.status === "SUBMITTED")) && (
+                          <div className="flex gap-1 flex-wrap">
+                            {row.services
+                              .filter(s => s.currentReading && (s.currentReading.status === "PENDING" || s.currentReading.status === "SUBMITTED"))
+                              .map(s => (
+                                <div key={s.serviceId} className="flex gap-1 border border-slate-100 p-1 rounded-lg bg-slate-50 items-center">
+                                  <span className="text-[10px] font-bold text-slate-500 px-1">{s.serviceName}:</span>
+                                  <Button
+                                    size="sm"
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-0.5 h-auto text-[10px] font-bold"
+                                    onClick={() => handleApprove(s.currentReading!.id)}
+                                  >
+                                    Duyệt
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-red-600 border-red-200 hover:bg-red-50 px-2 py-0.5 h-auto text-[10px] font-bold"
+                                    onClick={() => handleReject(s.currentReading!.id)}
+                                  >
+                                    Từ chối
+                                  </Button>
+                                </div>
+                              ))}
+                          </div>
                         )}
                       </div>
                     </TableCell>
@@ -698,20 +873,20 @@ export function MeterReadingPage() {
         )}
       </div>
 
-      <SubmitReadingModal
-        isOpen={!!submittingData}
-        onClose={() => setSubmittingData(null)}
-        roomId={submittingData?.roomId || 0}
-        roomNumber={submittingData?.roomNumber || ""}
-        serviceId={submittingData?.serviceId || 0}
-        serviceName={submittingData?.serviceName || ""}
-        billingMonth={billingMonth}
-        oldReading={submittingData?.oldReading || 0}
-        onSuccess={() => {
-          setSubmittingData(null);
-          fetchData();
-        }}
-      />
+      {submittingRoom && (
+        <SubmitRoomReadingsModal
+          isOpen={!!submittingRoom}
+          onClose={() => setSubmittingRoom(null)}
+          roomId={submittingRoom.roomId}
+          roomNumber={submittingRoom.roomNumber}
+          billingMonth={billingMonth}
+          services={submittingRoom.services}
+          onSuccess={() => {
+            setSubmittingRoom(null);
+            fetchData();
+          }}
+        />
+      )}
 
       <TinderReviewModal
         isOpen={tinderOpen}

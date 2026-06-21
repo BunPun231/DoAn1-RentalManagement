@@ -90,7 +90,13 @@ public class MeterReadingController {
     @Operation(summary = "Get reading history for a room (UC72)")
     public ResponseEntity<List<MeterReadingResult>> getHistory(@PathVariable String roomId) {
         Long decoded = hashidsCodec.decode(roomId);
-        if (decoded == null) throw BaseException.badRequest("roomId: invalid");
+        if (decoded == null) {
+            try {
+                decoded = Long.parseLong(roomId);
+            } catch (NumberFormatException e) {
+                throw BaseException.badRequest("roomId: invalid");
+            }
+        }
         return ResponseEntity.ok(service.getHistory(decoded));
     }
 
@@ -101,7 +107,14 @@ public class MeterReadingController {
             @PathVariable String roomId, 
             @RequestParam(defaultValue = "6") int months) {
         Long decoded = hashidsCodec.decode(roomId);
-        if (decoded == null) throw BaseException.badRequest("roomId: invalid");
+        if (decoded == null) {
+            try {
+                decoded = Long.parseLong(roomId);
+            } catch (NumberFormatException e) {
+                throw BaseException.badRequest("roomId: invalid");
+            }
+        }
         return ResponseEntity.ok(service.getConsumptionTrend(decoded, months));
     }
+
 }

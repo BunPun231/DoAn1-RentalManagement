@@ -35,14 +35,17 @@ export function Sidebar() {
   // Filter NAV_ITEMS based on role
   const filteredItems = NAV_ITEMS.filter((item) => {
     if (isTenant) {
-      // Tenants only see Dashboard, Invoices, and Settings
-      return ["/dashboard", "/invoices", "/settings"].includes(item.path);
+      // Tenants only see Dashboard, Invoices, Settings, and Meter
+      return ["/dashboard", "/invoices", "/settings", "/meter"].includes(item.path);
     }
     // Admin / Manager sees all
     return true;
   }).map((item) => {
     if (isTenant && item.path === "/invoices") {
       return { ...item, name: "Hóa đơn của tôi" };
+    }
+    if (isTenant && item.path === "/meter") {
+      return { ...item, name: "Ghi chỉ số điện nước" };
     }
     return item;
   });
