@@ -151,6 +151,7 @@ export function BulkAddRoomModal({ isOpen, onClose, onSuccess, motelId }: BulkAd
           <div className="space-y-1">
             <label className="text-xs font-semibold text-slate-600">Số phòng/tầng *</label>
             <input
+              id="input-bulk-quantity"
               type="number"
               value={roomsPerFloor}
               onChange={(e) => setRoomsPerFloor(e.target.value)}
@@ -166,6 +167,7 @@ export function BulkAddRoomModal({ isOpen, onClose, onSuccess, motelId }: BulkAd
           <div className="space-y-1">
             <label className="text-xs font-semibold text-slate-600">Diện tích mặc định (m²)</label>
             <input
+              id="input-room-area"
               type="number"
               step="0.1"
               value={area}
@@ -178,6 +180,7 @@ export function BulkAddRoomModal({ isOpen, onClose, onSuccess, motelId }: BulkAd
           <div className="space-y-1">
             <label className="text-xs font-semibold text-slate-600">Giá thuê mặc định (đ) *</label>
             <input
+              id="input-room-price"
               type="text"
               value={formatVnStyle(basePrice)}
               onChange={(e) => setBasePrice(stripVnStyle(e.target.value))}
@@ -221,6 +224,7 @@ export function BulkAddRoomModal({ isOpen, onClose, onSuccess, motelId }: BulkAd
             Hủy
           </Button>
           <Button
+            id="btn-submit-bulk-rooms"
             onClick={handleBulkCreate}
             disabled={isCreating || previewRooms.length === 0}
           >

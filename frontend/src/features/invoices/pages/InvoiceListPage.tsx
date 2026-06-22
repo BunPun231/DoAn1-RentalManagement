@@ -143,6 +143,7 @@ export function InvoiceListPage() {
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceResult | null>(null);
   const [invoiceDetails, setInvoiceDetails] = useState<InvoiceResult | null>(null);
   const [paymentInvoice, setPaymentInvoice] = useState<InvoiceResult | null>(null);
+  const [previewQrInvoice, setPreviewQrInvoice] = useState<InvoiceResult | null>(null);
   const [motels, setMotels] = useState<MotelResult[]>([]);
   const [selectedMotelId, setSelectedMotelId] = useState<number | null>(null);
 
@@ -238,7 +239,7 @@ export function InvoiceListPage() {
           </Button>
           {!isTenant && (
             <Button
-              id="generate-invoices-btn"
+              id="btn-generate-monthly-invoice"
               variant="outline"
               onClick={() => setIsGenerateOpen(true)}
             >
@@ -322,7 +323,7 @@ export function InvoiceListPage() {
             <FileText size={40} className="text-slate-200 mb-3" />
             <p className="text-slate-500 font-medium">Chưa có hóa đơn nào</p>
             <p className="text-sm text-slate-400 mt-1 mb-4">Tạo hóa đơn loạt để bắt đầu</p>
-            <Button onClick={() => setIsGenerateOpen(true)}>
+            <Button id="btn-generate-monthly-invoice" onClick={() => setIsGenerateOpen(true)}>
               <Zap size={16} className="mr-2" />
               Tạo hóa đơn
             </Button>
@@ -370,15 +371,26 @@ export function InvoiceListPage() {
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
                       {(invoice.status === "PENDING" || invoice.status === "PARTIAL") && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 border-emerald-200"
-                          onClick={() => setPaymentInvoice(invoice)}
-                        >
-                          <CreditCard size={14} className="mr-1.5" />
-                          {isTenant ? "Thanh toán" : "Thu tiền"}
-                        </Button>
+                        <>
+                          <Button
+                            id="btn-preview-qr-invoice"
+                            variant="outline"
+                            size="sm"
+                            className="text-brand-deep border-brand-deep hover:bg-brand-deep/5"
+                            onClick={() => setPreviewQrInvoice(invoice)}
+                          >
+                            Mã QR
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 border-emerald-200"
+                            onClick={() => setPaymentInvoice(invoice)}
+                          >
+                            <CreditCard size={14} className="mr-1.5" />
+                            {isTenant ? "Thanh toán" : "Thu tiền"}
+                          </Button>
+                        </>
                       )}
                       <Button
                         variant="outline"
@@ -443,6 +455,15 @@ export function InvoiceListPage() {
           onSuccess={() => { setPaymentInvoice(null); fetchInvoices(); }}
         />
       ) : null}
+
+      {previewQrInvoice && (
+        <VietQrPaymentModal
+          isOpen={!!previewQrInvoice}
+          onClose={() => setPreviewQrInvoice(null)}
+          invoiceId={previewQrInvoice.id}
+          onSuccess={() => { setPreviewQrInvoice(null); fetchInvoices(); }}
+        />
+      )}
     </div>
   );
 }

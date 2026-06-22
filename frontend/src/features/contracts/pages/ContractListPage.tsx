@@ -509,7 +509,7 @@ export function ContractListPage() {
           <Button variant="outline" onClick={fetchContracts} disabled={loading}>
             <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
           </Button>
-          <Button id="create-contract-btn" onClick={() => setIsCreateOpen(true)}>
+          <Button id="btn-create-contract" onClick={() => setIsCreateOpen(true)}>
             <Plus size={16} className="mr-2" />
             Tạo hợp đồng mới
           </Button>
@@ -589,7 +589,7 @@ export function ContractListPage() {
             <FileSignature size={40} className="text-slate-200 mb-3" />
             <p className="text-slate-500 font-medium">Chưa có hợp đồng nào</p>
             <p className="text-sm text-slate-400 mt-1 mb-4">Tạo hợp đồng để bắt đầu quản lý khách thuê</p>
-            <Button onClick={() => setIsCreateOpen(true)}>
+            <Button id="btn-create-contract" onClick={() => setIsCreateOpen(true)}>
               <Plus size={16} className="mr-2" />
               Tạo hợp đồng đầu tiên
             </Button>

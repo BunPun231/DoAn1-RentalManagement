@@ -277,7 +277,7 @@ public class MotelService {
         return bankName;
     }
 
-    private String generateSecureRandomSecret() {
+    public String generateSecureRandomSecret() {
         byte[] randomBytes = new byte[24];
         new java.security.SecureRandom().nextBytes(randomBytes);
         return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);

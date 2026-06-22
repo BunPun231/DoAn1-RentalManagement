@@ -7,5 +7,6 @@ public record OnboardingStatusResult(
     boolean hasRooms,
     boolean hasActiveContract,
     boolean hasMeterReadings,
-    boolean hasInvoice
+    boolean hasInvoice,
+    int currentStep
 ) {}

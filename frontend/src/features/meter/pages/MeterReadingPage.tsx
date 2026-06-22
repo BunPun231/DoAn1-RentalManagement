@@ -257,6 +257,13 @@ function SubmitRoomReadingsModal({
                         <div className="flex-1">
                           <span className="text-[10px] text-slate-400 block mb-0.5">Cuối kỳ *</span>
                           <input
+                            id={
+                              svc.serviceName.toLowerCase().includes("điện")
+                                ? "input-electric-index-initial"
+                                : svc.serviceName.toLowerCase().includes("nước")
+                                ? "input-water-index-initial"
+                                : undefined
+                            }
                             type="number"
                             step="0.01"
                             value={inputs[svc.serviceId]?.newReading || ""}
@@ -313,7 +320,7 @@ function SubmitRoomReadingsModal({
 
         <div className="pt-3 border-t border-slate-100 flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={onClose} disabled={loading}>Hủy</Button>
-          <Button type="submit" disabled={loading}>
+          <Button id="btn-save-meter-readings" type="submit" disabled={loading}>
             {loading ? "Đang lưu..." : "Lưu tất cả"}
           </Button>
         </div>
@@ -843,6 +850,7 @@ export function MeterReadingPage() {
                       <div className="flex justify-end gap-2 flex-wrap items-center">
                         {row.services.some(s => !s.currentReading || (isManager && (s.currentReading.status === "PENDING" || s.currentReading.status === "SUBMITTED"))) && (
                           <Button
+                            id="btn-open-meter-modal"
                             size="sm"
                             onClick={() => setSubmittingRoom({
                               roomId: row.roomId,

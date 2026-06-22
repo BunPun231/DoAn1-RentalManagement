@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useTourGuide, ONBOARDING_STEPS } from "@/hooks/useTourGuide";
+import { useTourGuide, ONBOARDING_STEPS, SUB_STEPS } from "@/hooks/useTourGuide";
 import {
   HelpCircle, ChevronDown, ChevronUp, Check, Play,
   BookOpen, Sparkles, X, ArrowRight, ExternalLink
@@ -21,7 +21,12 @@ export function TourGuideWidget() {
     setIsGuideOpen,
     showCelebration,
     setShowCelebration,
-    pageGuide
+    pageGuide,
+    activeSubStepId,
+    setActiveSubStepId,
+    isDriverActive,
+    localOverrideStep,
+    setLocalOverrideStep
   } = useTourGuide();
 
   // Pulse effect trigger for new steps
@@ -34,6 +39,23 @@ export function TourGuideWidget() {
   }, [currentStep]);
 
   if (loading && !onboardingStatus) return null;
+
+  const activeStepNumber = localOverrideStep !== null ? localOverrideStep : currentStep;
+
+  // Helper to start/replay a specific step
+  const startStepGuide = (stepNum: number) => {
+    setLocalOverrideStep(stepNum);
+    setIsGuideOpen(true);
+    const firstSubStep = SUB_STEPS.find(s => s.stage === stepNum);
+    if (firstSubStep) {
+      setActiveSubStepId(firstSubStep.id);
+      localStorage.setItem("onboarding_substep", firstSubStep.id);
+    }
+    const targetStep = ONBOARDING_STEPS[stepNum - 1];
+    if (targetStep && location.pathname !== targetStep.targetPath) {
+      navigate(targetStep.targetPath);
+    }
+  };
 
   // Confetti Particle Celebration Component
   const ConfettiCelebration = () => {
@@ -130,18 +152,13 @@ export function TourGuideWidget() {
     }
   };
 
-  const handleNavigateStep = (path: string) => {
-    navigate(path);
-    setIsGuideOpen(false);
-  };
-
   return (
     <>
       {showCelebration && <ConfettiCelebration />}
 
       <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-3 font-sans">
         {/* Expandable Dialog Guide Panel */}
-        {isGuideOpen && (
+        {isGuideOpen && !isDriverActive && (
           <div className="w-80 sm:w-96 bg-white border border-slate-100 shadow-2xl rounded-2xl overflow-hidden flex flex-col max-h-[500px] animate-fade-in border-t-4 border-t-brand-deep">
             {/* Header */}
             <div className="bg-slate-50 border-b border-slate-100 px-5 py-4 flex items-center justify-between">
@@ -164,7 +181,7 @@ export function TourGuideWidget() {
 
             {/* Content Body */}
             <div className="flex-1 overflow-y-auto p-5 space-y-5">
-              {!hasCompletedOnboarding ? (
+              {!hasCompletedOnboarding || localOverrideStep !== null ? (
                 /* ONBOARDING FLOW MODE (6 STEPS) */
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
@@ -174,15 +191,32 @@ export function TourGuideWidget() {
                     </span>
                   </div>
 
+                  {/* Override Warning/Banner */}
+                  {localOverrideStep !== null && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 flex flex-col gap-2 animate-fade-in">
+                      <div className="font-semibold flex items-center gap-1">
+                        <Sparkles size={14} className="text-amber-600 shrink-0" />
+                        <span>Bác đang xem lại Chặng {localOverrideStep}</span>
+                      </div>
+                      <button
+                        onClick={() => setLocalOverrideStep(null)}
+                        className="w-full py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold text-[11px] transition-colors"
+                      >
+                        Quay lại chặng đang làm (Chặng {currentStep})
+                      </button>
+                    </div>
+                  )}
+
                   {/* Checklist steps */}
                   <div className="space-y-2">
                     {ONBOARDING_STEPS.map((step) => {
                       const status = getStepStatus(step.stepNumber);
-                      const isActive = currentStep === step.stepNumber;
+                      const isActive = activeStepNumber === step.stepNumber;
                       return (
                         <div
                           key={step.stepNumber}
-                          className={`border rounded-xl p-3 transition-all ${
+                          onClick={() => startStepGuide(step.stepNumber)}
+                          className={`border rounded-xl p-3 transition-all cursor-pointer ${
                             isActive
                               ? "border-brand-deep bg-brand-deep/5"
                               : "border-slate-100 hover:bg-slate-50"
@@ -209,16 +243,49 @@ export function TourGuideWidget() {
 
                           {/* Extra info for active step */}
                           {isActive && (
-                            <div className="mt-2.5 pl-8 space-y-2.5">
+                            <div className="mt-2.5 pl-8 space-y-2.5" onClick={(e) => e.stopPropagation()}>
                               <p className="text-[11px] text-slate-600 leading-relaxed font-normal">
                                 {step.description}
                               </p>
                               <div className="bg-white/70 p-2 rounded border border-brand-deep/10 text-[10px] text-slate-500 italic leading-relaxed">
                                 💡 <strong>Gợi ý:</strong> {step.hint}
                               </div>
+
+                              {/* Render sub-steps progress */}
+                              <div className="space-y-1.5 border-t border-slate-200/60 pt-2.5">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Các bước thực hiện:</span>
+                                {SUB_STEPS.filter(s => s.stage === step.stepNumber).map(sub => {
+                                  const isSubActive = activeSubStepId === sub.id;
+                                  const isSubDone = parseFloat(activeSubStepId) > parseFloat(sub.id);
+                                  
+                                  return (
+                                    <div key={sub.id} className="flex items-center gap-2 text-xs">
+                                      <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0 ${
+                                        isSubDone 
+                                          ? "bg-emerald-500 text-white" 
+                                          : isSubActive 
+                                            ? "bg-brand-deep text-white" 
+                                            : "bg-slate-100 text-slate-400"
+                                      }`}>
+                                        {isSubDone ? "✓" : sub.subStep}
+                                      </div>
+                                      <span className={`text-[11px] ${
+                                        isSubActive 
+                                          ? "text-brand-deep font-extrabold" 
+                                          : isSubDone 
+                                            ? "text-slate-400 line-through font-normal" 
+                                            : "text-slate-650 font-normal"
+                                      }`}>
+                                        {sub.title}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+
                               <button
-                                onClick={() => handleNavigateStep(step.targetPath)}
-                                className="w-full flex items-center justify-center gap-1.5 py-1.5 bg-brand-deep hover:bg-brand-deep/90 text-white text-xs font-bold rounded-lg transition-colors shadow-sm"
+                                onClick={() => startStepGuide(step.stepNumber)}
+                                className="w-full flex items-center justify-center gap-1.5 py-1.5 bg-brand-deep hover:bg-brand-deep/90 text-white text-xs font-bold rounded-lg transition-colors shadow-sm mt-2"
                               >
                                 <span>{step.actionLabel}</span>
                                 <Play size={12} fill="white" />
@@ -228,6 +295,17 @@ export function TourGuideWidget() {
                         </div>
                       );
                     })}
+                  </div>
+
+                  {/* Restart guide button */}
+                  <div className="pt-2 border-t border-slate-100">
+                    <button
+                      onClick={() => startStepGuide(1)}
+                      className="w-full py-2 border border-brand-deep text-brand-deep hover:bg-brand-deep/5 rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <Play size={12} className="fill-brand-deep" />
+                      Làm lại hướng dẫn từ đầu
+                    </button>
                   </div>
                 </div>
               ) : (
@@ -261,11 +339,11 @@ export function TourGuideWidget() {
                   {/* Option to view onboarding again */}
                   <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
                     <button
-                      onClick={() => handleNavigateStep("/dashboard")}
-                      className="w-full text-center text-xs font-bold text-brand-deep hover:underline flex items-center justify-center gap-1"
+                      onClick={() => startStepGuide(1)}
+                      className="w-full text-center text-xs font-bold text-brand-deep hover:underline flex items-center justify-center gap-1 cursor-pointer"
                     >
                       <Sparkles size={12} />
-                      <span>Xem lại tiến độ thiết lập mẫu</span>
+                      <span>Xem lại luồng Onboarding (6 Chặng)</span>
                     </button>
                     <a
                       href="https://sepay.vn"

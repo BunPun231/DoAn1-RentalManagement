@@ -96,6 +96,23 @@ public class UserController {
         boolean hasMeterReadings = meterReadingJpaRepository.countByTenantId(tenantId) > 0;
         boolean hasInvoice = invoiceJpaRepository.countByTenantIdAndIsDeletedFalse(tenantId) > 0;
 
+        int currentStep = 1;
+        if (!hasMotel) {
+            currentStep = 1;
+        } else if (!hasSePayConfig) {
+            currentStep = 2;
+        } else if (!hasRooms) {
+            currentStep = 3;
+        } else if (!hasActiveContract) {
+            currentStep = 4;
+        } else if (!hasMeterReadings) {
+            currentStep = 5;
+        } else if (!hasInvoice) {
+            currentStep = 6;
+        } else {
+            currentStep = 7;
+        }
+
         OnboardingStatusResult result = new OnboardingStatusResult(
                 hasCompletedOnboarding,
                 hasMotel,
@@ -103,7 +120,8 @@ public class UserController {
                 hasRooms,
                 hasActiveContract,
                 hasMeterReadings,
-                hasInvoice
+                hasInvoice,
+                currentStep
         );
 
         return ResponseEntity.ok(ApiResponse.ok(result));

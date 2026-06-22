@@ -76,6 +76,18 @@ public class MotelController {
         return ResponseEntity.ok(ApiResponse.ok("Payment configuration saved"));
     }
 
+    @GetMapping("/generate-secret")
+    @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
+    @Operation(summary = "Generate a secure random secret key for webhook integration")
+    public ResponseEntity<ApiResponse<String>> generateSecret() {
+        ApiResponse<String> response = ApiResponse.<String>builder()
+                .success(true)
+                .code("SUCCESS")
+                .data(motelService.generateSecureRandomSecret())
+                .build();
+        return ResponseEntity.ok(response);
+    }
+
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
     @Operation(summary = "Delete motel (UC25)")

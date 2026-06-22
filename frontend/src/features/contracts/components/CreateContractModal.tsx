@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { motelService, roomService, type MotelResult, type RoomResult } from "@/services/motelService";
+import { useTourGuide } from "@/hooks/useTourGuide";
 import { serviceService, type ServiceResult } from "@/services/serviceService";
 import { contractService } from "@/services/contractService";
 import { residentService, type ResidentResult } from "@/services/residentService";
@@ -17,6 +18,7 @@ interface CreateContractModalProps {
 }
 
 export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContractModalProps) {
+  const { currentStep } = useTourGuide();
   const [motels, setMotels] = useState<MotelResult[]>([]);
   const [selectedMotelId, setSelectedMotelId] = useState<number | "">("");
   const [rooms, setRooms] = useState<RoomResult[]>([]);
@@ -61,6 +63,10 @@ export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContra
       setError("");
       setFieldErrors({});
       setOcrSuccess(false);
+
+      if (currentStep === 4) {
+        setRepType("new");
+      }
 
       // Default start and end dates
       const today = new Date();
@@ -312,6 +318,7 @@ export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContra
             <div className="flex flex-col gap-1.5 w-full">
               <label className="text-sm font-medium text-slate-700">Phòng trống *</label>
               <select
+                id="select-contract-room"
                 value={selectedRoomId}
                 onChange={(e) => handleRoomChange(e.target.value)}
                 className={inputClass}
@@ -496,6 +503,7 @@ export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContra
                   <label className="text-sm font-medium text-slate-700 font-sans">Họ và tên đại diện *</label>
                   <div className="relative flex items-center">
                     <input
+                      id="input-tenant-name"
                       type="text"
                       value={fullName}
                       onChange={(e) => {
@@ -541,6 +549,7 @@ export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContra
                   <label className="text-sm font-medium text-slate-700 font-sans">Số điện thoại *</label>
                   <div className="relative flex items-center">
                     <input
+                      id="input-tenant-phone"
                       type="tel"
                       value={phone}
                       onChange={(e) => {
@@ -654,7 +663,7 @@ export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContra
 
         <div className="pt-4 border-t border-slate-100 flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={onClose}>Hủy</Button>
-          <Button type="submit" disabled={isLoading}>
+          <Button id="btn-submit-contract" type="submit" disabled={isLoading}>
             {isLoading ? "Đang tạo..." : "Tạo hợp đồng"}
           </Button>
         </div>

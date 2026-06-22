@@ -32,6 +32,7 @@ export interface OnboardingStatusResult {
   hasActiveContract: boolean;
   hasMeterReadings: boolean;
   hasInvoice: boolean;
+  currentStep: number;
 }
 
 export interface ChangePasswordRequest {
