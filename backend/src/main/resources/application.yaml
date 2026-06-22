@@ -20,10 +20,10 @@ management:
 
 app:
   security:
-    jwt-secret: ${JWT_SECRET}
+    jwt-secret: ${JWT_SECRET:defaultsecretkeyforjwttokengenerationmin32chars}
     access-token-minutes: ${JWT_ACCESS_TOKEN_MINUTES:60}
     refresh-token-days: ${JWT_REFRESH_TOKEN_DAYS:7}
-    encryption-key: ${APP_ENCRYPTION_KEY:${JWT_SECRET:}}
+    encryption-key: ${APP_ENCRYPTION_KEY:${JWT_SECRET:defaultsecretkeyforjwttokengenerationmin32chars}}
   tenant:
     header-name: ${TENANT_HEADER_NAME:X-Tenant-Id}
   bootstrap:
@@ -46,4 +46,6 @@ app:
     model: ${GEMINI_MODEL:gemini-3.5-flash}
   sepay:
     apikey: ${SEPAY_API_KEY:}
+    webhook-url: ${SEPAY_WEBHOOK_URL:https://your-domain.com/api/v1/payments/webhook}
+    api-url: ${SEPAY_API_URL:https://my.sepay.vn/api/v1/webhooks}
 

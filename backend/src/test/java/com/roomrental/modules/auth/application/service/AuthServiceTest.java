@@ -34,6 +34,9 @@ class AuthServiceTest {
     @Mock private TenantRepository tenantRepository;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private JwtTokenService jwtTokenService;
+    @Mock private PasswordHistoryService passwordHistoryService;
+    @Mock private org.springframework.data.redis.core.StringRedisTemplate redisTemplate;
+    @Mock private org.springframework.context.ApplicationEventPublisher eventPublisher;
     @InjectMocks private AuthService authService;
 
     private User activeUser;
@@ -41,6 +44,8 @@ class AuthServiceTest {
 
     @BeforeEach
     void setUp() {
+        org.springframework.data.redis.core.ValueOperations valueOperations = mock(org.springframework.data.redis.core.ValueOperations.class);
+        lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         activeUser = new User();
         activeUser.setId(UUID.randomUUID());
         activeUser.setPhone("0901234567");

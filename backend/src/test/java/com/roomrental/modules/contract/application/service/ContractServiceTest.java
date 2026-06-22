@@ -55,6 +55,10 @@ class ContractServiceTest {
     @Mock private MotelRepository motelRepository;
     @Mock private ResidentService residentService;
     @Mock private RentalServiceRepository rentalServiceRepository;
+    @Mock private com.roomrental.modules.finance.domain.repository.ServiceUsageRepository serviceUsageRepository;
+    @Mock private com.roomrental.modules.finance.domain.repository.MeterReadingRepository meterReadingRepository;
+    @Mock private com.roomrental.modules.contract.application.adjustment.ContractAdjustmentStrategyFactory strategyFactory;
+    @Mock private org.springframework.context.ApplicationEventPublisher eventPublisher;
     @InjectMocks private ContractService contractService;
 
     private UUID tenantId;

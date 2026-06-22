@@ -4,7 +4,9 @@ import com.roomrental.modules.finance.application.dto.*;
 import com.roomrental.modules.finance.application.service.InvoiceService;
 import com.roomrental.modules.finance.interfaces.rest.dto.InvoiceAdjustRequest;
 import com.roomrental.modules.finance.interfaces.rest.dto.InvoiceGenerateRequest;
+import com.roomrental.modules.finance.interfaces.rest.dto.PaymentConfigRegisterRequest;
 import com.roomrental.modules.finance.interfaces.rest.dto.InvoicePaymentInfoResult;
+import com.roomrental.modules.finance.application.service.SePayIntegrationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -24,9 +26,26 @@ import java.util.UUID;
 public class InvoiceController {
 
     private final InvoiceService service;
+    private final SePayIntegrationService sePayIntegrationService;
 
-    public InvoiceController(InvoiceService service) {
+    public InvoiceController(InvoiceService service, SePayIntegrationService sePayIntegrationService) {
         this.service = service;
+        this.sePayIntegrationService = sePayIntegrationService;
+    }
+
+    @PostMapping("/payment-config/{motelId}")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
+    @Operation(summary = "Configure SePay payment for a motel")
+    public ResponseEntity<Void> activateAutomaticPayment(
+            @PathVariable Long motelId,
+            @RequestBody @Valid PaymentConfigRegisterRequest request) {
+        sePayIntegrationService.activateAutomaticPayment(
+                motelId,
+                request.sePayApiKey(),
+                request.accountNumber(),
+                request.bankName()
+        );
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping("/generate")

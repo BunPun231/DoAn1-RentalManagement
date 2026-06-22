@@ -12,6 +12,7 @@ export interface User {
   phone?: string;
   role: UserRole;
   avatar?: string;
+  hasCompletedOnboarding: boolean;
 }
 
 export interface Motel {

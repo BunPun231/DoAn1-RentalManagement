@@ -54,6 +54,9 @@ public interface ContractJpaRepository extends JpaRepository<ContractEntity, Lon
     @Query("SELECT c FROM ContractEntity c WHERE c.tenantId = :tenantId AND c.status = 'ACTIVE'")
     List<ContractEntity> findActiveByTenantId(@Param("tenantId") UUID tenantId);
 
+    @Query("SELECT COUNT(c) FROM ContractEntity c WHERE c.tenantId = :tenantId AND c.status = 'ACTIVE'")
+    long countActiveByTenantId(@Param("tenantId") UUID tenantId);
+
     @Query("SELECT COUNT(c) > 0 FROM ContractEntity c WHERE c.tenantId = :tenantId AND c.roomId = :roomId AND c.status = 'ACTIVE'")
     boolean existsActiveByRoomId(@Param("tenantId") UUID tenantId, @Param("roomId") Long roomId);
 

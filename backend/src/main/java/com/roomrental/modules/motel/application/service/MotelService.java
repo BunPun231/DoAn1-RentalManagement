@@ -19,6 +19,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
 /**
  * Application service for Motel management (UC20-UC25).
  */
@@ -27,6 +31,7 @@ public class MotelService {
 
     private final MotelRepository motelRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private static final ObjectMapper objectMapper = new ObjectMapper();
 
     public MotelService(MotelRepository motelRepository, ApplicationEventPublisher eventPublisher) {
         this.motelRepository = motelRepository;
@@ -56,6 +61,9 @@ public class MotelService {
         }
         if (command.bankConfig() != null) {
             motel.setBankConfig(command.bankConfig());
+        } else {
+            String secretKey = generateSecureRandomSecret();
+            motel.setBankConfig("{\"secretKey\":\"" + secretKey + "\"}");
         }
 
         MotelResult result = toResult(motelRepository.save(motel));
@@ -78,9 +86,34 @@ public class MotelService {
     /**
      * UC22: Get motel detail.
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public MotelResult get(Long id) {
-        return toResult(findMotel(id));
+        Motel motel = findMotel(id);
+        String config = motel.getBankConfig();
+        boolean updated = false;
+        if (config == null || config.isBlank()) {
+            String secretKey = generateSecureRandomSecret();
+            motel.setBankConfig("{\"secretKey\":\"" + secretKey + "\"}");
+            updated = true;
+        } else {
+            try {
+                JsonNode node = objectMapper.readTree(config);
+                if (!node.has("secretKey") || node.get("secretKey").asText().isBlank()) {
+                    ObjectNode objectNode = (ObjectNode) node;
+                    objectNode.put("secretKey", generateSecureRandomSecret());
+                    motel.setBankConfig(objectMapper.writeValueAsString(objectNode));
+                    updated = true;
+                }
+            } catch (Exception e) {
+                String secretKey = generateSecureRandomSecret();
+                motel.setBankConfig("{\"secretKey\":\"" + secretKey + "\"}");
+                updated = true;
+            }
+        }
+        if (updated) {
+            motel = motelRepository.save(motel);
+        }
+        return toResult(motel);
     }
 
     /**
@@ -115,7 +148,41 @@ public class MotelService {
             motel.setDepositPercent(command.depositPercent());
         }
         if (command.bankConfig() != null) {
-            motel.setBankConfig(command.bankConfig());
+            String newConfig = command.bankConfig();
+            String oldConfig = motel.getBankConfig();
+            if (newConfig != null && !newConfig.isBlank()) {
+                try {
+                    JsonNode newRoot = objectMapper.readTree(newConfig);
+                    if (newRoot.has("sePayApiKey")) {
+                        String newKey = newRoot.get("sePayApiKey").asText();
+                        ObjectNode nodeToSave = (ObjectNode) newRoot;
+                        
+                        if (newKey.contains("•") || newKey.contains("*")) {
+                            // Recover old keys
+                            if (oldConfig != null && !oldConfig.isBlank()) {
+                                JsonNode oldRoot = objectMapper.readTree(oldConfig);
+                                if (oldRoot.has("sePayApiKey")) {
+                                    nodeToSave.put("sePayApiKey", oldRoot.get("sePayApiKey").asText());
+                                }
+                                if (oldRoot.has("secretKey")) {
+                                    nodeToSave.put("secretKey", oldRoot.get("secretKey").asText());
+                                }
+                                if (oldRoot.has("webhookId")) {
+                                    nodeToSave.put("webhookId", oldRoot.get("webhookId").asText());
+                                }
+                            }
+                        } else if (!newKey.isBlank()) {
+                            // Encrypt plaintext key
+                            com.roomrental.common.security.AesCryptoConverter cryptoConverter = new com.roomrental.common.security.AesCryptoConverter();
+                            nodeToSave.put("sePayApiKey", cryptoConverter.convertToDatabaseColumn(newKey.trim()));
+                        }
+                        newConfig = objectMapper.writeValueAsString(nodeToSave);
+                    }
+                } catch (Exception e) {
+                    // Fallback to saving raw command string if parsing fails
+                }
+            }
+            motel.setBankConfig(newConfig);
         }
 
         MotelResult result = toResult(motelRepository.save(motel));
@@ -139,6 +206,81 @@ public class MotelService {
         eventPublisher.publishEvent(new MotelDeletedEvent(
                 tenantId, SecurityUtils.getCurrentUserId(), SecurityUtils.getCurrentRole(),
                 id, motel.getName()));
+    }
+
+    @Transactional
+    public void savePaymentConfig(Long motelId, String accountNumber, String bankName) {
+        Motel motel = findMotel(motelId);
+        String existingConfig = motel.getBankConfig();
+        String secretKey = null;
+        String webhookId = null;
+        String sePayApiKey = null;
+        String accountHolder = "CHỦ TRỌ";
+
+        if (existingConfig != null && !existingConfig.isBlank()) {
+            try {
+                JsonNode node = objectMapper.readTree(existingConfig);
+                if (node.has("secretKey")) {
+                    secretKey = node.get("secretKey").asText();
+                }
+                if (node.has("webhookId")) {
+                    webhookId = node.get("webhookId").asText();
+                }
+                if (node.has("sePayApiKey")) {
+                    sePayApiKey = node.get("sePayApiKey").asText();
+                }
+                if (node.has("accountHolder")) {
+                    accountHolder = node.get("accountHolder").asText();
+                }
+            } catch (Exception ignored) {}
+        }
+
+        if (secretKey == null || secretKey.isBlank()) {
+            secretKey = generateSecureRandomSecret();
+        }
+
+        String bankId = deriveBankId(bankName);
+
+        // Construct new bank_config JSON
+        java.util.Map<String, String> configMap = new java.util.HashMap<>();
+        configMap.put("bankId", bankId);
+        configMap.put("bankAccount", accountNumber.trim());
+        configMap.put("accountHolder", accountHolder);
+        configMap.put("bankName", bankName);
+        if (sePayApiKey != null) {
+            configMap.put("sePayApiKey", sePayApiKey);
+        }
+        configMap.put("secretKey", secretKey);
+        if (webhookId != null) {
+            configMap.put("webhookId", webhookId);
+        }
+
+        try {
+            String jsonConfig = objectMapper.writeValueAsString(configMap);
+            motel.setBankConfig(jsonConfig);
+            motelRepository.save(motel);
+        } catch (Exception e) {
+            throw new BaseException(HttpStatus.INTERNAL_SERVER_ERROR, "JSON_ERROR", "Failed to construct bank configuration");
+        }
+    }
+
+    private String deriveBankId(String bankName) {
+        if (bankName == null) return "";
+        String upper = bankName.toUpperCase();
+        if (upper.contains("VIETCOMBANK") || upper.contains("VCB")) return "VCB";
+        if (upper.contains("VIETINBANK") || upper.contains("ICB") || upper.contains("VIETIN")) return "ICB";
+        if (upper.contains("TECHCOMBANK") || upper.contains("TCB")) return "TCB";
+        if (upper.contains("MBBANK") || upper.contains("MB") || upper.contains("QUÂN ĐỘI")) return "MB";
+        if (upper.contains("BIDV")) return "BIDV";
+        if (upper.contains("ACB")) return "ACB";
+        if (upper.contains("VIB")) return "VIB";
+        return bankName;
+    }
+
+    private String generateSecureRandomSecret() {
+        byte[] randomBytes = new byte[24];
+        new java.security.SecureRandom().nextBytes(randomBytes);
+        return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
     }
 
     private Motel findMotel(Long id) {

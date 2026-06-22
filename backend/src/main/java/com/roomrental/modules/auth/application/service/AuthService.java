@@ -254,7 +254,8 @@ public class AuthService {
                 user.getId(),
                 tenant != null ? tenant.getId() : null,
                 user.getRole().name(),
-                user.getFullName()
+                user.getFullName(),
+                user.isHasCompletedOnboarding()
         );
     }
 

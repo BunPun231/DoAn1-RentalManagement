@@ -115,6 +115,11 @@ export const motelService = {
   async delete(id: number): Promise<void> {
     await api.delete(`/api/motels/${id}`);
   },
+
+  /** Save payment configuration */
+  async savePaymentConfig(id: number, data: { accountNumber: string; bankName: string }): Promise<void> {
+    await api.put(`/api/motels/${id}/payment-config`, data);
+  },
 };
 
 // ============ ROOM APIs ============

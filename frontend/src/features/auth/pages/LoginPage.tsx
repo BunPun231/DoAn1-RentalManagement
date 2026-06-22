@@ -43,6 +43,7 @@ export function LoginPage() {
         email: "",
         phone: phone, // We know the phone because they used it to login
         role: result.role as "ADMIN" | "MANAGER" | "TENANT" | "TECHNICIAN",
+        hasCompletedOnboarding: result.hasCompletedOnboarding,
       });
 
       navigate("/dashboard");

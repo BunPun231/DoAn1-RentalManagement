@@ -24,6 +24,7 @@ public class User {
     private OffsetDateTime lastLoginAt;
     private String lockReason;
     private Integer sessionVersion = 0;
+    private boolean hasCompletedOnboarding = false;
 
     // ── Getters & Setters ────────────────────────────────────────────
 
@@ -71,4 +72,7 @@ public class User {
 
     public Integer getSessionVersion() { return sessionVersion; }
     public void setSessionVersion(Integer sessionVersion) { this.sessionVersion = sessionVersion; }
+
+    public boolean isHasCompletedOnboarding() { return hasCompletedOnboarding; }
+    public void setHasCompletedOnboarding(boolean hasCompletedOnboarding) { this.hasCompletedOnboarding = hasCompletedOnboarding; }
 }
