@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/Button";
 import { roomService, type RoomResult } from "@/services/motelService";
 import { extractError } from "@/lib/api";
 import { formatVnStyle, stripVnStyle } from "@/lib/utils";
+import { useTourGuide } from "@/hooks/useTourGuide";
 
 interface BulkAddRoomModalProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ interface RoomPreviewItem {
 }
 
 export function BulkAddRoomModal({ isOpen, onClose, onSuccess, motelId }: BulkAddRoomModalProps) {
+  const { activeSubStepId, setActiveSubStepId } = useTourGuide();
   const [fromFloor, setFromFloor] = useState("1");
   const [toFloor, setToFloor] = useState("1");
   const [roomsPerFloor, setRoomsPerFloor] = useState("5");
@@ -155,6 +157,15 @@ export function BulkAddRoomModal({ isOpen, onClose, onSuccess, motelId }: BulkAd
               type="number"
               value={roomsPerFloor}
               onChange={(e) => setRoomsPerFloor(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  if (activeSubStepId === "2.2") {
+                    setActiveSubStepId("2.3");
+                    localStorage.setItem("onboarding_substep", "2.3");
+                  }
+                }
+              }}
               min={1}
               required
               disabled={isCreating}
@@ -165,14 +176,25 @@ export function BulkAddRoomModal({ isOpen, onClose, onSuccess, motelId }: BulkAd
 
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-600">Diện tích mặc định (m²)</label>
+            <label className="text-xs font-semibold text-slate-600">Diện tích mặc định (m²) *</label>
             <input
               id="input-room-area"
               type="number"
               step="0.1"
               value={area}
               onChange={(e) => setArea(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  if (activeSubStepId === "2.4") {
+                    setActiveSubStepId("2.5");
+                    localStorage.setItem("onboarding_substep", "2.5");
+                    handleBulkCreate();
+                  }
+                }
+              }}
               placeholder="VD: 25"
+              required
               disabled={isCreating}
               className={inputClass}
             />
@@ -184,6 +206,15 @@ export function BulkAddRoomModal({ isOpen, onClose, onSuccess, motelId }: BulkAd
               type="text"
               value={formatVnStyle(basePrice)}
               onChange={(e) => setBasePrice(stripVnStyle(e.target.value))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  if (activeSubStepId === "2.3") {
+                    setActiveSubStepId("2.4");
+                    localStorage.setItem("onboarding_substep", "2.4");
+                  }
+                }
+              }}
               placeholder="VD: 3.000.000"
               required
               disabled={isCreating}

@@ -10,6 +10,7 @@ import { extractError } from "@/lib/api";
 import { Building2, UserCheck, ShieldCheck } from "lucide-react";
 import { formatVnStyle, stripVnStyle, cn } from "@/lib/utils";
 import { ValidationErrorTooltip } from "@/components/ui/ValidationErrorTooltip";
+import cccdSampleImg from "../../../../image/CCCD.jpg";
 
 interface CreateContractModalProps {
   isOpen: boolean;
@@ -18,7 +19,7 @@ interface CreateContractModalProps {
 }
 
 export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContractModalProps) {
-  const { currentStep } = useTourGuide();
+  const { currentStep, activeSubStepId, setActiveSubStepId } = useTourGuide();
   const [motels, setMotels] = useState<MotelResult[]>([]);
   const [selectedMotelId, setSelectedMotelId] = useState<number | "">("");
   const [rooms, setRooms] = useState<RoomResult[]>([]);
@@ -156,6 +157,10 @@ export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContra
       setRentPrice(room.basePrice.toString());
       applyMotelBillingConfigs(Number(selectedMotelId), room.basePrice);
     }
+    if (activeSubStepId === "4.2") {
+      setActiveSubStepId("4.3");
+      localStorage.setItem("onboarding_substep", "4.3");
+    }
   };
 
   const handleServiceToggle = (serviceId: number) => {
@@ -180,6 +185,51 @@ export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContra
       }
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleUseSampleImage = async () => {
+    setOcrLoading(true);
+    setError("");
+    setOcrSuccess(false);
+    try {
+      const response = await fetch(cccdSampleImg);
+      const blob = await response.blob();
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64Data = reader.result as string;
+        setIdCardFrontUrl(base64Data);
+        try {
+          const commaIdx = base64Data.indexOf(",");
+          const mime = base64Data.substring(base64Data.indexOf(":") + 1, base64Data.indexOf(";"));
+          const base64Raw = base64Data.substring(commaIdx + 1);
+          const res = await residentService.ocrCccd({ base64Image: base64Raw, mimeType: mime });
+          setFullName(res.fullName);
+          setIdCardNumber(res.idCardNumber);
+          setOcrSuccess(true);
+        } catch (err) {
+          setFullName("NGUYỄN VĂN TIẾN");
+          setIdCardNumber("034204005829");
+          setOcrSuccess(true);
+        } finally {
+          setOcrLoading(false);
+          if (activeSubStepId === "4.5") {
+            setActiveSubStepId("4.6");
+            localStorage.setItem("onboarding_substep", "4.6");
+          }
+        }
+      };
+      reader.readAsDataURL(blob);
+    } catch (err) {
+      console.error("Failed to load sample image", err);
+      setFullName("NGUYỄN VĂN TIẾN");
+      setIdCardNumber("034204005829");
+      setOcrSuccess(true);
+      setOcrLoading(false);
+      if (activeSubStepId === "4.5") {
+        setActiveSubStepId("4.6");
+        localStorage.setItem("onboarding_substep", "4.6");
+      }
+    }
   };
 
   const handleCccdOcr = async () => {
@@ -381,9 +431,19 @@ export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContra
             <div className="flex flex-col gap-1.5 w-full">
               <label className="text-sm font-medium text-slate-700">Tiền thuê/tháng (đ) *</label>
               <input
+                id="input-rent-price"
                 type="text"
                 value={formatVnStyle(rentPrice)}
                 onChange={(e) => setRentPrice(stripVnStyle(e.target.value))}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    if (activeSubStepId === "4.3") {
+                      setActiveSubStepId("4.4");
+                      localStorage.setItem("onboarding_substep", "4.4");
+                    }
+                  }
+                }}
                 required
                 className={inputClass}
               />
@@ -391,9 +451,19 @@ export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContra
             <div className="flex flex-col gap-1.5 w-full">
               <label className="text-sm font-medium text-slate-700">Tiền cọc (đ) *</label>
               <input
+                id="input-deposit-amount"
                 type="text"
                 value={formatVnStyle(depositAmount)}
                 onChange={(e) => setDepositAmount(stripVnStyle(e.target.value))}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    if (activeSubStepId === "4.4") {
+                      setActiveSubStepId("4.5");
+                      localStorage.setItem("onboarding_substep", "4.5");
+                    }
+                  }
+                }}
                 required
                 className={inputClass}
               />
@@ -556,6 +626,15 @@ export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContra
                         setPhone(e.target.value);
                         setFieldErrors(prev => ({ ...prev, phone: "" }));
                       }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          if (activeSubStepId === "4.6") {
+                            setActiveSubStepId("4.7");
+                            localStorage.setItem("onboarding_substep", "4.7");
+                          }
+                        }
+                      }}
                       placeholder="0912345678"
                       required={repType === "new"}
                       className={cn(inputClass, fieldErrors.phone && "border-red-500 pr-10 focus:ring-red-500")}
@@ -591,8 +670,19 @@ export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContra
 
               <div className="grid grid-cols-2 gap-4 pt-2">
                 <div className="space-y-1">
-                  <label className="text-sm font-medium text-slate-700 font-sans">Ảnh CCCD Mặt trước</label>
+                  <label className="text-sm font-medium text-slate-700 font-sans flex items-center justify-between">
+                    <span>Ảnh CCCD Mặt trước</span>
+                    <button
+                      id="btn-use-sample-cccd"
+                      type="button"
+                      onClick={handleUseSampleImage}
+                      className="text-xs text-brand-deep hover:underline font-bold"
+                    >
+                      Sử dụng ảnh mẫu
+                    </button>
+                  </label>
                   <input
+                    id="input-cccd-front"
                     type="file"
                     accept="image/*"
                     onChange={(e) => handleFileChange("front", e.target.files?.[0] || null)}
@@ -602,6 +692,7 @@ export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContra
                     <div className="space-y-2 mt-2">
                       <img src={idCardFrontUrl} alt="Mặt trước" className="h-20 w-auto rounded border border-slate-200 object-cover" />
                       <Button
+                        id="btn-cccd-ocr"
                         type="button"
                         variant="outline"
                         size="sm"
@@ -642,7 +733,7 @@ export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContra
               3. Dịch vụ đăng ký đi kèm phòng
             </h3>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-2 bg-white rounded-xl border border-slate-200">
+            <div id="select-contract-services" className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-2 bg-white rounded-xl border border-slate-200">
               {services.map((s) => {
                 const isChecked = !!selectedServices.find(item => item.serviceId === s.id);
                 return (

@@ -336,6 +336,7 @@ export function MotelListPage() {
           motelId={activeMotel.id}
           onSuccess={() => {
             fetchRooms(activeMotel.id);
+            refreshStatus();
           }}
         />
       )}

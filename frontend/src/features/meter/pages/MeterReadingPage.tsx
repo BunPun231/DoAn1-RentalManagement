@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Gauge, RefreshCw, AlertCircle, CheckCircle2, XCircle, Camera, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { useNavigate } from "react-router-dom";
+import { useTourGuide } from "@/hooks/useTourGuide";
+import electricMeterSampleImg from "../../../../image/ElectricMeter.jpg";
 import { Badge } from "@/components/ui/Badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 import { Modal } from "@/components/ui/Modal";
@@ -48,10 +51,44 @@ function SubmitRoomReadingsModal({
   onSuccess: () => void;
   onShowLightbox: (url: string) => void;
 }) {
+  const { activeSubStepId, setActiveSubStepId } = useTourGuide();
+  const { user } = useAuthStore();
   const [inputs, setInputs] = useState<Record<number, ServiceInput>>({});
   const [ocrLoadings, setOcrLoadings] = useState<Record<number, boolean>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const handleUseSampleImage = async (serviceId: number) => {
+    try {
+      const response = await fetch(electricMeterSampleImg);
+      const blob = await response.blob();
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        handleInputChange(serviceId, "readingImageUrl", reader.result as string);
+        handleInputChange(serviceId, "ocrSuccess", false);
+        const isTenant = (user?.role as string) === "TENANT" || (user?.role as string) === "RESIDENT";
+        if (!isTenant && activeSubStepId === "5.2") {
+          setActiveSubStepId("5.3");
+          localStorage.setItem("onboarding_substep", "5.3");
+        } else if (isTenant && activeSubStepId === "1.2") {
+          setActiveSubStepId("1.3");
+          localStorage.setItem("tenant_onboarding_substep", "1.3");
+        }
+      };
+      reader.readAsDataURL(blob);
+    } catch (err) {
+      console.error("Failed to load sample image", err);
+      handleInputChange(serviceId, "readingImageUrl", electricMeterSampleImg);
+      const isTenant = (user?.role as string) === "TENANT" || (user?.role as string) === "RESIDENT";
+      if (!isTenant && activeSubStepId === "5.2") {
+        setActiveSubStepId("5.3");
+        localStorage.setItem("onboarding_substep", "5.3");
+      } else if (isTenant && activeSubStepId === "1.2") {
+        setActiveSubStepId("1.3");
+        localStorage.setItem("tenant_onboarding_substep", "1.3");
+      }
+    }
+  };
 
   // Initialize inputs when modal opens or services change
   useEffect(() => {
@@ -129,6 +166,14 @@ function SubmitRoomReadingsModal({
       handleInputChange(serviceId, "ocrSuccess", true);
     } finally {
       setOcrLoadings(prev => ({ ...prev, [serviceId]: false }));
+      const isTenant = (user?.role as string) === "TENANT" || (user?.role as string) === "RESIDENT";
+      if (!isTenant && activeSubStepId === "5.3") {
+        setActiveSubStepId("5.4");
+        localStorage.setItem("onboarding_substep", "5.4");
+      } else if (isTenant && activeSubStepId === "1.3") {
+        setActiveSubStepId("1.4");
+        localStorage.setItem("tenant_onboarding_substep", "1.4");
+      }
     }
   };
 
@@ -285,7 +330,19 @@ function SubmitRoomReadingsModal({
                     </div>
 
                     <div className="space-y-2 pt-1 border-t border-slate-200/50">
-                      <span className="text-[10px] font-semibold text-slate-600 block">Tải ảnh lên & Tự động nhận diện</span>
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-[10px] font-semibold text-slate-600">Tải ảnh lên & Tự động nhận diện</span>
+                        {svc.serviceName.toLowerCase().includes("điện") && (
+                          <button
+                            id="btn-use-sample-meter"
+                            type="button"
+                            onClick={() => handleUseSampleImage(svc.serviceId)}
+                            className="text-[10px] text-brand-deep hover:underline font-bold"
+                          >
+                            Sử dụng ảnh mẫu
+                          </button>
+                        )}
+                      </div>
                       <input
                         type="file"
                         accept="image/*"
@@ -295,6 +352,7 @@ function SubmitRoomReadingsModal({
                       {inputs[svc.serviceId]?.readingImageUrl && (
                         <div className="pt-1.5">
                           <Button
+                            id={svc.serviceName.toLowerCase().includes("điện") ? "btn-trigger-ocr" : undefined}
                             type="button"
                             variant="outline"
                             size="sm"
@@ -472,6 +530,8 @@ function TinderReviewModal({
 
 export function MeterReadingPage() {
   const { user } = useAuthStore();
+  const navigate = useNavigate();
+  const { refreshStatus, advanceTenantStep } = useTourGuide();
   const isManager = user?.role === "ADMIN" || user?.role === "MANAGER";
 
   const [motels, setMotels] = useState<MotelResult[]>([]);
@@ -911,6 +971,13 @@ export function MeterReadingPage() {
           onSuccess={() => {
             setSubmittingRoom(null);
             fetchData();
+            const isTenant = (user?.role as string) === "TENANT" || (user?.role as string) === "RESIDENT";
+            if (isTenant) {
+              advanceTenantStep();
+              navigate("/invoices");
+            } else {
+              refreshStatus();
+            }
           }}
         />
       )}

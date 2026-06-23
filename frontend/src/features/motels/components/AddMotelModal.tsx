@@ -156,12 +156,12 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
     setTimeout(() => setCopied(null), 2000);
 
     // Auto-advance guide step on copy
-    if (activeSubStepId === "2.6" && type === "url") {
-      setActiveSubStepId("2.7");
-      localStorage.setItem("onboarding_substep", "2.7");
-    } else if (activeSubStepId === "2.8" && type === "key") {
-      setActiveSubStepId("2.9");
-      localStorage.setItem("onboarding_substep", "2.9");
+    if (activeSubStepId === "1.11" && type === "url") {
+      setActiveSubStepId("1.12");
+      localStorage.setItem("onboarding_substep", "1.12");
+    } else if (activeSubStepId === "1.13" && type === "key") {
+      setActiveSubStepId("1.14");
+      localStorage.setItem("onboarding_substep", "1.14");
     }
   };
 
@@ -231,6 +231,15 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  if (activeSubStepId === "1.2") {
+                    setActiveSubStepId("1.3");
+                    localStorage.setItem("onboarding_substep", "1.3");
+                  }
+                }
+              }}
               placeholder="VD: Khu trọ Hoàng Hoa Thám"
               required
               className={inputClass}
@@ -244,6 +253,15 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
               type="text"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  if (activeSubStepId === "1.3") {
+                    setActiveSubStepId("1.4");
+                    localStorage.setItem("onboarding_substep", "1.4");
+                  }
+                }
+              }}
               placeholder="Số nhà, tên đường, phường, quận, thành phố"
               required
               className={inputClass}
@@ -253,10 +271,19 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
           <div className="space-y-1">
             <label className="text-sm font-medium text-slate-700">Số tầng *</label>
             <input
-              id="motel-floors"
+              id="input-motel-floors"
               type="number"
               value={totalFloors}
               onChange={(e) => setTotalFloors(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  if (activeSubStepId === "1.4") {
+                    setActiveSubStepId("1.5");
+                    localStorage.setItem("onboarding_substep", "1.5");
+                  }
+                }
+              }}
               min={1}
               max={50}
               required
@@ -268,8 +295,15 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
             <div className="space-y-1">
               <label className="text-sm font-medium text-slate-700">Ngày chốt kỳ *</label>
               <select
+                id="select-closing-day"
                 value={closingDay}
-                onChange={(e) => setClosingDay(e.target.value)}
+                onChange={(e) => {
+                  setClosingDay(e.target.value);
+                  if (activeSubStepId === "1.5") {
+                    setActiveSubStepId("1.6");
+                    localStorage.setItem("onboarding_substep", "1.6");
+                  }
+                }}
                 className={inputClass}
                 required
               >
@@ -282,9 +316,19 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
             <div className="space-y-1">
               <label className="text-sm font-medium text-slate-700">Tỷ lệ tiền cọc (%) *</label>
               <input
+                id="input-deposit-ratio"
                 type="number"
                 value={depositRate}
                 onChange={(e) => setDepositRate(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    if (activeSubStepId === "1.6") {
+                      setActiveSubStepId("1.7");
+                      localStorage.setItem("onboarding_substep", "1.7");
+                    }
+                  }
+                }}
                 min={0}
                 required
                 className={inputClass}
@@ -295,19 +339,19 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
           {/* Synchronize SePay guide steps based on onboarding tour sub-step */}
           {(() => {
             useEffect(() => {
-              if (activeSubStepId === "2.5") {
+              if (activeSubStepId === "1.10") {
                 setShowGuide(true);
                 setGuideStep(1);
-              } else if (activeSubStepId === "2.6") {
+              } else if (activeSubStepId === "1.11") {
                 setShowGuide(true);
                 setGuideStep(2);
-              } else if (activeSubStepId === "2.7") {
+              } else if (activeSubStepId === "1.12") {
                 setShowGuide(true);
                 setGuideStep(3);
-              } else if (activeSubStepId === "2.8") {
+              } else if (activeSubStepId === "1.13") {
                 setShowGuide(true);
                 setGuideStep(4);
-              } else if (activeSubStepId === "2.9") {
+              } else if (activeSubStepId === "1.14") {
                 setShowGuide(true);
                 setGuideStep(5);
               }
@@ -336,6 +380,10 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
                       VIB: "VIB",
                     };
                     setBankName(bankNames[e.target.value] || e.target.value);
+                    if (activeSubStepId === "1.7") {
+                      setActiveSubStepId("1.8");
+                      localStorage.setItem("onboarding_substep", "1.8");
+                    }
                   }}
                   className={inputClass}
                 >
@@ -356,6 +404,15 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
                   type="text"
                   value={bankAccount}
                   onChange={(e) => setBankAccount(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      if (activeSubStepId === "1.8") {
+                        setActiveSubStepId("1.9");
+                        localStorage.setItem("onboarding_substep", "1.9");
+                      }
+                    }
+                  }}
                   placeholder="VD: 190304567899"
                   className={inputClass}
                 />
@@ -368,9 +425,35 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
                 type="text"
                 value={accountHolder}
                 onChange={(e) => setAccountHolder(e.target.value.toUpperCase())}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    if (activeSubStepId === "1.9") {
+                      setActiveSubStepId("1.10");
+                      localStorage.setItem("onboarding_substep", "1.10");
+                    }
+                  }
+                }}
                 placeholder="VD: NGUYEN TRAN PHUONG"
                 className={inputClass}
               />
+            </div>
+            <div className="pt-2 flex justify-end">
+              <Button
+                id="btn-save-payment-config"
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (activeSubStepId === "1.9") {
+                    setActiveSubStepId("1.10");
+                    localStorage.setItem("onboarding_substep", "1.10");
+                  }
+                }}
+                className="text-xs font-bold bg-white"
+              >
+                Tiếp tục cấu hình SePay
+              </Button>
             </div>
           </div>
 
@@ -453,7 +536,24 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
                       <button
                         type="button"
                         disabled={guideStep === 1}
-                        onClick={() => setGuideStep(prev => prev - 1)}
+                        onClick={() => {
+                          const prev = guideStep - 1;
+                          setGuideStep(prev);
+                          if (activeSubStepId.startsWith("1.")) {
+                            const subStepMap: Record<number, string> = {
+                              1: "1.10",
+                              2: "1.11",
+                              3: "1.12",
+                              4: "1.13",
+                              5: "1.14"
+                            };
+                            const mapped = subStepMap[prev];
+                            if (mapped) {
+                              setActiveSubStepId(mapped);
+                              localStorage.setItem("onboarding_substep", mapped);
+                            }
+                          }
+                        }}
                         className="p-1 hover:bg-slate-100 rounded disabled:opacity-30 cursor-pointer"
                       >
                         <ChevronLeft size={16} />
@@ -461,7 +561,24 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
                       <button
                         type="button"
                         disabled={guideStep === 5}
-                        onClick={() => setGuideStep(prev => prev + 1)}
+                        onClick={() => {
+                          const next = guideStep + 1;
+                          setGuideStep(next);
+                          if (activeSubStepId.startsWith("1.")) {
+                            const subStepMap: Record<number, string> = {
+                              1: "1.10",
+                              2: "1.11",
+                              3: "1.12",
+                              4: "1.13",
+                              5: "1.14"
+                            };
+                            const mapped = subStepMap[next];
+                            if (mapped) {
+                              setActiveSubStepId(mapped);
+                              localStorage.setItem("onboarding_substep", mapped);
+                            }
+                          }
+                        }}
                         className="p-1 hover:bg-slate-100 rounded disabled:opacity-30 cursor-pointer"
                       >
                         <ChevronRight size={16} />
@@ -538,7 +655,24 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
             {/* Prev button */}
             <button
               disabled={guideStep === 1}
-              onClick={() => setGuideStep(prev => prev - 1)}
+              onClick={() => {
+                const prev = guideStep - 1;
+                setGuideStep(prev);
+                if (activeSubStepId.startsWith("1.")) {
+                  const subStepMap: Record<number, string> = {
+                    1: "1.10",
+                    2: "1.11",
+                    3: "1.12",
+                    4: "1.13",
+                    5: "1.14"
+                  };
+                  const mapped = subStepMap[prev];
+                  if (mapped) {
+                    setActiveSubStepId(mapped);
+                    localStorage.setItem("onboarding_substep", mapped);
+                  }
+                }
+              }}
               className="p-3 bg-white/5 hover:bg-white/10 disabled:opacity-20 text-white rounded-full transition-all cursor-pointer disabled:cursor-not-allowed shrink-0"
             >
               <ChevronLeft size={36} />
@@ -559,7 +693,24 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
             {/* Next button */}
             <button
               disabled={guideStep === 5}
-              onClick={() => setGuideStep(prev => prev + 1)}
+              onClick={() => {
+                const next = guideStep + 1;
+                setGuideStep(next);
+                if (activeSubStepId.startsWith("1.")) {
+                  const subStepMap: Record<number, string> = {
+                    1: "1.10",
+                    2: "1.11",
+                    3: "1.12",
+                    4: "1.13",
+                    5: "1.14"
+                  };
+                  const mapped = subStepMap[next];
+                  if (mapped) {
+                    setActiveSubStepId(mapped);
+                    localStorage.setItem("onboarding_substep", mapped);
+                  }
+                }
+              }}
               className="p-3 bg-white/5 hover:bg-white/10 disabled:opacity-20 text-white rounded-full transition-all cursor-pointer disabled:cursor-not-allowed shrink-0"
             >
               <ChevronRight size={36} />
@@ -571,7 +722,24 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
             {GUIDE_STEPS.map((_, idx) => (
               <button
                 key={idx}
-                onClick={() => setGuideStep(idx + 1)}
+                onClick={() => {
+                  const targetStep = idx + 1;
+                  setGuideStep(targetStep);
+                  if (activeSubStepId.startsWith("1.")) {
+                    const subStepMap: Record<number, string> = {
+                      1: "1.10",
+                      2: "1.11",
+                      3: "1.12",
+                      4: "1.13",
+                      5: "1.14"
+                    };
+                    const mapped = subStepMap[targetStep];
+                    if (mapped) {
+                      setActiveSubStepId(mapped);
+                      localStorage.setItem("onboarding_substep", mapped);
+                    }
+                  }
+                }}
                 className={`w-3 h-3 rounded-full transition-all cursor-pointer ${guideStep === idx + 1 ? "bg-blue-500 scale-125" : "bg-white/30 hover:bg-white/50"
                   }`}
               />

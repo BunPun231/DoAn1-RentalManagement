@@ -11,4 +11,5 @@ public interface ServiceJpaRepository extends JpaRepository<ServiceEntity, Long>
     Optional<ServiceEntity> findByIdAndMotelId(Long id, Long motelId);
     Page<ServiceEntity> findByMotelId(Long motelId, Pageable pageable);
     boolean existsByMotelIdAndName(Long motelId, String name);
+    long countByMotelId(Long motelId);
 }

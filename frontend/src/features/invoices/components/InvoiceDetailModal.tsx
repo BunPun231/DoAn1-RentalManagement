@@ -310,7 +310,7 @@ export function InvoiceDetailModal({ isOpen, onClose, invoice, onCollectPayment,
             </Button>
           </div>
           {isManager && (invoice.status === "PENDING" || invoice.status === "PARTIAL") && onCollectPayment && (
-            <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={onCollectPayment}>
+            <Button id="btn-manual-payment" className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={onCollectPayment}>
               <CreditCard size={16} className="mr-2" />
               Thu tiền hóa đơn
             </Button>

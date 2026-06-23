@@ -76,7 +76,7 @@ function GenerateInvoiceModal({
             <Zap size={32} className="text-emerald-500" />
           </div>
           <h3 className="text-lg font-bold text-brand-ink mb-2">Tạo thành công!</h3>
-          <Button className="mt-6" onClick={() => { setResult(null); onSuccess(); }}>
+          <Button id="btn-view-generated-invoices" className="mt-6" onClick={() => { setResult(null); onSuccess(); }}>
             Xem danh sách hóa đơn
           </Button>
         </div>
@@ -115,7 +115,7 @@ function GenerateInvoiceModal({
           </p>
           <div className="pt-4 border-t border-slate-100 flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={onClose}>Hủy</Button>
-            <Button type="submit" disabled={loading}>
+            <Button id="btn-submit-generate-invoice" type="submit" disabled={loading}>
               {loading ? "Đang tạo..." : "Tạo hóa đơn"}
             </Button>
           </div>
@@ -393,6 +393,7 @@ export function InvoiceListPage() {
                         </>
                       )}
                       <Button
+                        id="btn-invoice-detail"
                         variant="outline"
                         size="sm"
                         onClick={() => setSelectedInvoice(invoice)}

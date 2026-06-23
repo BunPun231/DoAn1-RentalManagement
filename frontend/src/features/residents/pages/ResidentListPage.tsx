@@ -8,6 +8,7 @@ import { extractError } from "@/lib/api";
 import { Modal } from "@/components/ui/Modal";
 import { invoiceService } from "@/services/invoiceService";
 import { formatCurrency } from "@/lib/utils";
+import { useTourGuide } from "@/hooks/useTourGuide";
 
 
 function AddResidentModal({
@@ -247,6 +248,7 @@ function AddResidentModal({
 }
 
 export function ResidentListPage() {
+  const { activeSubStepId } = useTourGuide();
   const [residents, setResidents] = useState<ResidentResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -479,6 +481,7 @@ export function ResidentListPage() {
 
                   <TableCell className="text-right">
                     <Button
+                      id="btn-resident-detail"
                       variant="outline"
                       size="sm"
                       onClick={() => setSelectedResident(resident)}
@@ -553,7 +556,7 @@ export function ResidentListPage() {
             </div>
 
             {/* Account Balance Display */}
-            <div className="flex items-center gap-3 py-2.5 bg-brand-deep/5 px-3 rounded-xl border border-brand-deep/10 my-2">
+            <div id="resident-balance-box" className="flex items-center gap-3 py-2.5 bg-brand-deep/5 px-3 rounded-xl border border-brand-deep/10 my-2">
               <span className="text-brand-deep flex-shrink-0">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>

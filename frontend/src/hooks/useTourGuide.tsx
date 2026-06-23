@@ -17,56 +17,75 @@ export interface TourStep {
 export const ONBOARDING_STEPS: TourStep[] = [
   {
     stepNumber: 1,
-    title: "Tạo khu trọ đầu tiên",
-    description: "Trước hết, bác cần tạo một khu trọ (nhà trọ) mới để dễ dàng quản lý các phòng trọ bên trong.",
+    title: "Tạo khu trọ & Cấu hình SePay",
+    description: "Khai báo thông tin khu trọ đầu tiên và liên kết tài khoản ngân hàng / webhook SePay để kích hoạt tính năng tự động gạch nợ hóa đơn.",
     targetPath: "/motels",
     actionLabel: "Tới trang Khu trọ & Tạo",
-    hint: "Nhấp vào nút 'Thêm khu trọ' và điền thông tin (tên, địa chỉ) khu trọ của bác.",
+    hint: "Nhấp 'Thêm khu trọ', nhập tên, địa chỉ, số tầng, cấu hình ngân hàng nhận tiền và thiết lập Webhook.",
   },
   {
     stepNumber: 2,
-    title: "Kích hoạt gạch nợ tự động SePay",
-    description: "Cấu hình Ngân hàng & số tài khoản nhận tiền. Hệ thống sẽ tự động cấp một mã bảo mật Webhook Secret Key để đồng bộ dữ liệu giao dịch.",
+    title: "Tạo phòng trọ hàng loạt",
+    description: "Khởi tạo nhanh danh sách các phòng trọ cụ thể trong khu trọ bằng công cụ tự động tạo hàng loạt.",
     targetPath: "/motels",
-    actionLabel: "Xem danh sách & Cấu hình ngân hàng",
-    hint: "Nhấp vào biểu tượng Bánh răng (Cài đặt) trên thẻ Khu trọ, điền Số tài khoản và chọn ngân hàng, sau đó sao chép Webhook URL và Secret Key dán vào cấu hình SePay.vn.",
+    actionLabel: "Tạo phòng hàng loạt",
+    hint: "Nhấn 'Tạo hàng loạt' trên khu trọ của bác, điền số lượng phòng, diện tích và giá thuê.",
   },
   {
     stepNumber: 3,
-    title: "Thêm danh sách phòng trọ",
-    description: "Khởi tạo danh sách các phòng trọ cụ thể trong khu trọ để bắt đầu cho thuê.",
-    targetPath: "/motels",
-    actionLabel: "Vào chi tiết Khu trọ để Thêm phòng",
-    hint: "Nhấp 'Chi tiết' khu trọ của bác, tìm mục danh sách phòng và nhấn 'Thêm phòng' (hoặc 'Thêm hàng loạt').",
+    title: "Tạo dịch vụ không bắt buộc",
+    description: "Khai báo thêm các dịch vụ bổ sung ngoài như Tiền Mạng, Tiền Rác, Xe cộ... để tính hóa đơn.",
+    targetPath: "/services",
+    actionLabel: "Tới trang Dịch vụ",
+    hint: "Nhấn 'Thêm dịch vụ', nhập tên dịch vụ và lựa chọn loại tính phí phù hợp.",
   },
   {
     stepNumber: 4,
-    title: "Lập hợp đồng thuê phòng",
-    description: "Liên kết khách thuê vào phòng thông qua hợp đồng thuê để bắt đầu tính tiền phòng hàng tháng.",
+    title: "Tạo hợp đồng & Khách thuê",
+    description: "Liên kết khách thuê vào phòng thông qua hợp đồng thuê, sử dụng AI OCR quét ảnh CCCD để điền thông tin nhanh.",
     targetPath: "/contracts",
-    actionLabel: "Tới trang Hợp đồng & Tạo mới",
-    hint: "Nhấp 'Tạo hợp đồng mới', điền số điện thoại khách thuê, chọn phòng trọ, mức giá thuê và ngày bắt đầu hợp đồng.",
+    actionLabel: "Tới trang Hợp đồng & Tạo",
+    hint: "Nhấp 'Tạo hợp đồng mới', chọn phòng, nhập giá, sử dụng ảnh CCCD mẫu để OCR rồi lưu.",
   },
   {
     stepNumber: 5,
     title: "Ghi chỉ số điện nước đầu kỳ",
-    description: "Nhập chỉ số điện nước ban đầu làm căn cứ để tính toán tiền chênh lệch tiêu thụ vào cuối tháng.",
+    description: "Nhập chỉ số điện nước ban đầu kèm minh chứng ảnh làm căn cứ để tính toán tiêu thụ cuối tháng.",
     targetPath: "/meter",
-    actionLabel: "Tới trang Điện nước & Ghi số",
-    hint: "Chọn khu trọ, nhập chỉ số Điện & Nước ban đầu (chỉ số cũ) của phòng trọ rồi lưu lại.",
+    actionLabel: "Tới trang Điện nước & Ghi",
+    hint: "Chọn phòng, sử dụng ảnh đồng hồ điện mẫu và click OCR, kiểm tra rồi lưu lại.",
   },
   {
     stepNumber: 6,
-    title: "Lập hóa đơn & Quét QR thử nghiệm",
-    description: "Xuất hóa đơn tháng đầu tiên, quét mã VietQR tự động để trải nghiệm luồng thanh toán gạch nợ tự động qua SePay.",
+    title: "Xuất hóa đơn & Gạch nợ",
+    description: "Xuất hóa đơn tháng đầu tiên, quét mã VietQR tự động để trải nghiệm gạch nợ tức thì.",
     targetPath: "/invoices",
-    actionLabel: "Tới trang Hóa đơn & Lập hóa đơn",
-    hint: "Nhấn 'Tạo hóa đơn', chọn phòng trọ và kỳ thanh toán. Sau khi tạo, nhấn vào hóa đơn để hiện mã VietQR động để quét.",
+    actionLabel: "Tới trang Hóa đơn & Lập",
+    hint: "Bấm 'Tạo hóa đơn loạt', chọn khu trọ và kỳ thanh toán, sau đó xem chi tiết hóa đơn hoặc gạch nợ.",
+  },
+];
+
+export const TENANT_ONBOARDING_STEPS: TourStep[] = [
+  {
+    stepNumber: 1,
+    title: "Báo cáo chỉ số điện nước",
+    description: "Nộp chỉ số điện nước phòng của bạn cuối tháng kèm ảnh chụp minh chứng để chủ trọ duyệt nhanh chóng.",
+    targetPath: "/meter",
+    actionLabel: "Tới trang Ghi số",
+    hint: "Nhấp 'Ghi chỉ số' trên phòng của bạn, tải ảnh công tơ điện nước lên và bấm gửi.",
+  },
+  {
+    stepNumber: 2,
+    title: "Thanh toán hóa đơn phòng",
+    description: "Xem và thanh toán hóa đơn phòng hàng tháng qua mã VietQR tự động gạch nợ sau 3 giây.",
+    targetPath: "/invoices",
+    actionLabel: "Tới trang Hóa đơn",
+    hint: "Nhấp 'Mã QR' trên hóa đơn chưa thanh toán, quét mã QR qua ứng dụng ngân hàng.",
   },
 ];
 
 export interface SubStep {
-  id: string; // e.g. "1.1"
+  id: string;
   stage: number;
   subStep: number;
   selector: string;
@@ -84,7 +103,7 @@ export const SUB_STEPS: SubStep[] = [
     subStep: 1,
     selector: "#btn-add-motel",
     title: "Thêm khu trọ mới",
-    description: "Bác bấm vào nút này để bắt đầu khai báo khu trọ đầu tiên nhé!",
+    description: "Bác bấm vào đây để bắt đầu khai báo khu trọ đầu tiên nhé!",
     targetPath: "/motels",
     position: "bottom"
   },
@@ -93,8 +112,8 @@ export const SUB_STEPS: SubStep[] = [
     stage: 1,
     subStep: 2,
     selector: "#input-motel-name",
-    title: "Nhập thông tin khu trọ",
-    description: "Bác điền Tên khu trọ và Địa chỉ vào đây nhé.",
+    title: "Tên khu trọ",
+    description: "Bác điền tên khu trọ vào đây nhé. Ví dụ: Khu trọ Hoàng Hoa Thám",
     targetPath: "/motels",
     position: "bottom"
   },
@@ -102,67 +121,86 @@ export const SUB_STEPS: SubStep[] = [
     id: "1.3",
     stage: 1,
     subStep: 3,
-    selector: "#btn-submit-motel",
-    title: "Lưu khu trọ",
-    description: "Bác bấm 'Lưu' để hoàn thành tạo khu trọ. Hệ thống sẽ tự động tạo sẵn giá Điện và Nước mặc định cho bác!",
-    targetPath: "/motels",
-    position: "top"
-  },
-  // Chặng 2: Cấu hình SePay HMAC (Target: /motels)
-  {
-    id: "2.1",
-    stage: 2,
-    subStep: 1,
-    selector: "#btn-edit-motel",
-    title: "Cập nhật cấu hình",
-    description: "Bác bấm vào nút Sửa này để mở cấu hình Ngân hàng và Webhook SePay nhé!",
+    selector: "#input-motel-address",
+    title: "Địa chỉ khu trọ",
+    description: "Bác nhập địa chỉ của khu trọ.",
     targetPath: "/motels",
     position: "bottom"
   },
   {
-    id: "2.2",
-    stage: 2,
-    subStep: 2,
+    id: "1.4",
+    stage: 1,
+    subStep: 4,
+    selector: "#input-motel-floors",
+    title: "Số tầng",
+    description: "Bác nhập tổng số tầng của khu trọ.",
+    targetPath: "/motels",
+    position: "bottom"
+  },
+  {
+    id: "1.5",
+    stage: 1,
+    subStep: 5,
+    selector: "#select-closing-day",
+    title: "Ngày chốt kỳ",
+    description: "Bác chọn ngày chốt kỳ tính tiền hàng tháng nhé.",
+    targetPath: "/motels",
+    position: "bottom"
+  },
+  {
+    id: "1.6",
+    stage: 1,
+    subStep: 6,
+    selector: "#input-deposit-ratio",
+    title: "Tỷ lệ cọc",
+    description: "Bác nhập tỷ lệ đặt cọc phòng mặc định (ví dụ: 100%).",
+    targetPath: "/motels",
+    position: "bottom"
+  },
+  {
+    id: "1.7",
+    stage: 1,
+    subStep: 7,
     selector: "#select-bank-name",
-    title: "Chọn ngân hàng",
-    description: "Bác nhấp vào đây và chọn ngân hàng bác đang sử dụng nhé.",
+    title: "Ngân hàng nhận tiền",
+    description: "Bác nhấp vào đây và chọn ngân hàng bác đang sử dụng nhé. Giao diện sẽ tự động chuyển bước sau khi bác chọn.",
     targetPath: "/motels",
     position: "bottom"
   },
   {
-    id: "2.3",
-    stage: 2,
-    subStep: 3,
+    id: "1.8",
+    stage: 1,
+    subStep: 8,
     selector: "#input-bank-account",
-    title: "Nhập số tài khoản",
+    title: "Số tài khoản",
     description: "Bác điền chính xác số tài khoản ngân hàng nhận tiền của bác vào đây.",
     targetPath: "/motels",
     position: "bottom"
   },
   {
-    id: "2.4",
-    stage: 2,
-    subStep: 4,
+    id: "1.9",
+    stage: 1,
+    subStep: 9,
     selector: "#input-account-holder",
-    title: "Nhập tên chủ tài khoản",
-    description: "Bác nhập tên chủ tài khoản (viết hoa không dấu, ví dụ: NGUYEN TRAN PHUONG) vào đây nhé.",
+    title: "Chủ tài khoản",
+    description: "Bác nhập tên chủ tài khoản (viết hoa không dấu) vào đây nhé.",
     targetPath: "/motels",
     position: "bottom"
   },
   {
-    id: "2.5",
-    stage: 2,
-    subStep: 5,
+    id: "1.10",
+    stage: 1,
+    subStep: 10,
     selector: "#btn-show-webhook-guide",
     title: "Đăng nhập SePay.vn",
-    description: "Bác truy cập SePay.vn. Xem hình hướng dẫn phía dưới để biết cách vào trang cấu hình Webhook trên SePay.vn nhé!",
+    description: "Bác truy cập SePay.vn. Hệ thống sẽ tự động hiển thị hình 1 hướng dẫn bác đi tới trang cấu hình webhook.",
     targetPath: "/motels",
     position: "top"
   },
   {
-    id: "2.6",
-    stage: 2,
-    subStep: 6,
+    id: "1.11",
+    stage: 1,
+    subStep: 11,
     selector: "#btn-copy-webhook-url",
     title: "Sao chép Webhook URL",
     description: "Bác bấm Sao chép để lấy đường dẫn Webhook. Giao diện sẽ tự động nhảy qua hình 2 để hướng dẫn bác dán vào SePay.",
@@ -170,19 +208,19 @@ export const SUB_STEPS: SubStep[] = [
     position: "bottom"
   },
   {
-    id: "2.7",
-    stage: 2,
-    subStep: 7,
+    id: "1.12",
+    stage: 1,
+    subStep: 12,
     selector: "#btn-show-webhook-guide",
-    title: "Chọn tài khoản nhận tiền",
-    description: "Xem hình hướng dẫn phía dưới để chọn tài khoản ngân hàng nhận tiền trên SePay, rồi bấm Tiếp theo.",
+    title: "Chọn tài khoản nhận tiền trên SePay",
+    description: "Xem hình hướng dẫn 3 phía dưới để chọn tài khoản ngân hàng nhận tiền trên SePay, rồi bấm Tiếp tục.",
     targetPath: "/motels",
     position: "top"
   },
   {
-    id: "2.8",
-    stage: 2,
-    subStep: 8,
+    id: "1.13",
+    stage: 1,
+    subStep: 13,
     selector: "#btn-copy-secret-key",
     title: "Sao chép Secret Key",
     description: "Bác sao chép tiếp Chữ ký bảo mật (Secret Key) này rồi dán vào ô 'Chữ ký bảo mật' trên SePay nhé.",
@@ -190,57 +228,141 @@ export const SUB_STEPS: SubStep[] = [
     position: "bottom"
   },
   {
-    id: "2.9",
-    stage: 2,
-    subStep: 9,
+    id: "1.14",
+    stage: 1,
+    subStep: 14,
     selector: "#btn-show-webhook-guide",
     title: "Lưu webhook trên SePay",
-    description: "Bác bấm 'Thêm' trên SePay.vn. Xem hình hướng dẫn phía dưới để đảm bảo webhook hoạt động chính xác.",
+    description: "Bác bấm 'Thêm' trên SePay.vn. Xem hình hướng dẫn 5 phía dưới để đảm bảo webhook hoạt động chính xác.",
     targetPath: "/motels",
     position: "top"
   },
   {
-    id: "2.10",
-    stage: 2,
-    subStep: 10,
+    id: "1.15",
+    stage: 1,
+    subStep: 15,
     selector: "#btn-submit-motel",
-    title: "Lưu cấu hình hệ thống",
-    description: "Sau khi đã thêm webhook thành công, bác bấm nút Cập nhật này để lưu cấu hình vào hệ thống và hoàn thành chặng 2 nhé!",
+    title: "Lưu khu trọ & Cấu hình",
+    description: "Bác bấm nút Lưu để tạo khu trọ. Hệ thống sẽ tự động gán giá Điện, Nước mặc định!",
     targetPath: "/motels",
     position: "top"
   },
-  // Chặng 3: Tạo phòng trọ hàng loạt (Target: /motels)
+
+  // Chặng 2: Tạo phòng trọ hàng loạt (Target: /motels)
   {
-    id: "3.1",
-    stage: 3,
+    id: "2.1",
+    stage: 2,
     subStep: 1,
     selector: "#btn-bulk-create-rooms",
     title: "Tạo phòng hàng loạt",
-    description: "Bác bấm vào đây để tạo nhanh nhiều phòng trọ cùng lúc, không cần nhập từng phòng mất công!",
+    description: "Bác bấm vào đây để tạo nhanh nhiều phòng trọ cùng lúc!",
     targetPath: "/motels",
     position: "bottom"
   },
   {
-    id: "3.2",
-    stage: 3,
+    id: "2.2",
+    stage: 2,
     subStep: 2,
     selector: "#input-bulk-quantity",
-    title: "Nhập thông tin số lượng",
-    description: "Bác nhập số lượng phòng muốn tạo, giá thuê phòng và diện tích vào các ô này nhé.",
+    title: "Số lượng phòng/tầng",
+    description: "Bác nhập số lượng phòng muốn tạo trên mỗi tầng nhé.",
     targetPath: "/motels",
     position: "bottom"
   },
   {
-    id: "3.3",
-    stage: 3,
+    id: "2.3",
+    stage: 2,
     subStep: 3,
+    selector: "#input-room-price",
+    title: "Giá thuê mặc định",
+    description: "Bác nhập giá thuê phòng mặc định vào đây.",
+    targetPath: "/motels",
+    position: "bottom"
+  },
+  {
+    id: "2.4",
+    stage: 2,
+    subStep: 4,
+    selector: "#input-room-area",
+    title: "Diện tích mặc định",
+    description: "Bác nhập diện tích phòng mặc định nhé. Đây là trường bắt buộc để hoàn tất chặng này!",
+    targetPath: "/motels",
+    position: "bottom"
+  },
+  {
+    id: "2.5",
+    stage: 2,
+    subStep: 5,
     selector: "#btn-submit-bulk-rooms",
     title: "Hoàn tất tạo phòng",
     description: "Bác bấm nút này để hệ thống tự sinh tự động hàng loạt phòng trọ sạch sẽ!",
     targetPath: "/motels",
     position: "top"
   },
-  // Chặng 4: Tạo hợp đồng & Thêm khách (Target: /contracts)
+
+  // Chặng 3: Tạo dịch vụ không bắt buộc (Target: /services)
+  {
+    id: "3.1",
+    stage: 3,
+    subStep: 1,
+    selector: "#btn-create-service",
+    title: "Tạo dịch vụ ngoài",
+    description: "Bác bấm vào đây để tạo thêm dịch vụ ngoài như Tiền Mạng, Tiền Rác...",
+    targetPath: "/services",
+    position: "bottom"
+  },
+  {
+    id: "3.2",
+    stage: 3,
+    subStep: 2,
+    selector: "#input-service-name",
+    title: "Tên dịch vụ",
+    description: "Bác nhập tên dịch vụ (hoặc chọn từ danh sách gợi ý).",
+    targetPath: "/services",
+    position: "bottom"
+  },
+  {
+    id: "3.3",
+    stage: 3,
+    subStep: 3,
+    selector: "#select-charge-type",
+    title: "Loại tính phí",
+    description: "Bác chọn hình thức tính phí phù hợp cho dịch vụ này nhé.",
+    targetPath: "/services",
+    position: "bottom"
+  },
+  {
+    id: "3.4",
+    stage: 3,
+    subStep: 4,
+    selector: "#input-service-price",
+    title: "Đơn giá dịch vụ",
+    description: "Bác nhập đơn giá cơ bản cho dịch vụ.",
+    targetPath: "/services",
+    position: "bottom"
+  },
+  {
+    id: "3.5",
+    stage: 3,
+    subStep: 5,
+    selector: "#checkbox-is-mandatory",
+    title: "Dịch vụ bắt buộc",
+    description: "Tích chọn nếu muốn dịch vụ này tự động áp dụng cho tất cả hợp đồng.",
+    targetPath: "/services",
+    position: "bottom"
+  },
+  {
+    id: "3.6",
+    stage: 3,
+    subStep: 6,
+    selector: "#btn-submit-service",
+    title: "Lưu dịch vụ",
+    description: "Bác bấm nút này để lưu dịch vụ vào hệ thống nhé.",
+    targetPath: "/services",
+    position: "top"
+  },
+
+  // Chặng 4: Tạo hợp đồng & Khách thuê (Target: /contracts)
   {
     id: "4.1",
     stage: 4,
@@ -256,8 +378,8 @@ export const SUB_STEPS: SubStep[] = [
     stage: 4,
     subStep: 2,
     selector: "#select-contract-room",
-    title: "Nhập thông tin khách thuê",
-    description: "Bác chọn căn phòng vừa tạo, gõ tên và số điện thoại của người thuê vào đây nhé.",
+    title: "Chọn phòng trống",
+    description: "Bác chọn căn phòng trống vừa tạo cho khách nhé.",
     targetPath: "/contracts",
     position: "bottom"
   },
@@ -265,12 +387,83 @@ export const SUB_STEPS: SubStep[] = [
     id: "4.3",
     stage: 4,
     subStep: 3,
+    selector: "#input-rent-price",
+    title: "Tiền thuê/tháng",
+    description: "Bác kiểm tra hoặc điều chỉnh giá thuê phòng thực tế tại đây nhé.",
+    targetPath: "/contracts",
+    position: "bottom"
+  },
+  {
+    id: "4.4",
+    stage: 4,
+    subStep: 4,
+    selector: "#input-deposit-amount",
+    title: "Tiền đặt cọc",
+    description: "Bác nhập tiền đặt cọc phòng của khách nhé.",
+    targetPath: "/contracts",
+    position: "bottom"
+  },
+  {
+    id: "4.5",
+    stage: 4,
+    subStep: 5,
+    selector: "#btn-use-sample-cccd",
+    title: "Quét CCCD OCR",
+    description: "Bác bấm 'Sử dụng ảnh mẫu' để tự động tải lên ảnh CCCD demo và quét thông tin nhé!",
+    targetPath: "/contracts",
+    position: "bottom"
+  },
+  {
+    id: "4.6",
+    stage: 4,
+    subStep: 6,
+    selector: "#input-tenant-phone",
+    title: "Số điện thoại khách",
+    description: "Bác nhập số điện thoại của khách để hệ thống tự tạo tài khoản đăng nhập.",
+    targetPath: "/contracts",
+    position: "bottom"
+  },
+  {
+    id: "4.7",
+    stage: 4,
+    subStep: 7,
+    selector: "#select-contract-services",
+    title: "Đăng ký dịch vụ",
+    description: "Bác tích chọn các dịch vụ sẽ sử dụng cho hợp đồng này nhé.",
+    targetPath: "/contracts",
+    position: "bottom"
+  },
+  {
+    id: "4.8",
+    stage: 4,
+    subStep: 8,
     selector: "#btn-submit-contract",
-    title: "Kích hoạt hợp đồng",
-    description: "Bác bấm nút này để kích hoạt vòng đời hoạt động của phòng trọ.",
+    title: "Tạo hợp đồng",
+    description: "Bác bấm nút này để tạo hợp đồng. Hệ thống sẽ tự động chuyển hướng bác sang trang danh sách khách thuê.",
     targetPath: "/contracts",
     position: "top"
   },
+  {
+    id: "4.9",
+    stage: 4,
+    subStep: 9,
+    selector: "#btn-resident-detail",
+    title: "Xem chi tiết khách",
+    description: "Bác bấm nút Chi tiết của khách thuê vừa tạo để xem thông tin hồ sơ của họ nhé!",
+    targetPath: "/residents",
+    position: "bottom"
+  },
+  {
+    id: "4.10",
+    stage: 4,
+    subStep: 10,
+    selector: "#resident-balance-box",
+    title: "Ví số dư tài khoản",
+    description: "Mỗi khách thuê sẽ có một ví số dư tài khoản. Nếu đóng dư, tiền dư sẽ tự động trừ vào hóa đơn tháng sau nhé!",
+    targetPath: "/residents",
+    position: "top"
+  },
+
   // Chặng 5: Ghi chỉ số đầu kỳ (Target: /meter)
   {
     id: "5.1",
@@ -286,9 +479,9 @@ export const SUB_STEPS: SubStep[] = [
     id: "5.2",
     stage: 5,
     subStep: 2,
-    selector: "#input-electric-index-initial",
-    title: "Nhập chỉ số điện nước",
-    description: "Bác nhập số điện và số nước ban đầu khi khách mới dọn vào ở vào 2 ô này nhé.",
+    selector: "#btn-use-sample-meter",
+    title: "Sử dụng ảnh mẫu",
+    description: "Bác bấm 'Sử dụng ảnh mẫu' để tự động tải lên ảnh đồng hồ điện mẫu nhé!",
     targetPath: "/meter",
     position: "bottom"
   },
@@ -296,20 +489,41 @@ export const SUB_STEPS: SubStep[] = [
     id: "5.3",
     stage: 5,
     subStep: 3,
+    selector: "#btn-trigger-ocr",
+    title: "Nhận diện bằng AI",
+    description: "Bác bấm nút Tự động nhận diện (OCR) để AI quét số trên ảnh đồng hồ nhé!",
+    targetPath: "/meter",
+    position: "bottom"
+  },
+  {
+    id: "5.4",
+    stage: 5,
+    subStep: 4,
+    selector: "#input-electric-index-initial",
+    title: "Kiểm tra chỉ số",
+    description: "Bác kiểm tra lại chỉ số điện xem đã chính xác chưa. Bác có thể điều chỉnh lại nếu cần.",
+    targetPath: "/meter",
+    position: "bottom"
+  },
+  {
+    id: "5.5",
+    stage: 5,
+    subStep: 5,
     selector: "#btn-save-meter-readings",
     title: "Lưu chỉ số",
-    description: "Bác bấm Lưu chỉ số để làm căn cứ tính tiền vào cuối tháng.",
+    description: "Các chỉ số này khách cũng tự nộp được. Bác bấm Lưu tất cả để hoàn tất và chuẩn bị xuất hóa đơn nhé!",
     targetPath: "/meter",
     position: "top"
   },
-  // Chặng 6: Xuất hóa đơn đầu tiên (Target: /invoices)
+
+  // Chặng 6: Xuất hóa đơn & Gạch nợ (Target: /invoices)
   {
     id: "6.1",
     stage: 6,
     subStep: 1,
     selector: "#btn-generate-monthly-invoice",
-    title: "Xuất hóa đơn hàng tháng",
-    description: "Cuối tháng, bác chỉ cần bấm vào nút này để hệ thống tự động tính toán tiền phòng + tiền điện nước ra hóa đơn cho bác!",
+    title: "Tạo hóa đơn loạt",
+    description: "Bác bấm vào nút này để bắt đầu xuất hóa đơn hàng tháng.",
     targetPath: "/invoices",
     position: "bottom"
   },
@@ -317,11 +531,116 @@ export const SUB_STEPS: SubStep[] = [
     id: "6.2",
     stage: 6,
     subStep: 2,
-    selector: "#btn-preview-qr-invoice",
-    title: "Xem mã QR hóa đơn",
-    description: "Hóa đơn đã ra! Bác bấm vào đây để xem mã QR thanh toán có gắn sẵn cú pháp tự động gạch nợ nhé!",
+    selector: "#btn-submit-generate-invoice",
+    title: "Tạo hóa đơn",
+    description: "Chọn khu trọ, tháng và bấm nút này để hệ thống tính toán tạo hóa đơn.",
+    targetPath: "/invoices",
+    position: "top"
+  },
+  {
+    id: "6.3",
+    stage: 6,
+    subStep: 3,
+    selector: "#btn-view-generated-invoices",
+    title: "Xem hóa đơn",
+    description: "Bấm nút này để quay lại danh sách hóa đơn vừa tạo nhé.",
+    targetPath: "/invoices",
+    position: "top"
+  },
+  {
+    id: "6.4",
+    stage: 6,
+    subStep: 4,
+    selector: "#btn-invoice-detail",
+    title: "Xem chi tiết hóa đơn",
+    description: "Bác bấm Chi tiết trên dòng hóa đơn vừa tạo để xem công thức tính.",
     targetPath: "/invoices",
     position: "left"
+  },
+  {
+    id: "6.5",
+    stage: 6,
+    subStep: 5,
+    selector: "#btn-manual-payment",
+    title: "Thu tiền thủ công",
+    description: "Bấm nút này để tự gạch nợ thủ công (hoặc xem hướng dẫn VietQR thanh toán tự động).",
+    targetPath: "/invoices",
+    position: "top"
+  }
+];
+
+export const TENANT_SUB_STEPS: SubStep[] = [
+  // Chặng 1: Báo cáo chỉ số điện nước (Target: /meter)
+  {
+    id: "1.1",
+    stage: 1,
+    subStep: 1,
+    selector: "#btn-open-meter-modal",
+    title: "Báo cáo chỉ số",
+    description: "Bác bấm vào đây để báo cáo số điện nước của phòng mình cuối tháng nhé!",
+    targetPath: "/meter",
+    position: "bottom"
+  },
+  {
+    id: "1.2",
+    stage: 1,
+    subStep: 2,
+    selector: "#btn-use-sample-meter",
+    title: "Tải ảnh minh chứng",
+    description: "Bác bấm 'Sử dụng ảnh mẫu' để tự động tải lên ảnh đồng hồ điện mẫu của phòng nhé!",
+    targetPath: "/meter",
+    position: "bottom"
+  },
+  {
+    id: "1.3",
+    stage: 1,
+    subStep: 3,
+    selector: "#btn-trigger-ocr",
+    title: "Nhận diện bằng AI",
+    description: "Bác bấm nút Tự động nhận diện (OCR) để AI quét số trên ảnh đồng hồ điện nhé!",
+    targetPath: "/meter",
+    position: "bottom"
+  },
+  {
+    id: "1.4",
+    stage: 1,
+    subStep: 4,
+    selector: "#input-electric-index-initial",
+    title: "Kiểm tra chỉ số điện",
+    description: "Bác kiểm tra lại chỉ số điện xem đã chính xác chưa.",
+    targetPath: "/meter",
+    position: "bottom"
+  },
+  {
+    id: "1.5",
+    stage: 1,
+    subStep: 5,
+    selector: "#btn-save-meter-readings",
+    title: "Gửi chỉ số",
+    description: "Bác bấm nút Lưu tất cả để gửi chỉ số lên cho chủ trọ xét duyệt nhé!",
+    targetPath: "/meter",
+    position: "top"
+  },
+  // Chặng 2: Thanh toán hóa đơn (Target: /invoices)
+  {
+    id: "2.1",
+    stage: 2,
+    subStep: 1,
+    selector: "#btn-preview-qr-invoice",
+    title: "Xem mã QR thanh toán",
+    description: "Bác bấm nút 'Mã QR' trên dòng hóa đơn chưa thanh toán của mình nhé!",
+    targetPath: "/invoices",
+    position: "bottom"
+  },
+  {
+    id: "2.2",
+    stage: 2,
+    subStep: 2,
+    selector: "#vietqr-payment-modal-content",
+    title: "Quét QR thanh toán",
+    description: "Mã VietQR động chứa sẵn số tiền và nội dung chuyển khoản tự động. Bác mở app ngân hàng quét mã này để hệ thống tự động gạch nợ nhé!",
+    targetPath: "/invoices",
+    position: "top"
   }
 ];
 
@@ -422,6 +741,10 @@ interface TourGuideContextType {
   isDriverActive: boolean;
   localOverrideStep: number | null;
   setLocalOverrideStep: (step: number | null) => void;
+  advanceTenantStep: () => void;
+  completeTenantOnboarding: () => void;
+  advanceSubStep: () => void;
+  regressSubStep: () => void;
 }
 
 const TourGuideContext = createContext<TourGuideContextType | undefined>(undefined);
@@ -430,62 +753,68 @@ export function TourGuideProvider({ children }: { children: React.ReactNode }) {
   const { user, setUser } = useAuthStore();
   const location = useLocation();
   const navigate = useNavigate();
+
   const [onboardingStatus, setOnboardingStatus] = useState<OnboardingStatusResult | null>(null);
   const [loading, setLoading] = useState(false);
-const [currentStep, setCurrentStep] = useState<number>(1);
+  const [currentStep, setCurrentStep] = useState<number>(1);
   const [activeStepData, setActiveStepData] = useState<TourStep | null>(null);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [isDriverActive, setIsDriverActive] = useState(false);
   const [localOverrideStep, setLocalOverrideStep] = useState<number | null>(null);
+  const [activeSubStepId, setActiveSubStepId] = useState<string>(() => {
+    return localStorage.getItem("onboarding_substep") || "1.1";
+  });
 
-  const activeStepNumber = localOverrideStep !== null ? localOverrideStep : currentStep;
+  // Tenant states
+  const [tenantStep, setTenantStep] = useState<number>(() => {
+    return parseInt(localStorage.getItem("tenant_onboarding_step") || "1", 10);
+  });
+  const [tenantSubStepId, setTenantSubStepId] = useState<string>(() => {
+    return localStorage.getItem("tenant_onboarding_substep") || "1.1";
+  });
+  const [tenantCompleted, setTenantCompleted] = useState<boolean>(() => {
+    return localStorage.getItem("tenant_onboarding_completed") === "true";
+  });
 
-  // Clear override when currentStep advances
+  const isTenantMode = !!(user && ((user.role as string) === "TENANT" || (user.role as string) === "RESIDENT"));
+  const isEligible = !!(user && ((user.role as string) === "MANAGER" || (user.role as string) === "ADMIN" || (user.role as string) === "TENANT" || (user.role as string) === "RESIDENT"));
+
+  const effectiveStep = isTenantMode ? tenantStep : (localOverrideStep !== null ? localOverrideStep : currentStep);
+  const effectiveSubStepId = isTenantMode ? tenantSubStepId : activeSubStepId;
+  const effectiveStepsList = isTenantMode ? TENANT_ONBOARDING_STEPS : ONBOARDING_STEPS;
+  const effectiveSubStepsList = isTenantMode ? TENANT_SUB_STEPS : SUB_STEPS;
+  const hasCompletedOnboarding = isTenantMode ? tenantCompleted : (onboardingStatus?.hasCompletedOnboarding ?? user?.hasCompletedOnboarding ?? false);
+
+  // Clear override when step advances
   useEffect(() => {
     setLocalOverrideStep(null);
   }, [currentStep]);
 
   useEffect(() => {
-    if (activeStepNumber >= 1 && activeStepNumber <= 6) {
-      setActiveStepData(ONBOARDING_STEPS[activeStepNumber - 1]);
+    if (effectiveStep >= 1 && effectiveStep <= effectiveStepsList.length) {
+      setActiveStepData(effectiveStepsList[effectiveStep - 1]);
     } else {
       setActiveStepData(null);
     }
-  }, [activeStepNumber]);
-
-  const [activeSubStepId, setActiveSubStepId] = useState<string>(() => {
-    return localStorage.getItem("onboarding_substep") || "1.1";
-  });
+  }, [effectiveStep, isTenantMode]);
 
   const driverInstanceRef = useRef<any>(null);
   const isTransitioningRef = useRef(false);
 
-  // Check if role is eligible for tour (only managers/admins)
-  const isEligible = user && (user.role === "MANAGER" || user.role === "ADMIN");
-
   const refreshStatus = useCallback(async () => {
-    if (!isEligible) return;
+    if (!isEligible || isTenantMode) return;
     setLoading(true);
     try {
       const status = await authService.getOnboardingStatus();
       setOnboardingStatus(status);
-
       const step = status.currentStep || 1;
       setCurrentStep(step);
       
-      if (step >= 1 && step <= 6) {
-        // Handled by activeStepNumber useEffect
-      } else {
-        setActiveStepData(null);
-      }
-
-      // Check if user has just completed onboarding during this session
       if (status.hasInvoice && !status.hasCompletedOnboarding) {
         setShowCelebration(true);
       }
 
-      // Sync user profile state if mismatch
       if (status.hasCompletedOnboarding !== user.hasCompletedOnboarding) {
         setUser({
           ...user,
@@ -497,10 +826,10 @@ const [currentStep, setCurrentStep] = useState<number>(1);
     } finally {
       setLoading(false);
     }
-  }, [isEligible, user, setUser]);
+  }, [isEligible, isTenantMode, user, setUser]);
 
   const completeOnboarding = async () => {
-    if (!isEligible) return;
+    if (!isEligible || isTenantMode) return;
     try {
       await authService.completeOnboarding();
       if (user) {
@@ -523,47 +852,129 @@ const [currentStep, setCurrentStep] = useState<number>(1);
     }
   };
 
-  // Sync sub-step to the current stage derived from backend
+  const advanceTenantStep = useCallback(() => {
+    const nextStep = tenantStep + 1;
+    if (nextStep <= 2) {
+      setTenantStep(nextStep);
+      localStorage.setItem("tenant_onboarding_step", nextStep.toString());
+      const firstSubStep = TENANT_SUB_STEPS.find(s => s.stage === nextStep);
+      if (firstSubStep) {
+        setTenantSubStepId(firstSubStep.id);
+        localStorage.setItem("tenant_onboarding_substep", firstSubStep.id);
+      }
+    } else {
+      setTenantCompleted(true);
+      localStorage.setItem("tenant_onboarding_completed", "true");
+      setIsGuideOpen(false);
+    }
+  }, [tenantStep]);
+
+  const completeTenantOnboarding = useCallback(() => {
+    setTenantCompleted(true);
+    localStorage.setItem("tenant_onboarding_completed", "true");
+    setIsGuideOpen(false);
+  }, []);
+
+  // Sync sub-step to the current stage
   useEffect(() => {
-    if (activeStepNumber >= 1 && activeStepNumber <= 6) {
-      const expectedPrefix = `${activeStepNumber}.`;
+    if (!isTenantMode && effectiveStep >= 1 && effectiveStep <= 6) {
+      const expectedPrefix = `${effectiveStep}.`;
       if (!activeSubStepId.startsWith(expectedPrefix)) {
-        const firstSubStep = SUB_STEPS.find(s => s.stage === activeStepNumber);
+        const firstSubStep = SUB_STEPS.find(s => s.stage === effectiveStep);
         if (firstSubStep) {
           setActiveSubStepId(firstSubStep.id);
           localStorage.setItem("onboarding_substep", firstSubStep.id);
         }
       }
+    } else if (isTenantMode && effectiveStep >= 1 && effectiveStep <= 2) {
+      const expectedPrefix = `${effectiveStep}.`;
+      if (!tenantSubStepId.startsWith(expectedPrefix)) {
+        const firstSubStep = TENANT_SUB_STEPS.find(s => s.stage === effectiveStep);
+        if (firstSubStep) {
+          setTenantSubStepId(firstSubStep.id);
+          localStorage.setItem("tenant_onboarding_substep", firstSubStep.id);
+        }
+      }
     }
-  }, [activeStepNumber, activeSubStepId]);
+  }, [effectiveStep, activeSubStepId, tenantSubStepId, isTenantMode]);
 
   const advanceSubStep = useCallback(() => {
-    const currentIndex = SUB_STEPS.findIndex(s => s.id === activeSubStepId);
-    if (currentIndex !== -1 && currentIndex < SUB_STEPS.length - 1) {
-      const nextStep = SUB_STEPS[currentIndex + 1];
-      if (nextStep.stage === activeStepNumber) {
-        setActiveSubStepId(nextStep.id);
-        localStorage.setItem("onboarding_substep", nextStep.id);
+    if (isTenantMode) {
+      const currentIndex = TENANT_SUB_STEPS.findIndex(s => s.id === tenantSubStepId);
+      if (currentIndex !== -1 && currentIndex < TENANT_SUB_STEPS.length - 1) {
+        const nextStep = TENANT_SUB_STEPS[currentIndex + 1];
+        if (nextStep.stage === tenantStep) {
+          setTenantSubStepId(nextStep.id);
+          localStorage.setItem("tenant_onboarding_substep", nextStep.id);
+        }
+      }
+    } else {
+      const currentIndex = SUB_STEPS.findIndex(s => s.id === activeSubStepId);
+      if (currentIndex !== -1 && currentIndex < SUB_STEPS.length - 1) {
+        const nextStep = SUB_STEPS[currentIndex + 1];
+        if (nextStep.stage === effectiveStep) {
+          setActiveSubStepId(nextStep.id);
+          localStorage.setItem("onboarding_substep", nextStep.id);
+        }
       }
     }
-  }, [activeSubStepId, activeStepNumber]);
+  }, [isTenantMode, tenantSubStepId, tenantStep, activeSubStepId, effectiveStep]);
 
   const regressSubStep = useCallback(() => {
-    const currentIndex = SUB_STEPS.findIndex(s => s.id === activeSubStepId);
-    if (currentIndex > 0) {
-      const prevStep = SUB_STEPS[currentIndex - 1];
-      if (prevStep.stage === activeStepNumber) {
-        setActiveSubStepId(prevStep.id);
-        localStorage.setItem("onboarding_substep", prevStep.id);
+    if (isTenantMode) {
+      const currentIndex = TENANT_SUB_STEPS.findIndex(s => s.id === tenantSubStepId);
+      if (currentIndex > 0) {
+        const prevStep = TENANT_SUB_STEPS[currentIndex - 1];
+        if (prevStep.stage === tenantStep) {
+          setTenantSubStepId(prevStep.id);
+          localStorage.setItem("tenant_onboarding_substep", prevStep.id);
+        }
+      }
+    } else {
+      const currentIndex = SUB_STEPS.findIndex(s => s.id === activeSubStepId);
+      if (currentIndex > 0) {
+        const prevStep = SUB_STEPS[currentIndex - 1];
+        if (prevStep.stage === effectiveStep) {
+          setActiveSubStepId(prevStep.id);
+          localStorage.setItem("onboarding_substep", prevStep.id);
+        }
       }
     }
-  }, [activeSubStepId, activeStepNumber]);
+  }, [isTenantMode, tenantSubStepId, tenantStep, activeSubStepId, effectiveStep]);
+
+  // Bind the 'Enter' key globally when the tour guide is active
+  useEffect(() => {
+    if (!isGuideOpen || !isDriverActive) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Enter") {
+        const activeEl = document.activeElement;
+        if (
+          activeEl &&
+          (activeEl.tagName === "INPUT" ||
+            activeEl.tagName === "SELECT" ||
+            activeEl.tagName === "TEXTAREA")
+        ) {
+          // If they press Enter on the save/submit buttons, let them submit.
+          // Otherwise, if they press Enter inside input text/selects, advance.
+          if (activeEl.id === "btn-submit-motel" || activeEl.id === "btn-submit-bulk-rooms" || activeEl.id === "btn-submit-contract" || activeEl.id === "btn-save-meter-readings") {
+            return;
+          }
+          e.preventDefault();
+          advanceSubStep();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown, true);
+    };
+  }, [isGuideOpen, isDriverActive, advanceSubStep]);
 
   // Main active driver.js loop
   useEffect(() => {
-    const hasCompletedOnboardingVal = onboardingStatus?.hasCompletedOnboarding ?? user?.hasCompletedOnboarding ?? false;
-    
-    if ((hasCompletedOnboardingVal && localOverrideStep === null) || !isGuideOpen || activeStepNumber < 1 || activeStepNumber > 6) {
+    if (hasCompletedOnboarding || !isGuideOpen || effectiveStep < 1 || effectiveStep > effectiveStepsList.length) {
       if (driverInstanceRef.current) {
         isTransitioningRef.current = true;
         driverInstanceRef.current.destroy();
@@ -574,34 +985,68 @@ const [currentStep, setCurrentStep] = useState<number>(1);
     }
 
     const interval = setInterval(() => {
-      const activeStep = SUB_STEPS.find(s => s.id === activeSubStepId);
+      const activeStep = effectiveSubStepsList.find(s => s.id === effectiveSubStepId);
       if (!activeStep) return;
 
       // 1. Auto-advance transitions based on visibility of elements belonging to next step
-      if (activeSubStepId === "1.1" && document.querySelector("#input-motel-name")) {
-        setActiveSubStepId("1.2");
-        localStorage.setItem("onboarding_substep", "1.2");
-        return;
-      }
-      if (activeSubStepId === "2.1" && document.querySelector("#btn-copy-webhook-url")) {
-        setActiveSubStepId("2.2");
-        localStorage.setItem("onboarding_substep", "2.2");
-        return;
-      }
-      if (activeSubStepId === "3.1" && document.querySelector("#input-bulk-quantity")) {
-        setActiveSubStepId("3.2");
-        localStorage.setItem("onboarding_substep", "3.2");
-        return;
-      }
-      if (activeSubStepId === "4.1" && document.querySelector("#select-contract-room")) {
-        setActiveSubStepId("4.2");
-        localStorage.setItem("onboarding_substep", "4.2");
-        return;
-      }
-      if (activeSubStepId === "5.1" && document.querySelector("#input-electric-index-initial")) {
-        setActiveSubStepId("5.2");
-        localStorage.setItem("onboarding_substep", "5.2");
-        return;
+      if (!isTenantMode) {
+        if (effectiveSubStepId === "1.1" && document.querySelector("#input-motel-name")) {
+          setActiveSubStepId("1.2");
+          localStorage.setItem("onboarding_substep", "1.2");
+          return;
+        }
+        if (effectiveSubStepId === "2.1" && document.querySelector("#input-bulk-quantity")) {
+          setActiveSubStepId("2.2");
+          localStorage.setItem("onboarding_substep", "2.2");
+          return;
+        }
+        if (effectiveSubStepId === "3.1" && document.querySelector("#input-service-name")) {
+          setActiveSubStepId("3.2");
+          localStorage.setItem("onboarding_substep", "3.2");
+          return;
+        }
+        if (effectiveSubStepId === "4.1" && document.querySelector("#select-contract-room")) {
+          setActiveSubStepId("4.2");
+          localStorage.setItem("onboarding_substep", "4.2");
+          return;
+        }
+        if (effectiveSubStepId === "4.8" && location.pathname === "/residents" && document.querySelector("#btn-resident-detail")) {
+          setActiveSubStepId("4.9");
+          localStorage.setItem("onboarding_substep", "4.9");
+          return;
+        }
+        if (effectiveSubStepId === "4.9" && document.querySelector("#resident-balance-box")) {
+          setActiveSubStepId("4.10");
+          localStorage.setItem("onboarding_substep", "4.10");
+          return;
+        }
+        if (effectiveSubStepId === "5.1" && document.querySelector("#btn-use-sample-meter")) {
+          setActiveSubStepId("5.2");
+          localStorage.setItem("onboarding_substep", "5.2");
+          return;
+        }
+        if (effectiveSubStepId === "6.1" && document.querySelector("#invoice-generate-motel")) {
+          setActiveSubStepId("6.2");
+          localStorage.setItem("onboarding_substep", "6.2");
+          return;
+        }
+        if (effectiveSubStepId === "6.2" && document.querySelector("#btn-view-generated-invoices")) {
+          setActiveSubStepId("6.3");
+          localStorage.setItem("onboarding_substep", "6.3");
+          return;
+        }
+      } else {
+        // Tenant Mode
+        if (tenantSubStepId === "1.1" && document.querySelector("#btn-use-sample-meter")) {
+          setTenantSubStepId("1.2");
+          localStorage.setItem("tenant_onboarding_substep", "1.2");
+          return;
+        }
+        if (tenantSubStepId === "2.1" && document.querySelector("#vietqr-payment-modal-content")) {
+          setTenantSubStepId("2.2");
+          localStorage.setItem("tenant_onboarding_substep", "2.2");
+          return;
+        }
       }
 
       // 2. Auto-routing: if user is on the wrong route, navigate or wait
@@ -619,7 +1064,6 @@ const [currentStep, setCurrentStep] = useState<number>(1);
       // 3. Find target element
       const targetElement = document.querySelector(activeStep.selector);
       if (!targetElement) {
-        // Safe retry/waiting when element is not rendered yet
         if (driverInstanceRef.current) {
           isTransitioningRef.current = true;
           driverInstanceRef.current.destroy();
@@ -657,8 +1101,8 @@ const [currentStep, setCurrentStep] = useState<number>(1);
         isTransitioningRef.current = false;
       }
 
-      const stageSteps = SUB_STEPS.filter(s => s.stage === activeStepNumber);
-      const activeIndex = stageSteps.findIndex(s => s.id === activeSubStepId);
+      const stageSteps = effectiveSubStepsList.filter(s => s.stage === effectiveStep);
+      const activeIndex = stageSteps.findIndex(s => s.id === effectiveSubStepId);
       const isFirst = activeIndex === 0;
       const isLast = activeIndex === stageSteps.length - 1;
 
@@ -667,7 +1111,7 @@ const [currentStep, setCurrentStep] = useState<number>(1);
       if (!isLast) buttons.push("next");
 
       const d = driver({
-        allowClose: true,
+        allowClose: false,
         overlayColor: "rgba(15, 23, 42, 0.7)",
         stagePadding: 6,
         stageRadius: 12,
@@ -691,7 +1135,7 @@ const [currentStep, setCurrentStep] = useState<number>(1);
       d.highlight({
         element: activeStep.selector,
         popover: {
-          title: `Chặng ${activeStepNumber}.${activeStep.subStep}: ${activeStep.title}`,
+          title: `Chặng ${effectiveStep}.${activeStep.subStep}: ${activeStep.title}`,
           description: activeStep.description,
           side: activeStep.position || "bottom",
           align: "start",
@@ -714,23 +1158,22 @@ const [currentStep, setCurrentStep] = useState<number>(1);
       }
       setIsDriverActive(false);
     };
-  }, [onboardingStatus, user, isGuideOpen, activeStepNumber, activeSubStepId, location.pathname, advanceSubStep, regressSubStep]);
+  }, [hasCompletedOnboarding, isGuideOpen, effectiveStep, effectiveSubStepId, location.pathname, advanceSubStep, regressSubStep, isTenantMode]);
 
   useEffect(() => {
-    if (isEligible) {
+    if (isEligible && !isTenantMode) {
       refreshStatus();
     }
   }, [location.pathname]);
 
   const pageGuide = PAGE_GUIDES[location.pathname] || null;
-  const hasCompletedOnboarding = onboardingStatus?.hasCompletedOnboarding ?? user?.hasCompletedOnboarding ?? false;
 
   return (
     <TourGuideContext.Provider
       value={{
         onboardingStatus,
         loading,
-        currentStep,
+        currentStep: effectiveStep,
         activeStepData,
         hasCompletedOnboarding,
         refreshStatus,
@@ -740,11 +1183,15 @@ const [currentStep, setCurrentStep] = useState<number>(1);
         showCelebration,
         setShowCelebration,
         pageGuide,
-        activeSubStepId,
-        setActiveSubStepId,
+        activeSubStepId: effectiveSubStepId,
+        setActiveSubStepId: isTenantMode ? setTenantSubStepId : setActiveSubStepId,
         isDriverActive,
         localOverrideStep,
-        setLocalOverrideStep
+        setLocalOverrideStep,
+        advanceTenantStep,
+        completeTenantOnboarding,
+        advanceSubStep,
+        regressSubStep
       }}
     >
       {children}

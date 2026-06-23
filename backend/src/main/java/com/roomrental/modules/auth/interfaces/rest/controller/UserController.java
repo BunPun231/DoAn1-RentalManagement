@@ -11,6 +11,7 @@ import com.roomrental.modules.room.infrastructure.repository.RoomJpaRepository;
 import com.roomrental.modules.contract.infrastructure.persistence.ContractJpaRepository;
 import com.roomrental.modules.finance.infrastructure.persistence.MeterReadingJpaRepository;
 import com.roomrental.modules.finance.infrastructure.persistence.InvoiceJpaRepository;
+import com.roomrental.modules.service.infrastructure.repository.ServiceJpaRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
@@ -33,6 +34,7 @@ public class UserController {
     private final ContractJpaRepository contractJpaRepository;
     private final MeterReadingJpaRepository meterReadingJpaRepository;
     private final InvoiceJpaRepository invoiceJpaRepository;
+    private final ServiceJpaRepository serviceJpaRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public UserController(
@@ -41,13 +43,15 @@ public class UserController {
             RoomJpaRepository roomJpaRepository,
             ContractJpaRepository contractJpaRepository,
             MeterReadingJpaRepository meterReadingJpaRepository,
-            InvoiceJpaRepository invoiceJpaRepository) {
+            InvoiceJpaRepository invoiceJpaRepository,
+            ServiceJpaRepository serviceJpaRepository) {
         this.userRepository = userRepository;
         this.motelJpaRepository = motelJpaRepository;
         this.roomJpaRepository = roomJpaRepository;
         this.contractJpaRepository = contractJpaRepository;
         this.meterReadingJpaRepository = meterReadingJpaRepository;
         this.invoiceJpaRepository = invoiceJpaRepository;
+        this.serviceJpaRepository = serviceJpaRepository;
     }
 
     @PutMapping("/onboarding-complete")
@@ -63,7 +67,7 @@ public class UserController {
     }
 
     @GetMapping("/onboarding-status")
-    @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
+    @PreAuthorize("hasAnyRole('MANAGER','ADMIN','TENANT','RESIDENT')")
     @Operation(summary = "Get the real-time onboarding checklist status for the current user")
     public ResponseEntity<ApiResponse<OnboardingStatusResult>> getOnboardingStatus() {
         UUID userId = SecurityUtils.getCurrentUserId();
@@ -92,16 +96,25 @@ public class UserController {
         }
 
         boolean hasRooms = roomJpaRepository.countByTenantId(tenantId) > 0;
+        
+        boolean hasServicesConfig = false;
+        for (var motel : motels) {
+            if (serviceJpaRepository.countByMotelId(motel.getId()) > 2) {
+                hasServicesConfig = true;
+                break;
+            }
+        }
+
         boolean hasActiveContract = contractJpaRepository.countActiveByTenantId(tenantId) > 0;
         boolean hasMeterReadings = meterReadingJpaRepository.countByTenantId(tenantId) > 0;
         boolean hasInvoice = invoiceJpaRepository.countByTenantIdAndIsDeletedFalse(tenantId) > 0;
 
         int currentStep = 1;
-        if (!hasMotel) {
+        if (!hasMotel || !hasSePayConfig) {
             currentStep = 1;
-        } else if (!hasSePayConfig) {
-            currentStep = 2;
         } else if (!hasRooms) {
+            currentStep = 2;
+        } else if (!hasServicesConfig) {
             currentStep = 3;
         } else if (!hasActiveContract) {
             currentStep = 4;

@@ -16,11 +16,11 @@ import { useAuthStore } from "@/store/authStore";
 const NAV_ITEMS = [
   { name: "Tổng quan", path: "/dashboard", icon: LayoutDashboard },
   { name: "Khu trọ & Phòng", path: "/motels", icon: Building2 },
+  { name: "Dịch vụ", path: "/services", icon: Settings },
   { name: "Khách thuê", path: "/residents", icon: Users },
   { name: "Hợp đồng & Cọc", path: "/contracts", icon: FileText },
-  { name: "Hóa đơn", path: "/invoices", icon: Receipt },
-  { name: "Dịch vụ", path: "/services", icon: Settings },
   { name: "Ghi chỉ số", path: "/meter", icon: Gauge },
+  { name: "Hóa đơn", path: "/invoices", icon: Receipt },
   { name: "Thống kê", path: "/reports", icon: BarChart3 },
   { name: "Nhật ký", path: "/audit-log", icon: FileText },
   { name: "Cấu hình", path: "/settings", icon: Settings }
@@ -78,6 +78,13 @@ export function Sidebar() {
             return (
               <Link
                 key={item.name}
+                id={
+                  item.path === "/residents"
+                    ? "sidebar-residents"
+                    : item.path === "/services"
+                    ? "sidebar-services"
+                    : undefined
+                }
                 to={item.path}
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",

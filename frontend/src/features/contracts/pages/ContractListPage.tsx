@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Plus, Search, FileSignature, AlertCircle, RefreshCw, ChevronDown, Clock, CheckCircle2, XCircle, Ban } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useTourGuide } from "@/hooks/useTourGuide";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
@@ -399,6 +401,8 @@ function ContractDetailModal({
 
 // ============ MAIN PAGE ============
 export function ContractListPage() {
+  const navigate = useNavigate();
+  const { refreshStatus } = useTourGuide();
   const [contracts, setContracts] = useState<ContractResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -698,7 +702,12 @@ export function ContractListPage() {
       <CreateContractModal
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
-        onSuccess={() => { setIsCreateOpen(false); fetchContracts(); }}
+        onSuccess={() => {
+          setIsCreateOpen(false);
+          fetchContracts();
+          refreshStatus();
+          navigate("/residents");
+        }}
       />
 
       {selectedContract && (

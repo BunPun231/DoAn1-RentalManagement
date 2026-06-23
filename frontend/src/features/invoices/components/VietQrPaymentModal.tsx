@@ -6,6 +6,8 @@ import { formatCurrency } from "@/lib/utils";
 import { extractError } from "@/lib/api";
 import { useNotificationStore } from "@/store/notificationStore";
 import { Copy, Check, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { useTourGuide } from "@/hooks/useTourGuide";
+import { useAuthStore } from "@/store/authStore";
 
 interface VietQrPaymentModalProps {
   isOpen: boolean;
@@ -25,6 +27,8 @@ interface PaymentInfo {
 }
 
 export function VietQrPaymentModal({ isOpen, onClose, invoiceId, onSuccess }: VietQrPaymentModalProps) {
+  const { user } = useAuthStore();
+  const { completeTenantOnboarding } = useTourGuide();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
@@ -116,6 +120,9 @@ export function VietQrPaymentModal({ isOpen, onClose, invoiceId, onSuccess }: Vi
   const handleFinish = () => {
     onSuccess();
     onClose();
+    if ((user?.role as string) === "TENANT" || (user?.role as string) === "RESIDENT") {
+      completeTenantOnboarding();
+    }
   };
 
   return (
@@ -162,7 +169,7 @@ export function VietQrPaymentModal({ isOpen, onClose, invoiceId, onSuccess }: Vi
           </Button>
         </div>
       ) : (
-        <div className="space-y-5">
+        <div id="vietqr-payment-modal-content" className="space-y-5">
           {/* QR Code Container */}
           <div className="flex flex-col items-center justify-center bg-slate-50 border border-slate-100 p-6 rounded-2xl">
             <div className="relative bg-white p-3 rounded-2xl shadow-sm border border-slate-200/50">
