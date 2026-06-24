@@ -5,6 +5,8 @@ import { useAuthStore } from "@/store/authStore";
 import { driver } from "driver.js";
 import "driver.js/dist/driver.css";
 
+
+
 export interface TourStep {
   stepNumber: number;
   title: string;
@@ -191,9 +193,9 @@ export const SUB_STEPS: SubStep[] = [
     id: "1.10",
     stage: 1,
     subStep: 10,
-    selector: "#btn-show-webhook-guide",
-    title: "Đăng nhập SePay.vn",
-    description: "Bác truy cập SePay.vn. Hệ thống sẽ tự động hiển thị hình 1 hướng dẫn bác đi tới trang cấu hình webhook.",
+    selector: "#btn-trigger-sepay-guide-slider",
+    title: "Mở ảnh hướng dẫn",
+    description: "Bác bấm vào đây để mở bảng hình ảnh hướng dẫn trực quan nhé!",
     targetPath: "/motels",
     position: "top"
   },
@@ -201,46 +203,56 @@ export const SUB_STEPS: SubStep[] = [
     id: "1.11",
     stage: 1,
     subStep: 11,
-    selector: "#btn-copy-webhook-url",
-    title: "Sao chép Webhook URL",
-    description: "Bác bấm Sao chép để lấy đường dẫn Webhook. Giao diện sẽ tự động nhảy qua hình 2 để hướng dẫn bác dán vào SePay.",
+    selector: "#sepay-guide-image-viewport",
+    title: "Đăng nhập SePay.vn",
+    description: "Bước 1: Bác đăng nhập SePay.vn, vào mục 'Tích hợp Webhook' và bấm 'Thêm webhook' như vùng khoanh đỏ trên hình nhé.",
     targetPath: "/motels",
-    position: "bottom"
+    position: "top"
   },
   {
     id: "1.12",
     stage: 1,
     subStep: 12,
-    selector: "#btn-show-webhook-guide",
-    title: "Chọn tài khoản nhận tiền trên SePay",
-    description: "Xem hình hướng dẫn 3 phía dưới để chọn tài khoản ngân hàng nhận tiền trên SePay, rồi bấm Tiếp tục.",
+    selector: "#btn-copy-webhook-url",
+    title: "Sao chép Webhook URL",
+    description: "Bây giờ bác bấm nút 'Sao chép' này để lấy đường dẫn, rồi mang sang dán vào SePay nhé!",
     targetPath: "/motels",
-    position: "top"
+    position: "bottom"
   },
   {
     id: "1.13",
     stage: 1,
     subStep: 13,
-    selector: "#btn-copy-secret-key",
-    title: "Sao chép Secret Key",
-    description: "Bác sao chép tiếp Chữ ký bảo mật (Secret Key) này rồi dán vào ô 'Chữ ký bảo mật' trên SePay nhé.",
+    selector: "#sepay-guide-image-viewport",
+    title: "Cấu hình HMAC-SHA256",
+    description: "Bước 2: Bác chọn kiểu xác thực là HMAC-SHA256 và chuẩn bị copy Mã xác thực hệ thống cấp ở bước tiếp theo để dán vào nhé!",
     targetPath: "/motels",
-    position: "bottom"
+    position: "top"
   },
   {
     id: "1.14",
     stage: 1,
     subStep: 14,
-    selector: "#btn-show-webhook-guide",
-    title: "Lưu webhook trên SePay",
-    description: "Bác bấm 'Thêm' trên SePay.vn. Xem hình hướng dẫn 5 phía dưới để đảm bảo webhook hoạt động chính xác.",
+    selector: "#btn-copy-secret-key",
+    title: "Sao chép Secret Key",
+    description: "Bác sao chép tiếp Chữ ký bảo mật (Secret Key) này để dán vào ô 'Chữ ký bảo mật' trên SePay nhé!",
     targetPath: "/motels",
-    position: "top"
+    position: "bottom"
   },
   {
     id: "1.15",
     stage: 1,
     subStep: 15,
+    selector: "#sepay-guide-image-viewport",
+    title: "Kích hoạt Webhook",
+    description: "Bước 3: Bác bấm 'Thêm' trên SePay.vn. Hãy xem hình hướng dẫn để đảm bảo webhook hoạt động chính xác!",
+    targetPath: "/motels",
+    position: "top"
+  },
+  {
+    id: "1.16",
+    stage: 1,
+    subStep: 16,
     selector: "#btn-submit-motel",
     title: "Lưu khu trọ & Cấu hình",
     description: "Bác bấm nút Lưu để tạo khu trọ. Hệ thống sẽ tự động gán giá Điện, Nước mặc định!",
@@ -801,6 +813,13 @@ export function TourGuideProvider({ children }: { children: React.ReactNode }) {
 
   const driverInstanceRef = useRef<any>(null);
   const isTransitioningRef = useRef(false);
+  const activeSubStepIdRef = useRef(effectiveSubStepId);
+  const activeStepRef = useRef<any>(null);
+
+  useEffect(() => {
+    activeSubStepIdRef.current = effectiveSubStepId;
+    activeStepRef.current = effectiveSubStepsList.find(s => s.id === effectiveSubStepId);
+  }, [effectiveSubStepId, effectiveSubStepsList]);
 
   const refreshStatus = useCallback(async () => {
     if (!isEligible || isTenantMode) return;
@@ -810,7 +829,7 @@ export function TourGuideProvider({ children }: { children: React.ReactNode }) {
       setOnboardingStatus(status);
       const step = status.currentStep || 1;
       setCurrentStep(step);
-      
+
       if (status.hasInvoice && !status.hasCompletedOnboarding) {
         setShowCelebration(true);
       }
@@ -942,26 +961,22 @@ export function TourGuideProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isTenantMode, tenantSubStepId, tenantStep, activeSubStepId, effectiveStep]);
 
-  // Bind the 'Enter' key globally when the tour guide is active
+  // Bind the 'Enter' key globally when the tour guide is active (only for text inputs)
   useEffect(() => {
     if (!isGuideOpen || !isDriverActive) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Enter") {
         const activeEl = document.activeElement;
-        if (
-          activeEl &&
-          (activeEl.tagName === "INPUT" ||
-            activeEl.tagName === "SELECT" ||
-            activeEl.tagName === "TEXTAREA")
-        ) {
-          // If they press Enter on the save/submit buttons, let them submit.
-          // Otherwise, if they press Enter inside input text/selects, advance.
-          if (activeEl.id === "btn-submit-motel" || activeEl.id === "btn-submit-bulk-rooms" || activeEl.id === "btn-submit-contract" || activeEl.id === "btn-save-meter-readings") {
-            return;
+        if (activeEl && activeEl.tagName === "INPUT") {
+          const inputEl = activeEl as HTMLInputElement;
+          const isText = ["text", "number", "tel", "email", "password"].includes(inputEl.type || "text") &&
+            inputEl.getAttribute("role") !== "combobox";
+
+          if (isText) {
+            e.preventDefault();
+            advanceSubStep();
           }
-          e.preventDefault();
-          advanceSubStep();
         }
       }
     };
@@ -1086,15 +1101,45 @@ export function TourGuideProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Check if driver is already highlighting this element
-      const isAlreadyHighlighting = driverInstanceRef.current && 
+      const isAlreadyHighlighting = driverInstanceRef.current &&
         driverInstanceRef.current.isActive() &&
         driverInstanceRef.current.getActiveElement() === targetElement;
 
       if (isAlreadyHighlighting) {
-        return; 
+        return;
       }
 
-      // Create and launch driver.js
+      const nextBtnLabel = "Tiếp tục ➜";
+
+      // If driver is already active, we just call highlight smoothly to glide spotlight
+      if (driverInstanceRef.current && driverInstanceRef.current.isActive()) {
+        driverInstanceRef.current.highlight({
+          element: activeStep.selector,
+          popover: {
+            title: `Chặng ${effectiveStep}.${activeStep.subStep}: ${activeStep.title}`,
+            description: activeStep.description,
+            side: activeStep.position || "bottom",
+            align: "start",
+            nextBtnText: nextBtnLabel,
+            prevBtnText: "← Quay lại"
+          }
+        });
+
+        // Automatically focus highlighted element
+        setTimeout(() => {
+          const el = document.querySelector(activeStep.selector) as HTMLElement;
+          if (el && (el.tagName === "INPUT" || el.tagName === "SELECT" || el.tagName === "TEXTAREA")) {
+            el.focus();
+            if (el instanceof HTMLInputElement) {
+              el.select();
+            }
+          }
+        }, 100);
+
+        return;
+      }
+
+      // Recreate or launch driver.js
       if (driverInstanceRef.current) {
         isTransitioningRef.current = true;
         driverInstanceRef.current.destroy();
@@ -1104,11 +1149,10 @@ export function TourGuideProvider({ children }: { children: React.ReactNode }) {
       const stageSteps = effectiveSubStepsList.filter(s => s.stage === effectiveStep);
       const activeIndex = stageSteps.findIndex(s => s.id === effectiveSubStepId);
       const isFirst = activeIndex === 0;
-      const isLast = activeIndex === stageSteps.length - 1;
 
-      const buttons: ("next" | "previous" | "close")[] = [];
+      const buttons: ("next" | "previous")[] = [];
       if (!isFirst) buttons.push("previous");
-      if (!isLast) buttons.push("next");
+      buttons.push("next");
 
       const d = driver({
         allowClose: false,
@@ -1118,6 +1162,163 @@ export function TourGuideProvider({ children }: { children: React.ReactNode }) {
         showProgress: false,
         showButtons: buttons,
         popoverClass: "driverjs-theme-custom font-sans",
+        onHighlighted: (element?: Element) => {
+          // Wait slightly for the DOM string to append completely inside the container
+          setTimeout(() => {
+            const dismissLink = document.querySelector("#btn-tour-dismiss-trigger");
+            if (dismissLink) {
+              dismissLink.addEventListener("click", (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+
+                // Natively kill the active tour overlay completely
+                if (driverInstanceRef.current) {
+                  driverInstanceRef.current.destroy();
+                } else {
+                  d.destroy();
+                }
+              });
+            }
+          }, 50);
+        },
+        onPopoverRender: (popover) => {
+          const currentStep = activeStepRef.current;
+          const currentStepId = activeSubStepIdRef.current;
+          if (!currentStep) return;
+
+          const targetEl = document.querySelector(currentStep.selector);
+
+          // Card wrapper styling - Apply to ALL steps!
+          popover.wrapper.style.padding = "24px";
+          popover.wrapper.style.borderRadius = "16px";
+          popover.wrapper.style.border = "2px solid #2563eb";
+          popover.wrapper.style.backgroundColor = "#ffffff";
+          popover.wrapper.style.boxShadow = "0 20px 25px -5px rgb(0 0 0 / 0.15), 0 8px 10px -6px rgb(0 0 0 / 0.15)";
+          popover.wrapper.style.maxWidth = "360px";
+
+          // Title styling
+          popover.title.style.fontSize = "16px";
+          popover.title.style.fontWeight = "800";
+          popover.title.style.color = "#1e293b";
+          popover.title.style.marginBottom = "10px";
+          popover.title.style.fontFamily = "inherit";
+          popover.title.style.marginRight = "0";
+
+          // Build description HTML
+          const isTextInput = targetEl && targetEl.tagName === "INPUT" && (
+            !(targetEl as HTMLInputElement).type ||
+            ["text", "number", "tel", "email", "password"].includes((targetEl as HTMLInputElement).type)
+          ) && targetEl.getAttribute("role") !== "combobox";
+
+          let descriptionHtml = `
+            <div style="font-size: 14px; color: #374151; line-height: 1.5; font-family: inherit;">
+              ${currentStep.description}
+            </div>
+          `;
+
+          if (currentStepId === "1.10") {
+            descriptionHtml += `
+              <br/>
+              <a href="https://sepay.vn" target="_blank" rel="noopener noreferrer" style="color: #2563eb; font-weight: bold; text-decoration: underline; display: inline-flex; align-items: center; gap: 4px; font-family: inherit; font-size: 13px;">
+                [Bấm vào đây để mở trang SePay.vn] ↗
+              </a>
+            `;
+          }
+
+          // Show input guide tip ONLY on text inputs (exclude dropdowns/comboboxes)
+          if (isTextInput) {
+            descriptionHtml += `
+              <p style="font-size: 12px; color: #64748b; font-style: italic; margin: 12px 0 0 0; font-family: inherit;">
+                *(Bác có thể gõ xong rồi ấn phím Enter trên bàn phím cho nhanh nhé)*
+              </p>
+            `;
+          }
+
+          descriptionHtml += `
+            <div style="margin-top: 16px; padding-top: 8px; border-top: 1px dashed #e5e7eb; display: flex; justify-content: flex-start; width: 100%; font-family: inherit;">
+              <span id="btn-tour-dismiss-trigger" style="color: #9ca3af; text-decoration: underline; cursor: pointer; font-size: 12px; font-weight: 500; white-space: nowrap;">Bỏ qua hướng dẫn</span>
+            </div>
+          `;
+
+          popover.description.innerHTML = descriptionHtml;
+          popover.description.style.fontFamily = "inherit";
+
+          // Bind dismiss trigger click action synchronously inside onPopoverRender
+          const dismissLink = popover.description.querySelector("#btn-tour-dismiss-trigger");
+          if (dismissLink) {
+            dismissLink.addEventListener("click", (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (driverInstanceRef.current) {
+                driverInstanceRef.current.destroy();
+              } else {
+                d.destroy();
+              }
+            });
+          }
+
+          // Enforce footer container styling
+          popover.footer.style.display = "flex";
+          popover.footer.style.justifyContent = "flex-end";
+          popover.footer.style.alignItems = "center";
+          popover.footer.style.gap = "8px";
+          popover.footer.style.marginTop = "20px";
+
+          // Next Button Setup
+          popover.nextButton.id = "btn-tour-next-trigger";
+          popover.nextButton.className = "driver-popover-next-btn tour-pulse-button";
+          popover.nextButton.innerHTML = "Tiếp tục ➜";
+
+          // Style next button - center text with flex, fix baseline-crush
+          popover.nextButton.style.display = "flex";
+          popover.nextButton.style.alignItems = "center";
+          popover.nextButton.style.justifyContent = "center";
+          popover.nextButton.style.lineHeight = "1";
+          popover.nextButton.style.height = "auto";
+          popover.nextButton.style.padding = "0px 20px";
+          popover.nextButton.style.fontSize = "14px";
+          popover.nextButton.style.fontWeight = "normal";
+          popover.nextButton.style.borderRadius = "8px";
+          popover.nextButton.style.backgroundColor = "#2563eb"; // Solid primary blue
+          popover.nextButton.style.color = "#ffffff";
+          popover.nextButton.style.border = "none";
+          popover.nextButton.style.cursor = "pointer";
+          popover.nextButton.style.boxShadow = "0 4px 6px -1px rgb(37 99 235 / 0.2)";
+          popover.nextButton.style.fontFamily = "inherit";
+
+          // Hide next button on submit steps to enforce clicking the real button in UI
+          const isSubmitStep = (
+            currentStepId === "1.16" ||
+            currentStepId === "2.5" ||
+            currentStepId === "3.6" ||
+            currentStepId === "4.8" ||
+            currentStepId === "5.5"
+          );
+          if (isSubmitStep) {
+            popover.nextButton.style.display = "none";
+          }
+
+          // Previous Button Setup
+          const subStepsList = isTenantMode ? TENANT_SUB_STEPS : SUB_STEPS;
+          const stageSteps = subStepsList.filter(s => s.stage === currentStep.stage);
+          const activeIndex = stageSteps.findIndex(s => s.id === currentStepId);
+          const isCurrFirst = activeIndex === 0;
+
+          popover.previousButton.style.display = isCurrFirst ? "none" : "flex";
+          popover.previousButton.style.alignItems = "center";
+          popover.previousButton.style.justifyContent = "center";
+          popover.previousButton.style.lineHeight = "1";
+          popover.previousButton.style.height = "auto";
+          popover.previousButton.style.padding = "10px 16px";
+          popover.previousButton.style.fontSize = "13px";
+          popover.previousButton.style.fontWeight = "600";
+          popover.previousButton.style.borderRadius = "8px";
+          popover.previousButton.style.border = "1px solid #cbd5e1"; // Neutral dark border
+          popover.previousButton.style.backgroundColor = "#ffffff";
+          popover.previousButton.style.color = "#475569";
+          popover.previousButton.style.cursor = "pointer";
+          popover.previousButton.style.fontFamily = "inherit";
+        },
         onNextClick: () => {
           advanceSubStep();
         },
@@ -1132,6 +1333,9 @@ export function TourGuideProvider({ children }: { children: React.ReactNode }) {
         }
       });
 
+      driverInstanceRef.current = d;
+      setIsDriverActive(true);
+
       d.highlight({
         element: activeStep.selector,
         popover: {
@@ -1139,13 +1343,21 @@ export function TourGuideProvider({ children }: { children: React.ReactNode }) {
           description: activeStep.description,
           side: activeStep.position || "bottom",
           align: "start",
-          nextBtnText: "Tiếp tục →",
+          nextBtnText: nextBtnLabel,
           prevBtnText: "← Quay lại"
         }
       });
 
-      setIsDriverActive(true);
-      driverInstanceRef.current = d;
+      // Automatically focus highlighted element
+      setTimeout(() => {
+        const el = document.querySelector(activeStep.selector) as HTMLElement;
+        if (el && (el.tagName === "INPUT" || el.tagName === "SELECT" || el.tagName === "TEXTAREA")) {
+          el.focus();
+          if (el instanceof HTMLInputElement) {
+            el.select();
+          }
+        }
+      }, 100);
     }, 400);
 
     return () => {

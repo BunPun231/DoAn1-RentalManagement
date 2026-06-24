@@ -156,12 +156,12 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
     setTimeout(() => setCopied(null), 2000);
 
     // Auto-advance guide step on copy
-    if (activeSubStepId === "1.11" && type === "url") {
-      setActiveSubStepId("1.12");
-      localStorage.setItem("onboarding_substep", "1.12");
-    } else if (activeSubStepId === "1.13" && type === "key") {
-      setActiveSubStepId("1.14");
-      localStorage.setItem("onboarding_substep", "1.14");
+    if (activeSubStepId === "1.12" && type === "url") {
+      setActiveSubStepId("1.13");
+      localStorage.setItem("onboarding_substep", "1.13");
+    } else if (activeSubStepId === "1.14" && type === "key") {
+      setActiveSubStepId("1.15");
+      localStorage.setItem("onboarding_substep", "1.15");
     }
   };
 
@@ -344,14 +344,17 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
                 setGuideStep(1);
               } else if (activeSubStepId === "1.11") {
                 setShowGuide(true);
-                setGuideStep(2);
+                setGuideStep(1);
               } else if (activeSubStepId === "1.12") {
                 setShowGuide(true);
-                setGuideStep(3);
+                setGuideStep(2);
               } else if (activeSubStepId === "1.13") {
                 setShowGuide(true);
-                setGuideStep(4);
+                setGuideStep(3);
               } else if (activeSubStepId === "1.14") {
+                setShowGuide(true);
+                setGuideStep(4);
+              } else if (activeSubStepId === "1.15") {
                 setShowGuide(true);
                 setGuideStep(5);
               }
@@ -516,7 +519,7 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
             {/* Expander for step-by-step images */}
             <div className="border-t border-slate-100 pt-3">
               <button
-                id="btn-show-webhook-guide"
+                id="btn-trigger-sepay-guide-slider"
                 type="button"
                 onClick={() => setShowGuide(!showGuide)}
                 className="w-full flex items-center justify-between text-xs font-extrabold text-blue-600 hover:underline cursor-pointer"
@@ -541,11 +544,11 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
                           setGuideStep(prev);
                           if (activeSubStepId.startsWith("1.")) {
                             const subStepMap: Record<number, string> = {
-                              1: "1.10",
-                              2: "1.11",
-                              3: "1.12",
-                              4: "1.13",
-                              5: "1.14"
+                              1: "1.11",
+                              2: "1.12",
+                              3: "1.13",
+                              4: "1.14",
+                              5: "1.15"
                             };
                             const mapped = subStepMap[prev];
                             if (mapped) {
@@ -566,11 +569,11 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
                           setGuideStep(next);
                           if (activeSubStepId.startsWith("1.")) {
                             const subStepMap: Record<number, string> = {
-                              1: "1.10",
-                              2: "1.11",
-                              3: "1.12",
-                              4: "1.13",
-                              5: "1.14"
+                              1: "1.11",
+                              2: "1.12",
+                              3: "1.13",
+                              4: "1.14",
+                              5: "1.15"
                             };
                             const mapped = subStepMap[next];
                             if (mapped) {
@@ -590,7 +593,7 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
                     {GUIDE_STEPS[guideStep - 1].desc}
                   </p>
 
-                  <div className="border border-slate-100 rounded-lg overflow-hidden bg-slate-50 flex flex-col items-center justify-center p-2 min-h-[180px] relative group">
+                  <div id="sepay-guide-image-viewport" className="border border-slate-100 rounded-lg overflow-hidden bg-slate-50 flex flex-col items-center justify-center p-2 min-h-[180px] relative group">
                     <img
                       src={GUIDE_STEPS[guideStep - 1].img}
                       alt="Instruction guide"
@@ -660,11 +663,11 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
                 setGuideStep(prev);
                 if (activeSubStepId.startsWith("1.")) {
                   const subStepMap: Record<number, string> = {
-                    1: "1.10",
-                    2: "1.11",
-                    3: "1.12",
-                    4: "1.13",
-                    5: "1.14"
+                    1: "1.11",
+                    2: "1.12",
+                    3: "1.13",
+                    4: "1.14",
+                    5: "1.15"
                   };
                   const mapped = subStepMap[prev];
                   if (mapped) {
@@ -698,11 +701,11 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
                 setGuideStep(next);
                 if (activeSubStepId.startsWith("1.")) {
                   const subStepMap: Record<number, string> = {
-                    1: "1.10",
-                    2: "1.11",
-                    3: "1.12",
-                    4: "1.13",
-                    5: "1.14"
+                    1: "1.11",
+                    2: "1.12",
+                    3: "1.13",
+                    4: "1.14",
+                    5: "1.15"
                   };
                   const mapped = subStepMap[next];
                   if (mapped) {
@@ -727,11 +730,11 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
                   setGuideStep(targetStep);
                   if (activeSubStepId.startsWith("1.")) {
                     const subStepMap: Record<number, string> = {
-                      1: "1.10",
-                      2: "1.11",
-                      3: "1.12",
-                      4: "1.13",
-                      5: "1.14"
+                      1: "1.11",
+                      2: "1.12",
+                      3: "1.13",
+                      4: "1.14",
+                      5: "1.15"
                     };
                     const mapped = subStepMap[targetStep];
                     if (mapped) {
