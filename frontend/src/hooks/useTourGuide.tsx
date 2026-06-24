@@ -203,9 +203,9 @@ export const SUB_STEPS: SubStep[] = [
     id: "1.11",
     stage: 1,
     subStep: 11,
-    selector: "#sepay-guide-image-viewport",
-    title: "Đăng nhập SePay.vn",
-    description: "Bước 1: Bác đăng nhập SePay.vn, vào mục 'Tích hợp Webhook' và bấm 'Thêm webhook' như vùng khoanh đỏ trên hình nhé.",
+    selector: "#sepay-guide-step-image",
+    title: "Vào quản lý Webhook",
+    description: "Bước 1: Bác đăng nhập vào SePay.vn, vào mục 'Tích hợp' -> 'Webhooks' và bấm 'Thêm webhook' ở góc phải màn hình như vùng khoanh đỏ nhé.",
     targetPath: "/motels",
     position: "top"
   },
@@ -215,7 +215,7 @@ export const SUB_STEPS: SubStep[] = [
     subStep: 12,
     selector: "#btn-copy-webhook-url",
     title: "Sao chép Webhook URL",
-    description: "Bây giờ bác bấm nút 'Sao chép' này để lấy đường dẫn, rồi mang sang dán vào SePay nhé!",
+    description: "Bây giờ hình đã ẩn, bác bấm nút Sao chép này để lấy đường dẫn mang sang dán vào SePay nhé!",
     targetPath: "/motels",
     position: "bottom"
   },
@@ -223,9 +223,9 @@ export const SUB_STEPS: SubStep[] = [
     id: "1.13",
     stage: 1,
     subStep: 13,
-    selector: "#sepay-guide-image-viewport",
-    title: "Cấu hình HMAC-SHA256",
-    description: "Bước 2: Bác chọn kiểu xác thực là HMAC-SHA256 và chuẩn bị copy Mã xác thực hệ thống cấp ở bước tiếp theo để dán vào nhé!",
+    selector: "#sepay-guide-step-image",
+    title: "Nhập đường dẫn Webhook",
+    description: "Bước 2: Bác dán đường dẫn Webhook URL vừa sao chép vào ô 'URL nhận webhook' trên SePay như hình nhé.",
     targetPath: "/motels",
     position: "top"
   },
@@ -233,26 +233,46 @@ export const SUB_STEPS: SubStep[] = [
     id: "1.14",
     stage: 1,
     subStep: 14,
-    selector: "#btn-copy-secret-key",
-    title: "Sao chép Secret Key",
-    description: "Bác sao chép tiếp Chữ ký bảo mật (Secret Key) này để dán vào ô 'Chữ ký bảo mật' trên SePay nhé!",
+    selector: "#sepay-guide-step-image",
+    title: "Chọn tài khoản ngân hàng",
+    description: "Bước 3: Bác chọn tài khoản ngân hàng nhận tiền, hoặc để mặc định là Tất cả tài khoản, rồi bấm Tiếp theo như hình nhé.",
     targetPath: "/motels",
-    position: "bottom"
+    position: "top"
   },
   {
     id: "1.15",
     stage: 1,
     subStep: 15,
-    selector: "#sepay-guide-image-viewport",
-    title: "Kích hoạt Webhook",
-    description: "Bước 3: Bác bấm 'Thêm' trên SePay.vn. Hãy xem hình hướng dẫn để đảm bảo webhook hoạt động chính xác!",
+    selector: "#btn-copy-secret-key",
+    title: "Sao chép Secret Key",
+    description: "Bây giờ hình đã ẩn, bác sao chép tiếp Chữ ký bảo mật (Secret Key) này để dán vào ô trên SePay nhé!",
     targetPath: "/motels",
-    position: "top"
+    position: "bottom"
   },
   {
     id: "1.16",
     stage: 1,
     subStep: 16,
+    selector: "#sepay-guide-step-image",
+    title: "Điền Secret Key bảo mật",
+    description: "Bước 4: Bác chọn kiểu xác thực là HMAC-SHA256 và dán Secret Key vừa sao chép vào ô 'Chữ ký bảo mật (Signature Secret Key)' như hình nhé.",
+    targetPath: "/motels",
+    position: "top"
+  },
+  {
+    id: "1.17",
+    stage: 1,
+    subStep: 17,
+    selector: "#sepay-guide-step-image",
+    title: "Kích hoạt Webhook",
+    description: "Bước 5: Bác bấm 'Thêm' trên SePay.vn. Hãy xem hình hướng dẫn để đảm bảo webhook hiển thị trạng thái hoạt động chính xác nhé!",
+    targetPath: "/motels",
+    position: "top"
+  },
+  {
+    id: "1.18",
+    stage: 1,
+    subStep: 18,
     selector: "#btn-submit-motel",
     title: "Lưu khu trọ & Cấu hình",
     description: "Bác bấm nút Lưu để tạo khu trọ. Hệ thống sẽ tự động gán giá Điện, Nước mặc định!",
@@ -932,6 +952,32 @@ export function TourGuideProvider({ children }: { children: React.ReactNode }) {
       if (currentIndex !== -1 && currentIndex < SUB_STEPS.length - 1) {
         const nextStep = SUB_STEPS[currentIndex + 1];
         if (nextStep.stage === effectiveStep) {
+          // Instantly close/open image modal for smooth transitions
+          const openSteps = ["1.11", "1.13", "1.14", "1.16", "1.17"];
+          const wasOpen = openSteps.includes(activeSubStepId);
+          const shouldBeOpen = openSteps.includes(nextStep.id);
+
+          if (wasOpen && !shouldBeOpen) {
+            const closeGuideBtn = document.querySelector('#btn-close-sepay-image-modal') as HTMLButtonElement;
+            if (closeGuideBtn) closeGuideBtn.click();
+          } else if (!wasOpen && shouldBeOpen) {
+            // Expand and open fullscreen image modal immediately
+            setTimeout(() => {
+              const openGuideBtn = document.querySelector("#btn-open-sepay-image-modal") as HTMLButtonElement;
+              if (openGuideBtn) {
+                openGuideBtn.click();
+              } else {
+                const expandBtn = document.querySelector("#btn-trigger-sepay-guide-slider") as HTMLButtonElement;
+                if (expandBtn) {
+                  expandBtn.click();
+                  setTimeout(() => {
+                    const openBtn = document.querySelector("#btn-open-sepay-image-modal") as HTMLButtonElement;
+                    if (openBtn) openBtn.click();
+                  }, 55);
+                }
+              }
+            }, 55);
+          }
           setActiveSubStepId(nextStep.id);
           localStorage.setItem("onboarding_substep", nextStep.id);
         }
@@ -954,6 +1000,32 @@ export function TourGuideProvider({ children }: { children: React.ReactNode }) {
       if (currentIndex > 0) {
         const prevStep = SUB_STEPS[currentIndex - 1];
         if (prevStep.stage === effectiveStep) {
+          // Instantly close/open image modal for smooth transitions
+          const openSteps = ["1.11", "1.13", "1.14", "1.16", "1.17"];
+          const wasOpen = openSteps.includes(activeSubStepId);
+          const shouldBeOpen = openSteps.includes(prevStep.id);
+
+          if (wasOpen && !shouldBeOpen) {
+            const closeGuideBtn = document.querySelector('#btn-close-sepay-image-modal') as HTMLButtonElement;
+            if (closeGuideBtn) closeGuideBtn.click();
+          } else if (!wasOpen && shouldBeOpen) {
+            // Expand and open fullscreen image modal immediately
+            setTimeout(() => {
+              const openGuideBtn = document.querySelector("#btn-open-sepay-image-modal") as HTMLButtonElement;
+              if (openGuideBtn) {
+                openGuideBtn.click();
+              } else {
+                const expandBtn = document.querySelector("#btn-trigger-sepay-guide-slider") as HTMLButtonElement;
+                if (expandBtn) {
+                  expandBtn.click();
+                  setTimeout(() => {
+                    const openBtn = document.querySelector("#btn-open-sepay-image-modal") as HTMLButtonElement;
+                    if (openBtn) openBtn.click();
+                  }, 55);
+                }
+              }
+            }, 55);
+          }
           setActiveSubStepId(prevStep.id);
           localStorage.setItem("onboarding_substep", prevStep.id);
         }
@@ -1002,6 +1074,36 @@ export function TourGuideProvider({ children }: { children: React.ReactNode }) {
     const interval = setInterval(() => {
       const activeStep = effectiveSubStepsList.find(s => s.id === effectiveSubStepId);
       if (!activeStep) return;
+
+      // Programmatic image modal toggling for SePay steps
+      if (!isTenantMode) {
+        const openSteps = ["1.11", "1.13", "1.14", "1.16", "1.17"];
+        if (openSteps.includes(effectiveSubStepId)) {
+          // We need the fullscreen image modal to be OPEN
+          const isFullscreenOpen = !!document.querySelector("#btn-close-sepay-image-modal");
+          if (!isFullscreenOpen) {
+            // Check if the guide panel is expanded
+            const openGuideBtn = document.querySelector("#btn-open-sepay-image-modal") as HTMLButtonElement;
+            if (openGuideBtn) {
+              openGuideBtn.click();
+            } else {
+              // Expand the guide panel first
+              const expandBtn = document.querySelector("#btn-trigger-sepay-guide-slider") as HTMLButtonElement;
+              if (expandBtn) {
+                expandBtn.click();
+              }
+            }
+            return;
+          }
+        } else {
+          // For all other steps, make sure the fullscreen image modal is CLOSED
+          const closeGuideBtn = document.querySelector("#btn-close-sepay-image-modal") as HTMLButtonElement;
+          if (closeGuideBtn) {
+            closeGuideBtn.click();
+            return;
+          }
+        }
+      }
 
       // 1. Auto-advance transitions based on visibility of elements belonging to next step
       if (!isTenantMode) {
@@ -1288,7 +1390,7 @@ export function TourGuideProvider({ children }: { children: React.ReactNode }) {
 
           // Hide next button on submit steps to enforce clicking the real button in UI
           const isSubmitStep = (
-            currentStepId === "1.16" ||
+            currentStepId === "1.18" ||
             currentStepId === "2.5" ||
             currentStepId === "3.6" ||
             currentStepId === "4.8" ||

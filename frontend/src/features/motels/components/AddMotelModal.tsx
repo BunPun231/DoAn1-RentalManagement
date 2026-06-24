@@ -134,6 +134,33 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
     }
   }, [motel, isOpen]);
 
+  // Sync guideStep with activeSubStepId from tour guide
+  useEffect(() => {
+    if (activeSubStepId && activeSubStepId.startsWith("1.")) {
+      const stepMap: Record<string, number> = {
+        "1.11": 1,
+        "1.12": 2,
+        "1.13": 2,
+        "1.14": 3,
+        "1.15": 4,
+        "1.16": 4,
+        "1.17": 5,
+        "1.18": 5
+      };
+      const targetGuideStep = stepMap[activeSubStepId];
+      if (targetGuideStep !== undefined) {
+        if (guideStep !== targetGuideStep) {
+          setGuideStep(targetGuideStep);
+        }
+        // Auto-expand showGuide only for the steps where modal should be open
+        const shouldBeOpen = ["1.11", "1.13", "1.14", "1.16", "1.17"].includes(activeSubStepId);
+        if (shouldBeOpen && !showGuide) {
+          setShowGuide(true);
+        }
+      }
+    }
+  }, [activeSubStepId, guideStep, showGuide]);
+
   // Fullscreen Keyboard listeners
   useEffect(() => {
     if (!isFullscreenOpen) return;
@@ -570,10 +597,10 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
                           if (activeSubStepId.startsWith("1.")) {
                             const subStepMap: Record<number, string> = {
                               1: "1.11",
-                              2: "1.12",
-                              3: "1.13",
-                              4: "1.14",
-                              5: "1.15"
+                              2: "1.13",
+                              3: "1.14",
+                              4: "1.16",
+                              5: "1.17"
                             };
                             const mapped = subStepMap[next];
                             if (mapped) {
@@ -601,6 +628,7 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
                     />
                     <button
                       type="button"
+                      id="btn-open-sepay-image-modal"
                       onClick={() => setIsFullscreenOpen(true)}
                       className="absolute bottom-2 right-2 p-1.5 bg-black/60 hover:bg-black/80 text-white rounded-lg transition-colors flex items-center gap-1 text-[10px] font-bold"
                     >
@@ -646,6 +674,7 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
               <p className="text-xs text-slate-400">Bước {guideStep}/5: {GUIDE_STEPS[guideStep - 1].title}</p>
             </div>
             <button
+              id="btn-close-sepay-image-modal"
               onClick={() => setIsFullscreenOpen(false)}
               className="p-2 hover:bg-white/10 rounded-full transition-colors text-white cursor-pointer"
             >
@@ -664,10 +693,10 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
                 if (activeSubStepId.startsWith("1.")) {
                   const subStepMap: Record<number, string> = {
                     1: "1.11",
-                    2: "1.12",
-                    3: "1.13",
-                    4: "1.14",
-                    5: "1.15"
+                    2: "1.13",
+                    3: "1.14",
+                    4: "1.16",
+                    5: "1.17"
                   };
                   const mapped = subStepMap[prev];
                   if (mapped) {
@@ -684,6 +713,7 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
             {/* Image zoom wrapper */}
             <div className="flex-1 h-full flex flex-col items-center justify-center space-y-4">
               <img
+                id="sepay-guide-step-image"
                 src={GUIDE_STEPS[guideStep - 1].img}
                 alt="Fullscreen guide detail"
                 className="max-h-[60vh] max-w-full object-contain rounded-xl border border-white/10 shadow-2xl bg-slate-900/50 p-2"
@@ -702,10 +732,10 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
                 if (activeSubStepId.startsWith("1.")) {
                   const subStepMap: Record<number, string> = {
                     1: "1.11",
-                    2: "1.12",
-                    3: "1.13",
-                    4: "1.14",
-                    5: "1.15"
+                    2: "1.13",
+                    3: "1.14",
+                    4: "1.16",
+                    5: "1.17"
                   };
                   const mapped = subStepMap[next];
                   if (mapped) {
@@ -731,10 +761,10 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
                   if (activeSubStepId.startsWith("1.")) {
                     const subStepMap: Record<number, string> = {
                       1: "1.11",
-                      2: "1.12",
-                      3: "1.13",
-                      4: "1.14",
-                      5: "1.15"
+                      2: "1.13",
+                      3: "1.14",
+                      4: "1.16",
+                      5: "1.17"
                     };
                     const mapped = subStepMap[targetStep];
                     if (mapped) {
