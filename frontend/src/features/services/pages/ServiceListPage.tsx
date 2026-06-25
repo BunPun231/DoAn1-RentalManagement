@@ -7,6 +7,7 @@ import { serviceService, type ServiceResult, type ServiceCreateRequest, type Ser
 import { motelService, type MotelResult } from "@/services/motelService";
 import { extractError } from "@/lib/api";
 import { AssignServiceModal } from "../components/AssignServiceModal";
+import { useTourGuide } from "@/hooks/useTourGuide";
 
 
 
@@ -42,6 +43,7 @@ function ServiceFormModal({
   motelId: number;
   editing?: ServiceResult;
 }) {
+  const { activeSubStepId, setActiveSubStepId } = useTourGuide();
   const [form, setForm] = useState<ServiceCreateRequest>({
     name: "",
     chargeType: "FIXED",
@@ -208,7 +210,7 @@ function ServiceFormModal({
         <div className="space-y-1 relative">
           <label className="text-sm font-medium text-slate-700">Tên dịch vụ *</label>
           <input
-            id="service-name"
+            id="input-service-name"
             type="text"
             value={form.name}
             onChange={(e) => {
@@ -246,7 +248,7 @@ function ServiceFormModal({
           <div className="space-y-1">
             <label className="text-sm font-medium text-slate-700">Loại tính phí *</label>
             <select
-              id="service-charge-type"
+              id="select-charge-type"
               value={form.chargeType}
               onChange={(e) => {
                 const val = e.target.value;
@@ -255,6 +257,10 @@ function ServiceFormModal({
                   setUseTiered(true);
                 } else if (val === "METERED") {
                   setUseTiered(false);
+                }
+                if (activeSubStepId === "3.3") {
+                  setActiveSubStepId("3.4");
+                  localStorage.setItem("onboarding_substep", "3.4");
                 }
               }}
               className={inputClass}
@@ -287,7 +293,7 @@ function ServiceFormModal({
               {form.chargeType === "FIXED" ? "Phí cố định (đ/tháng)" : "Đơn giá cơ bản (đ/đơn vị)"} *
             </label>
             <input
-              id="service-price"
+              id="input-service-price"
               type="text"
               value={formatVnStyle(form.basePrice)}
               onChange={(e) => setForm({ ...form, basePrice: Number(stripVnStyle(e.target.value)) || 0 })}
@@ -336,14 +342,14 @@ function ServiceFormModal({
 
         <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
           <input
-            id="service-mandatory"
+            id="checkbox-is-mandatory"
             type="checkbox"
             checked={form.mandatory ?? false}
             onChange={(e) => setForm({ ...form, mandatory: e.target.checked })}
             className="w-4 h-4 text-brand-deep rounded border-slate-300"
           />
           <div>
-            <label htmlFor="service-mandatory" className="text-sm font-medium text-slate-700 cursor-pointer">
+            <label htmlFor="checkbox-is-mandatory" className="text-sm font-medium text-slate-700 cursor-pointer">
               Dịch vụ bắt buộc
             </label>
             <p className="text-xs text-slate-400">Tự động áp dụng cho tất cả hợp đồng</p>
@@ -351,7 +357,7 @@ function ServiceFormModal({
         </div>
         <div className="pt-4 border-t border-slate-100 flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={onClose} disabled={loading}>Hủy</Button>
-          <Button type="submit" disabled={loading}>
+          <Button id="btn-submit-service" type="submit" disabled={loading}>
             {loading ? "Đang lưu..." : editing ? "Cập nhật" : "Thêm dịch vụ"}
           </Button>
         </div>
@@ -362,6 +368,7 @@ function ServiceFormModal({
 
 // ============ MAIN PAGE ============
 export function ServiceListPage() {
+  const { refreshStatus } = useTourGuide();
   const [motels, setMotels] = useState<MotelResult[]>([]);
   const [selectedMotelId, setSelectedMotelId] = useState<number | null>(null);
   const [services, setServices] = useState<ServiceResult[]>([]);
@@ -432,7 +439,7 @@ export function ServiceListPage() {
             <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
           </Button>
           <Button
-            id="add-service-btn"
+            id="btn-create-service"
             onClick={() => { setEditingService(undefined); setIsFormOpen(true); }}
             disabled={!selectedMotelId}
           >
@@ -534,7 +541,7 @@ export function ServiceListPage() {
       <ServiceFormModal
         isOpen={isFormOpen}
         onClose={() => setIsFormOpen(false)}
-        onSuccess={() => { setIsFormOpen(false); fetchServices(); }}
+        onSuccess={() => { setIsFormOpen(false); fetchServices(); refreshStatus(); }}
         motelId={selectedMotelId!}
         editing={editingService}
       />

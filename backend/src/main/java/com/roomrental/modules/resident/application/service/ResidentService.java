@@ -85,7 +85,7 @@ public class ResidentService {
             // If ACTIVE, throw conflict
             throw new BaseException(HttpStatus.CONFLICT, "PHONE_EXISTS", "Phone already registered");
         }
-        if (profileRepository.existsByIdCardNumber(command.idCardNumber())) {
+        if (profileRepository.existsByIdCardNumberAndTenantId(command.idCardNumber(), tenantId)) {
             throw BaseException.conflict("ID card number already exists");
         }
 

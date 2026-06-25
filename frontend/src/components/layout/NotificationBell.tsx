@@ -58,7 +58,7 @@ export function NotificationBell() {
       >
         <Bell size={20} className="hover:rotate-12 transition-transform duration-200" />
         {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-rose-500 text-[9px] font-extrabold text-white animate-pulse">
+          <span className="absolute top-1 right-1 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[9px] font-extrabold text-white animate-pulse">
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}
@@ -93,9 +93,8 @@ export function NotificationBell() {
                 <div
                   key={notif.id}
                   onClick={() => handleNotificationClick(notif.id, notif.actionUrl)}
-                  className={`flex flex-col p-4 hover:bg-slate-50/70 transition-colors cursor-pointer text-left relative ${
-                    !notif.isRead ? "bg-brand-deep/[0.02] font-medium" : ""
-                  }`}
+                  className={`flex flex-col p-4 hover:bg-slate-50/70 transition-colors cursor-pointer text-left relative ${!notif.isRead ? "bg-brand-deep/[0.02] font-medium" : ""
+                    }`}
                 >
                   {!notif.isRead && (
                     <span className="absolute top-4 right-4 h-2 w-2 rounded-full bg-brand-deep" />

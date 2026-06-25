@@ -55,6 +55,9 @@ public class ActivityLogRepositoryAdapter implements ActivityLogRepository {
             if (filter.toDate() != null) {
                 predicates.add(cb.lessThanOrEqualTo(root.get("timestamp"), filter.toDate()));
             }
+            if (query.getResultType() != Long.class && query.getResultType() != long.class) {
+                query.orderBy(cb.desc(root.get("id")));
+            }
             return cb.and(predicates.toArray(new Predicate[0]));
         };
         return jpaRepository.findAll(spec, pageable).map(mapper::toDomain);

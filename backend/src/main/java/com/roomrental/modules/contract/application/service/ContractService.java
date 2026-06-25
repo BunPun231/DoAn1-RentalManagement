@@ -650,33 +650,48 @@ public class ContractService {
             Long motelId,
             List<ContractServiceItemCommand> serviceItems
     ) {
-        if (serviceItems == null || serviceItems.isEmpty()) {
-            return List.of();
+        List<ContractServiceItem> items = new java.util.ArrayList<>();
+        List<Long> passedServiceIds = new java.util.ArrayList<>();
+
+        if (serviceItems != null && !serviceItems.isEmpty()) {
+            for (ContractServiceItemCommand item : serviceItems) {
+                if (item == null || item.serviceId() == null) {
+                    continue;
+                }
+                passedServiceIds.add(item.serviceId());
+
+                RentalService service = rentalServiceRepository.findByIdAndMotelId(item.serviceId(), motelId)
+                        .orElseThrow(() -> BaseException.notFound("Service", item.serviceId()));
+
+                Integer quantity = item.quantity();
+                if (service.getChargeType() == ChargeType.PER_QUANTITY) {
+                    if (quantity == null || quantity < 1) {
+                        throw BaseException.badRequest("quantity: required for PER_QUANTITY services");
+                    }
+                }
+
+                ContractServiceItem serviceItem = new ContractServiceItem();
+                serviceItem.setTenantId(tenantId);
+                serviceItem.setContractId(contractId);
+                serviceItem.setServiceId(item.serviceId());
+                serviceItem.setQuantity(quantity != null ? quantity : 1);
+                serviceItem.setStartIndex(item.startIndex());
+                items.add(serviceItem);
+            }
         }
 
-        List<ContractServiceItem> items = new java.util.ArrayList<>();
-        for (ContractServiceItemCommand item : serviceItems) {
-            if (item == null || item.serviceId() == null) {
-                continue;
+        // Fetch all mandatory services for the motel and apply them if not already passed
+        List<RentalService> mandatoryServices = rentalServiceRepository.findByMotelIdAndMandatory(motelId, true);
+        for (RentalService service : mandatoryServices) {
+            if (!passedServiceIds.contains(service.getId())) {
+                ContractServiceItem serviceItem = new ContractServiceItem();
+                serviceItem.setTenantId(tenantId);
+                serviceItem.setContractId(contractId);
+                serviceItem.setServiceId(service.getId());
+                serviceItem.setQuantity(1);
+                serviceItem.setStartIndex(null);
+                items.add(serviceItem);
             }
-
-            RentalService service = rentalServiceRepository.findByIdAndMotelId(item.serviceId(), motelId)
-                    .orElseThrow(() -> BaseException.notFound("Service", item.serviceId()));
-
-            Integer quantity = item.quantity();
-            if (service.getChargeType() == ChargeType.PER_QUANTITY) {
-                if (quantity == null || quantity < 1) {
-                    throw BaseException.badRequest("quantity: required for PER_QUANTITY services");
-                }
-            }
-
-            ContractServiceItem serviceItem = new ContractServiceItem();
-            serviceItem.setTenantId(tenantId);
-            serviceItem.setContractId(contractId);
-            serviceItem.setServiceId(item.serviceId());
-            serviceItem.setQuantity(quantity != null ? quantity : 1);
-            serviceItem.setStartIndex(item.startIndex());
-            items.add(serviceItem);
         }
 
         return items;

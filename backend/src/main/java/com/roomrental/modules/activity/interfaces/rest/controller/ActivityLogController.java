@@ -16,6 +16,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneOffset;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
@@ -35,13 +38,27 @@ public class ActivityLogController {
             @RequestParam(required = false) UUID actorId,
             @RequestParam(required = false) String action,
             @RequestParam(required = false) String entityType,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime fromDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime toDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
             Pageable pageable) {
 
         UUID tenantId = SecurityUtils.requireTenantId();
-        ActivityLogFilter filter = new ActivityLogFilter(tenantId, actorId, action, entityType, fromDate, toDate);
-        Page<ActivityLogResult> logs = activityLogService.findAll(filter, pageable);
+        OffsetDateTime from = fromDate != null ? fromDate.atStartOfDay(ZoneOffset.UTC).toOffsetDateTime() : null;
+        OffsetDateTime to = null;
+        if (toDate != null) {
+            to = toDate.atTime(LocalTime.MAX).atZone(ZoneOffset.UTC).toOffsetDateTime();
+        } else if (fromDate != null) {
+            to = fromDate.atTime(LocalTime.MAX).atZone(ZoneOffset.UTC).toOffsetDateTime();
+        }
+
+        Pageable sortedPageable = org.springframework.data.domain.PageRequest.of(
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "timestamp")
+        );
+
+        ActivityLogFilter filter = new ActivityLogFilter(tenantId, actorId, action, entityType, from, to);
+        Page<ActivityLogResult> logs = activityLogService.findAll(filter, sortedPageable);
         return ResponseEntity.ok(ApiResponse.ok(logs, "Success"));
     }
 

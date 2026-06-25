@@ -152,6 +152,11 @@ export const invoiceService = {
     });
     return res.data;
   },
+
+  /** Activate automatic payments using SePay */
+  async activateAutomaticPayment(motelId: number, data: { sePayApiKey: string; accountNumber: string; bankName: string }): Promise<void> {
+    await api.post(`/api/v1/invoices/payment-config/${motelId}`, data);
+  },
 };
 
 // ============ METER READING APIs ============

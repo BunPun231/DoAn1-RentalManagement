@@ -21,6 +21,18 @@ export interface AuthResponse {
   tenantId?: string;
   role: string;
   fullName: string;
+  hasCompletedOnboarding: boolean;
+}
+
+export interface OnboardingStatusResult {
+  hasCompletedOnboarding: boolean;
+  hasMotel: boolean;
+  hasSePayConfig: boolean;
+  hasRooms: boolean;
+  hasActiveContract: boolean;
+  hasMeterReadings: boolean;
+  hasInvoice: boolean;
+  currentStep: number;
 }
 
 export interface ChangePasswordRequest {
@@ -72,4 +84,15 @@ export const authService = {
     const res = await api.post<{ data: AuthResponse }>("/api/public/auth/refresh", { refreshToken });
     return res.data.data;
   },
+
+  /** Get onboarding status */
+  async getOnboardingStatus(): Promise<OnboardingStatusResult> {
+    const res = await api.get<{ data: OnboardingStatusResult }>("/api/v1/users/onboarding-status");
+    return res.data.data;
+  },
+
+  /** Mark onboarding as completed */
+  async completeOnboarding(): Promise<void> {
+    await api.put("/api/v1/users/onboarding-complete");
+  }
 };

@@ -17,6 +17,7 @@ import java.util.UUID;
 public interface InvoiceJpaRepository extends JpaRepository<InvoiceEntity, Long> {
     Optional<InvoiceEntity> findByIdAndTenantId(Long id, UUID tenantId);
     Page<InvoiceEntity> findByTenantIdAndIsDeletedFalse(UUID tenantId, Pageable pageable);
+    long countByTenantIdAndIsDeletedFalse(UUID tenantId);
     
     @Query("SELECT i FROM FinanceInvoiceEntity i WHERE i.tenantId = :tenantId AND i.status = :status AND i.isDeleted = false")
     Page<InvoiceEntity> findByTenantIdAndStatusAndIsDeletedFalse(@Param("tenantId") UUID tenantId, @Param("status") com.roomrental.modules.finance.domain.model.Invoice.InvoiceStatus status, Pageable pageable);

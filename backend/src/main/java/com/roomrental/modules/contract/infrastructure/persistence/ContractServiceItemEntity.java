@@ -5,6 +5,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.IdClass;
 import jakarta.persistence.Table;
+import org.springframework.data.domain.Persistable;
 import java.util.UUID;
 
 /**
@@ -13,7 +14,7 @@ import java.util.UUID;
 @Entity
 @Table(name = "contract_service_items")
 @IdClass(ContractServiceItemId.class)
-public class ContractServiceItemEntity {
+public class ContractServiceItemEntity implements Persistable<ContractServiceItemId> {
     @Id
     @Column(name = "contract_id")
     private Long contractId;
@@ -58,5 +59,15 @@ public class ContractServiceItemEntity {
 
     public void setQuantity(Integer quantity) {
         this.quantity = quantity;
+    }
+
+    @Override
+    public ContractServiceItemId getId() {
+        return new ContractServiceItemId(contractId, serviceId);
+    }
+
+    @Override
+    public boolean isNew() {
+        return true;
     }
 }

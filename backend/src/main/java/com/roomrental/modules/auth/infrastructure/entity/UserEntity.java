@@ -76,6 +76,9 @@ public class UserEntity extends BaseEntity {
     @Column(name = "session_version", nullable = false)
     private Integer sessionVersion = 0;
 
+    @Column(name = "has_completed_onboarding", nullable = false)
+    private boolean hasCompletedOnboarding = false;
+
     @PrePersist
     void prePersist() {
         if (id == null) {

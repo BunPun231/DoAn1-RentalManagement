@@ -12,6 +12,7 @@ public record AuthResult(
         UUID userId,
         UUID tenantId,
         String role,
-        String fullName
+        String fullName,
+        boolean hasCompletedOnboarding
 ) {
 }

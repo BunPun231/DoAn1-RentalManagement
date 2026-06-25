@@ -235,6 +235,7 @@ public class SettlementService {
         contract.setUpdatedAt(java.time.LocalDateTime.now());
         Contract savedContract = contractRepository.save(contract);
         Room savedRoom = roomRepository.findById(savedContract.getRoomId()).orElse(null);
+        savedInvoice.setDetails(allDetails);
 
         return new SettlementConfirmationResult(
             savedContract.getId(),
@@ -420,6 +421,12 @@ public class SettlementService {
                     .orElse(null);
         }
 
+        List<InvoiceDetailResult> detailResults = invoice.getDetails() != null
+                ? invoice.getDetails().stream().map(d -> new InvoiceDetailResult(
+                        d.getId(), d.getDescription(), d.getQuantity(), d.getUnitPrice(), d.getLineTotal(), d.getServiceId()
+                  )).toList()
+                : List.of();
+
         return new InvoiceResult(
             invoice.getId(),
             invoice.getContractId(),
@@ -437,7 +444,8 @@ public class SettlementService {
             invoice.getInvoiceType() != null ? invoice.getInvoiceType().name() : null,
             invoice.getCancelReason(),
             invoice.getDueDate(),
-            invoice.getCreatedAt()
+            invoice.getCreatedAt(),
+            detailResults
         );
     }
 

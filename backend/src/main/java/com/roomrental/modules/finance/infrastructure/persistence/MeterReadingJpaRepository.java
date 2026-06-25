@@ -15,6 +15,7 @@ import java.util.UUID;
 public interface MeterReadingJpaRepository extends JpaRepository<MeterReadingEntity, Long> {
     Optional<MeterReadingEntity> findByIdAndTenantId(Long id, UUID tenantId);
     List<MeterReadingEntity> findByRoomIdAndTenantId(Long roomId, UUID tenantId);
+    long countByTenantId(UUID tenantId);
     List<MeterReadingEntity> findByRoomIdAndBillingMonth(Long roomId, LocalDate billingMonth);
     Page<MeterReadingEntity> findByTenantId(UUID tenantId, Pageable pageable);
     Page<MeterReadingEntity> findByTenantIdAndStatus(UUID tenantId, MeterReadingStatus status, Pageable pageable);

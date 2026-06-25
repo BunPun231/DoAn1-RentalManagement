@@ -19,7 +19,7 @@ public class ResidentProfileEntity {
     private UUID userId;
 
     @Convert(converter = AesCryptoConverter.class)
-    @Column(name = "id_card_number", nullable = false, unique = true, length = 255)
+    @Column(name = "id_card_number", nullable = false, length = 255)
     private String idCardNumber;
 
     @Column(name = "id_card_front_url")

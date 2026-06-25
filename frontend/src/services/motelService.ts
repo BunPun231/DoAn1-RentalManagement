@@ -115,6 +115,17 @@ export const motelService = {
   async delete(id: number): Promise<void> {
     await api.delete(`/api/motels/${id}`);
   },
+
+  /** Save payment configuration */
+  async savePaymentConfig(id: number, data: { accountNumber: string; bankName: string }): Promise<void> {
+    await api.put(`/api/motels/${id}/payment-config`, data);
+  },
+
+  /** Generate secure random secret key */
+  async generateSecret(): Promise<string> {
+    const res = await api.get<ApiResponse<string>>("/api/motels/generate-secret");
+    return res.data.data;
+  },
 };
 
 // ============ ROOM APIs ============

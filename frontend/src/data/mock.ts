@@ -1,7 +1,7 @@
 import { User, Motel, Room, Resident, Service, Contract, Invoice, MeterReading } from "@/types";
 
 export const mockUsers: User[] = [
-  { id: "u1", name: "Nguyễn Văn A", email: "admin@smartboarding.com", role: "MANAGER", avatar: "https://i.pravatar.cc/150?u=a042581f4e29026024d" }
+  { id: "u1", name: "Nguyễn Văn A", email: "admin@smartboarding.com", role: "MANAGER", avatar: "https://i.pravatar.cc/150?u=a042581f4e29026024d", hasCompletedOnboarding: true }
 ];
 
 export const mockMotels: Motel[] = [

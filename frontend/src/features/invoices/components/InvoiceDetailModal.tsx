@@ -29,6 +29,47 @@ const STATUS_BADGE: Record<string, React.ReactNode> = {
   VOID: <Badge variant="default">Đã hủy</Badge>,
 };
 
+function calculateItemCost(item: any): number {
+  const basePrice = item.basePrice || 0;
+  if (item.chargeType === "FIXED") {
+    return basePrice;
+  }
+  if (item.chargeType === "PER_PERSON") {
+    const residents = item.activeResidents || 1;
+    return basePrice * residents;
+  }
+  if (item.chargeType === "PER_QUANTITY") {
+    const qty = item.quantity || 1;
+    return basePrice * qty;
+  }
+  if (item.chargeType === "PER_INDEX" || item.chargeType === "METERED") {
+    const oldReading = item.oldReading || 0;
+    const newReading = item.newReading || 0;
+    const consumption = Math.max(0, newReading - oldReading);
+    if (item.pricingTiers && item.pricingTiers.length > 0) {
+      let remaining = consumption;
+      let totalCost = 0;
+      for (let i = 0; i < item.pricingTiers.length; i++) {
+        if (remaining <= 0) break;
+        const tier = item.pricingTiers[i];
+        const start = tier.tierStart || 0;
+        const end = tier.tierEnd;
+        const price = tier.pricePerUnit || 0;
+        const capacity = end ? (end - start) : remaining;
+        const inTier = Math.min(remaining, capacity);
+        if (inTier > 0) {
+          totalCost += inTier * price;
+          remaining -= inTier;
+        }
+      }
+      return totalCost;
+    } else {
+      return consumption * basePrice;
+    }
+  }
+  return 0;
+}
+
 export function InvoiceDetailModal({ isOpen, onClose, invoice, onCollectPayment, isManager = true }: InvoiceDetailModalProps) {
   if (!invoice) return null;
 
@@ -42,12 +83,44 @@ export function InvoiceDetailModal({ isOpen, onClose, invoice, onCollectPayment,
       console.error("Failed to parse calculationSnapshot", e);
     }
   }
+  const feeItems = (invoice.details && invoice.details.length > 0)
+    ? invoice.details.map((detail) => {
+        const serviceName = detail.serviceName || (detail as any).description || "";
+        const totalCost = detail.totalCost !== undefined ? detail.totalCost : (detail as any).lineTotal;
+        const consumption = detail.consumption !== undefined ? detail.consumption : (detail as any).quantity;
+        const isMeter = serviceName.toLowerCase().includes("điện") || serviceName.toLowerCase().includes("nước");
+        const chargeType = detail.chargeType || (isMeter ? "PER_INDEX" : "FIXED");
+        return {
+          serviceName,
+          chargeType,
+          oldReading: detail.oldReading,
+          newReading: detail.newReading,
+          consumption,
+          unitPrice: detail.unitPrice,
+          totalCost,
+        };
+      })
+    : (snapshot?.items || []).map((item: any) => ({
+        serviceName: item.serviceName,
+        chargeType: item.chargeType,
+        oldReading: item.oldReading,
+        newReading: item.newReading,
+        consumption: item.chargeType === "PER_INDEX" || item.chargeType === "METERED"
+          ? Math.max(0, (item.newReading ?? 0) - (item.oldReading ?? 0))
+          : item.chargeType === "PER_PERSON"
+            ? item.activeResidents
+            : item.quantity,
+        unitPrice: item.basePrice,
+        totalCost: calculateItemCost(item),
+      }));
 
   const handlePrint = () => {
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
 
-    const detailsRows = (invoice.details || []).map((detail, idx) => `
+    const itemsList = feeItems;
+
+    const detailsRows = itemsList.map((detail: any, idx: number) => `
       <tr>
         <td>${idx + 1}</td>
         <td>
@@ -57,7 +130,7 @@ export function InvoiceDetailModal({ isOpen, onClose, invoice, onCollectPayment,
         <td>
           ${detail.oldReading !== undefined && detail.newReading !== undefined 
             ? `${detail.oldReading} -> ${detail.newReading} (${detail.consumption})` 
-            : "-"}
+            : detail.consumption ? `${detail.consumption}` : "-"}
         </td>
         <td>${formatCurrency(detail.unitPrice)}</td>
         <td style="text-align: right; font-weight: bold;">${formatCurrency(detail.totalCost)}</td>
@@ -144,25 +217,70 @@ export function InvoiceDetailModal({ isOpen, onClose, invoice, onCollectPayment,
           
           <div className="divide-y divide-slate-200">
             {invoice.details && invoice.details.length > 0 ? (
-              invoice.details.map((detail, idx) => (
-                <div key={idx} className="flex justify-between py-2.5 first:pt-0 last:pb-0">
-                  <div className="flex flex-col">
-                    <span className="font-semibold text-slate-800">{detail.serviceName}</span>
-                    <span className="text-xs text-slate-400">
-                      Loại: {CHARGE_TYPE_LABEL[detail.chargeType] ?? detail.chargeType}
-                    </span>
-                    {detail.chargeType !== "FIXED" && detail.oldReading !== undefined && detail.newReading !== undefined && (
+              invoice.details.map((detail, idx) => {
+                const serviceName = detail.serviceName || (detail as any).description || "";
+                const totalCost = detail.totalCost !== undefined ? detail.totalCost : (detail as any).lineTotal;
+                const quantity = detail.consumption !== undefined ? detail.consumption : (detail as any).quantity;
+                const isMeter = serviceName.toLowerCase().includes("điện") || serviceName.toLowerCase().includes("nước");
+                const chargeType = detail.chargeType || (isMeter ? "PER_INDEX" : "FIXED");
+
+                return (
+                  <div key={idx} className="flex justify-between py-2.5 first:pt-0 last:pb-0">
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-slate-800">{serviceName}</span>
                       <span className="text-xs text-slate-400">
-                        Chỉ số: {detail.oldReading} → {detail.newReading} ({detail.consumption} {detail.serviceName.toLowerCase().includes("nước") ? "khối" : "số"})
+                        Loại: {CHARGE_TYPE_LABEL[chargeType] ?? chargeType}
                       </span>
-                    )}
-                    {detail.chargeType !== "FIXED" && (
-                      <span className="text-xs text-slate-400">Đơn giá: {formatCurrency(detail.unitPrice)}</span>
-                    )}
+                      {chargeType !== "FIXED" && detail.oldReading !== undefined && detail.newReading !== undefined && (
+                        <span className="text-xs text-slate-400">
+                          Chỉ số: {detail.oldReading} → {detail.newReading} ({quantity} {serviceName.toLowerCase().includes("nước") ? "khối" : "số"})
+                        </span>
+                      )}
+                      {chargeType !== "FIXED" && detail.oldReading === undefined && (
+                        <span className="text-xs text-slate-400">
+                          {isMeter 
+                            ? `Tiêu thụ: ${quantity} ${serviceName.toLowerCase().includes("nước") ? "khối" : "số"}`
+                            : `Số lượng: ${quantity}`}
+                        </span>
+                      )}
+                      {chargeType !== "FIXED" && (
+                        <span className="text-xs text-slate-400">Đơn giá: {formatCurrency(detail.unitPrice)}</span>
+                      )}
+                    </div>
+                    <span className="font-bold text-slate-800 align-middle self-center">{formatCurrency(totalCost)}</span>
                   </div>
-                  <span className="font-bold text-slate-800 align-middle self-center">{formatCurrency(detail.totalCost)}</span>
-                </div>
-              ))
+                );
+              })
+            ) : snapshot?.items && snapshot.items.length > 0 ? (
+              snapshot.items.map((item: any, idx: number) => {
+                const totalCost = calculateItemCost(item);
+                return (
+                  <div key={idx} className="flex justify-between py-2.5 first:pt-0 last:pb-0">
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-slate-800">{item.serviceName}</span>
+                      <span className="text-xs text-slate-400">
+                        Loại: {CHARGE_TYPE_LABEL[item.chargeType] ?? item.chargeType}
+                      </span>
+                      {(item.chargeType === "PER_INDEX" || item.chargeType === "METERED") && (
+                        <span className="text-xs text-slate-400">
+                          Chỉ số: {item.oldReading ?? 0} → {item.newReading ?? 0} ({Math.max(0, (item.newReading ?? 0) - (item.oldReading ?? 0))} {item.serviceName.toLowerCase().includes("nước") ? "khối" : "số"})
+                        </span>
+                      )}
+                      {item.chargeType === "PER_PERSON" && (
+                        <span className="text-xs text-slate-400">
+                          Đơn giá: {formatCurrency(item.basePrice)}/người ({item.activeResidents ?? 1} người)
+                        </span>
+                      )}
+                      {item.chargeType === "PER_QUANTITY" && (
+                        <span className="text-xs text-slate-400">
+                          Đơn giá: {formatCurrency(item.basePrice)}/đơn vị ({item.quantity ?? 1} lượng)
+                        </span>
+                      )}
+                    </div>
+                    <span className="font-bold text-slate-800 align-middle self-center">{formatCurrency(totalCost)}</span>
+                  </div>
+                );
+              })
             ) : (
               <div className="text-center text-slate-400 py-4">Không có chi tiết các khoản phí</div>
             )}
@@ -171,6 +289,25 @@ export function InvoiceDetailModal({ isOpen, onClose, invoice, onCollectPayment,
           <div className="flex justify-between pt-4 border-t-2 border-brand-deep/20 font-bold">
             <span className="text-base text-brand-ink">Tổng cộng</span>
             <span className="text-xl text-rose-600">{formatCurrency(invoice.totalAmount)}</span>
+          </div>
+        </div>
+
+        {/* Bảng kê chi tiết các khoản tiền đóng góp */}
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4">
+          <h3 className="text-xs font-bold text-slate-500 border-b border-slate-100 pb-2 uppercase tracking-wide">
+            Chi tiết các khoản tiền đóng góp
+          </h3>
+          <div className="divide-y divide-slate-100 text-sm">
+            {feeItems.map((item: any, idx: number) => (
+              <div key={idx} className="flex justify-between items-center py-2.5">
+                <span className="text-slate-700 font-semibold">{item.serviceName}</span>
+                <span className="text-slate-900 font-mono font-bold text-brand-ink">{formatCurrency(item.totalCost)}</span>
+              </div>
+            ))}
+            <div className="flex justify-between items-center pt-3 font-bold text-rose-600 border-t border-slate-100">
+              <span className="text-base">Tổng cộng hóa đơn</span>
+              <span className="text-xl font-mono">{formatCurrency(invoice.totalAmount)}</span>
+            </div>
           </div>
         </div>
 
@@ -310,7 +447,7 @@ export function InvoiceDetailModal({ isOpen, onClose, invoice, onCollectPayment,
             </Button>
           </div>
           {isManager && (invoice.status === "PENDING" || invoice.status === "PARTIAL") && onCollectPayment && (
-            <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={onCollectPayment}>
+            <Button id="btn-manual-payment" className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={onCollectPayment}>
               <CreditCard size={16} className="mr-2" />
               Thu tiền hóa đơn
             </Button>

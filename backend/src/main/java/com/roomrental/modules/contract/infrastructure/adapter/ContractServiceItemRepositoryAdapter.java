@@ -18,7 +18,9 @@ public class ContractServiceItemRepositoryAdapter implements ContractServiceItem
     @Override
     public List<ContractServiceItem> saveAll(List<ContractServiceItem> items) {
         List<ContractServiceItemEntity> entities = items.stream().map(this::toEntity).toList();
-        return jpaRepository.saveAll(entities).stream().map(this::toDomain).toList();
+        List<ContractServiceItemEntity> saved = jpaRepository.saveAll(entities);
+        jpaRepository.flush();
+        return saved.stream().map(this::toDomain).toList();
     }
 
     @Override

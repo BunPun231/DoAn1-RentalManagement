@@ -7,6 +7,7 @@ import com.roomrental.modules.motel.application.dto.MotelUpsertCommand;
 import com.roomrental.modules.motel.application.service.MotelService;
 import com.roomrental.modules.motel.interfaces.rest.dto.MotelPatchRequestBody;
 import com.roomrental.modules.motel.interfaces.rest.dto.MotelUpsertRequestBody;
+import com.roomrental.modules.motel.interfaces.rest.dto.PaymentConfigRequestBody;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -63,6 +64,28 @@ public class MotelController {
             @PathVariable Long id, @RequestBody MotelPatchRequestBody body) {
         MotelResult result = motelService.update(id, toPatchCommand(body));
         return ResponseEntity.ok(ApiResponse.ok(result, "Motel updated"));
+    }
+
+    @PutMapping("/{id}/payment-config")
+    @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
+    @Operation(summary = "Save payment configuration (webhook secret and bank details)")
+    public ResponseEntity<ApiResponse<Void>> savePaymentConfig(
+            @PathVariable Long id,
+            @Valid @RequestBody PaymentConfigRequestBody body) {
+        motelService.savePaymentConfig(id, body.accountNumber(), body.bankName());
+        return ResponseEntity.ok(ApiResponse.ok("Payment configuration saved"));
+    }
+
+    @GetMapping("/generate-secret")
+    @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
+    @Operation(summary = "Generate a secure random secret key for webhook integration")
+    public ResponseEntity<ApiResponse<String>> generateSecret() {
+        ApiResponse<String> response = ApiResponse.<String>builder()
+                .success(true)
+                .code("SUCCESS")
+                .data(motelService.generateSecureRandomSecret())
+                .build();
+        return ResponseEntity.ok(response);
     }
 
     @DeleteMapping("/{id}")

@@ -90,7 +90,7 @@ export function PaymentModal({ isOpen, onClose, invoiceId, totalDebt, onSuccess 
             <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
               Đóng
             </Button>
-            <Button onClick={handleSubmit} disabled={loading} className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">
+            <Button id="btn-submit-payment" onClick={handleSubmit} disabled={loading} className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">
               {loading ? "Đang xử lý..." : "Tôi đã chuyển khoản"}
             </Button>
           </div>
@@ -138,7 +138,7 @@ export function PaymentModal({ isOpen, onClose, invoiceId, totalDebt, onSuccess 
             <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
               Hủy
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button id="btn-submit-payment" type="submit" disabled={loading}>
               {loading ? "Đang xử lý..." : "Xác nhận thu"}
             </Button>
           </div>

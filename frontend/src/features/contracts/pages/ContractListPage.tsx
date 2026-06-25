@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Plus, Search, FileSignature, AlertCircle, RefreshCw, ChevronDown, Clock, CheckCircle2, XCircle, Ban } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useTourGuide } from "@/hooks/useTourGuide";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
@@ -399,6 +401,8 @@ function ContractDetailModal({
 
 // ============ MAIN PAGE ============
 export function ContractListPage() {
+  const navigate = useNavigate();
+  const { refreshStatus } = useTourGuide();
   const [contracts, setContracts] = useState<ContractResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -509,7 +513,7 @@ export function ContractListPage() {
           <Button variant="outline" onClick={fetchContracts} disabled={loading}>
             <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
           </Button>
-          <Button id="create-contract-btn" onClick={() => setIsCreateOpen(true)}>
+          <Button id="btn-create-contract" onClick={() => setIsCreateOpen(true)}>
             <Plus size={16} className="mr-2" />
             Tạo hợp đồng mới
           </Button>
@@ -589,7 +593,7 @@ export function ContractListPage() {
             <FileSignature size={40} className="text-slate-200 mb-3" />
             <p className="text-slate-500 font-medium">Chưa có hợp đồng nào</p>
             <p className="text-sm text-slate-400 mt-1 mb-4">Tạo hợp đồng để bắt đầu quản lý khách thuê</p>
-            <Button onClick={() => setIsCreateOpen(true)}>
+            <Button id="btn-create-contract" onClick={() => setIsCreateOpen(true)}>
               <Plus size={16} className="mr-2" />
               Tạo hợp đồng đầu tiên
             </Button>
@@ -698,7 +702,12 @@ export function ContractListPage() {
       <CreateContractModal
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
-        onSuccess={() => { setIsCreateOpen(false); fetchContracts(); }}
+        onSuccess={() => {
+          setIsCreateOpen(false);
+          fetchContracts();
+          refreshStatus();
+          navigate("/contracts");
+        }}
       />
 
       {selectedContract && (

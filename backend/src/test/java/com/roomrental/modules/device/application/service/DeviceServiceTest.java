@@ -35,6 +35,7 @@ class DeviceServiceTest {
 
     @Mock private DeviceRepository deviceRepository;
     @Mock private MotelRepository motelRepository;
+    @Mock private org.springframework.context.ApplicationEventPublisher eventPublisher;
     @InjectMocks private DeviceService deviceService;
 
     private UUID tenantId;

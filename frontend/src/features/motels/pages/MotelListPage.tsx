@@ -3,6 +3,7 @@ import { Plus, Edit2, Trash2, Building2, AlertCircle, RefreshCw, Layers } from "
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { AddMotelModal } from "../components/AddMotelModal";
+import { useTourGuide } from "@/hooks/useTourGuide";
 import { AddRoomModal } from "../components/AddRoomModal";
 import { RoomDetailModal } from "../components/RoomDetailModal";
 import { BulkAddRoomModal } from "../components/BulkAddRoomModal";
@@ -35,6 +36,7 @@ const ROOM_CARD_BORDER: Record<string, string> = {
 };
 
 export function MotelListPage() {
+  const { refreshStatus } = useTourGuide();
   const [motels, setMotels] = useState<MotelResult[]>([]);
   const [selectedMotelId, setSelectedMotelId] = useState<number | null>(null);
   const [rooms, setRooms] = useState<RoomResult[]>([]);
@@ -143,11 +145,11 @@ export function MotelListPage() {
           <p className="text-sm text-slate-500 mt-1">{motels.length} khu trọ</p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => { setEditingMotel(undefined); setIsMotelModalOpen(true); }} variant="outline">
+          <Button id="btn-add-motel" onClick={() => { setEditingMotel(undefined); setIsMotelModalOpen(true); }} variant="outline">
             <Plus size={16} className="mr-2" />
             Thêm khu trọ
           </Button>
-          <Button onClick={() => setIsBulkAddRoomOpen(true)} disabled={!activeMotel} variant="outline">
+          <Button id="btn-bulk-create-rooms" onClick={() => setIsBulkAddRoomOpen(true)} disabled={!activeMotel} variant="outline">
             <Layers size={16} className="mr-2" />
             Tạo hàng loạt
           </Button>
@@ -208,7 +210,7 @@ export function MotelListPage() {
                   ))}
                 </div>
                 <div className="flex gap-2 ml-2">
-                  <Button variant="outline" size="sm" onClick={() => { setEditingMotel(activeMotel); setIsMotelModalOpen(true); }}>
+                  <Button id="btn-edit-motel" variant="outline" size="sm" onClick={() => { setEditingMotel(activeMotel); setIsMotelModalOpen(true); }}>
                     <Edit2 size={14} className="mr-1.5" />
                     Sửa
                   </Button>
@@ -295,7 +297,7 @@ export function MotelListPage() {
           <p className="text-sm text-slate-400 mb-6 max-w-sm">
             Tạo khu trọ đầu tiên để bắt đầu quản lý phòng, khách thuê và hóa đơn.
           </p>
-          <Button onClick={() => { setEditingMotel(undefined); setIsMotelModalOpen(true); }}>
+          <Button id="btn-add-motel" onClick={() => { setEditingMotel(undefined); setIsMotelModalOpen(true); }}>
             <Plus size={16} className="mr-2" />
             Tạo khu trọ đầu tiên
           </Button>
@@ -334,6 +336,7 @@ export function MotelListPage() {
           motelId={activeMotel.id}
           onSuccess={() => {
             fetchRooms(activeMotel.id);
+            refreshStatus();
           }}
         />
       )}
@@ -345,6 +348,7 @@ export function MotelListPage() {
         onSuccess={() => {
           setIsMotelModalOpen(false);
           fetchMotels();
+          refreshStatus();
         }}
       />
     </div>

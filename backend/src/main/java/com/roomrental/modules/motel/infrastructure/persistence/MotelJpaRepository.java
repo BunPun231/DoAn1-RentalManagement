@@ -12,4 +12,8 @@ public interface MotelJpaRepository extends JpaRepository<MotelEntity, Long> {
     Optional<MotelEntity> findByIdAndTenantId(Long id, UUID tenantId);
 
     Page<MotelEntity> findByTenantId(UUID tenantId, Pageable pageable);
+
+    long countByTenantIdAndDeletedFalse(UUID tenantId);
+
+    java.util.List<MotelEntity> findByTenantIdAndDeletedFalse(UUID tenantId);
 }
