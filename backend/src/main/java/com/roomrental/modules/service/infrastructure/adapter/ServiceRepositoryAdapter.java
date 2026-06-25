@@ -8,7 +8,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Component
 public class ServiceRepositoryAdapter implements RentalServiceRepository {
@@ -39,6 +41,13 @@ public class ServiceRepositoryAdapter implements RentalServiceRepository {
     @Override
     public Page<RentalService> findByMotelId(Long motelId, Pageable pageable) {
         return jpa.findByMotelId(motelId, pageable).map(mapper::toDomain);
+    }
+
+    @Override
+    public List<RentalService> findByMotelIdAndMandatory(Long motelId, boolean mandatory) {
+        return jpa.findByMotelIdAndMandatory(motelId, mandatory).stream()
+                .map(mapper::toDomain)
+                .collect(Collectors.toList());
     }
 
     @Override

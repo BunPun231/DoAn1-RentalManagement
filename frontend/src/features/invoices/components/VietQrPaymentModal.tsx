@@ -45,6 +45,22 @@ export function VietQrPaymentModal({ isOpen, onClose, invoiceId, onSuccess }: Vi
     }
   }, [isOpen, invoiceId]);
 
+  // Complete tenant onboarding on mount/unmount if user is tenant
+  useEffect(() => {
+    if (isOpen) {
+      const isTenant = !!(user && ((user.role as string) === "TENANT" || (user.role as string) === "RESIDENT"));
+      if (isTenant) {
+        completeTenantOnboarding();
+      }
+    }
+    return () => {
+      const isTenant = !!(user && ((user.role as string) === "TENANT" || (user.role as string) === "RESIDENT"));
+      if (isTenant) {
+        completeTenantOnboarding();
+      }
+    };
+  }, [isOpen, user, completeTenantOnboarding]);
+
   // 1. Fetch payment details
   useEffect(() => {
     if (isOpen) {

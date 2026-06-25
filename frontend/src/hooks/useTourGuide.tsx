@@ -369,7 +369,7 @@ export const SUB_STEPS: SubStep[] = [
     subStep: 4,
     selector: "#input-service-price",
     title: "Đơn giá dịch vụ",
-    description: "Bác nhập đơn giá cơ bản cho dịch vụ.",
+    description: "Bác nhập đơn giá cơ bản cho dịch vụ (cố định theo phòng, tính theo đầu người, hoặc đo đếm theo chỉ số đồng hồ điện/nước).",
     targetPath: "/services",
     position: "bottom"
   },
@@ -441,7 +441,7 @@ export const SUB_STEPS: SubStep[] = [
     subStep: 5,
     selector: "#btn-use-sample-cccd",
     title: "Quét CCCD OCR",
-    description: "Bác bấm 'Sử dụng ảnh mẫu' để tự động tải lên ảnh CCCD demo và quét thông tin nhé!",
+    description: "Bác bấm vào nút Quét OCR CCCD dưới đây để hệ thống tự động nhận diện điền tên nhé!<br/><i style=\"font-size: 12px; color: #475569;\">(Để tiết kiệm thời gian tìm kiếm tệp tin, ứng dụng đã chuẩn bị sẵn một bức ảnh mẫu giúp bác làm thử cho nhanh nhé!)</i>",
     targetPath: "/contracts",
     position: "bottom"
   },
@@ -513,7 +513,7 @@ export const SUB_STEPS: SubStep[] = [
     subStep: 2,
     selector: "#btn-use-sample-meter",
     title: "Sử dụng ảnh mẫu",
-    description: "Bác bấm 'Sử dụng ảnh mẫu' để tự động tải lên ảnh đồng hồ điện mẫu nhé!",
+    description: "Bác bấm 'Sử dụng ảnh mẫu' để tự động tải lên ảnh đồng hồ điện mẫu nhé!<br/><i style=\"font-size: 12px; color: #475569;\">(Để tiết kiệm thời gian tìm kiếm tệp tin, ứng dụng đã chuẩn bị sẵn một bức ảnh mẫu giúp bác làm thử cho nhanh nhé!)</i>",
     targetPath: "/meter",
     position: "bottom"
   },
@@ -521,7 +521,7 @@ export const SUB_STEPS: SubStep[] = [
     id: "5.3",
     stage: 5,
     subStep: 3,
-    selector: "#btn-trigger-ocr",
+    selector: "#btn-use-sample-meter",
     title: "Nhận diện bằng AI",
     description: "Bác bấm nút Tự động nhận diện (OCR) để AI quét số trên ảnh đồng hồ nhé!",
     targetPath: "/meter",
@@ -619,7 +619,7 @@ export const TENANT_SUB_STEPS: SubStep[] = [
     subStep: 2,
     selector: "#btn-use-sample-meter",
     title: "Tải ảnh minh chứng",
-    description: "Bác bấm 'Sử dụng ảnh mẫu' để tự động tải lên ảnh đồng hồ điện mẫu của phòng nhé!",
+    description: "Bác bấm 'Sử dụng ảnh mẫu' để tự động tải lên ảnh đồng hồ điện mẫu của phòng nhé!<br/><i style=\"font-size: 12px; color: #475569;\">(Để tiết kiệm thời gian tìm kiếm tệp tin, ứng dụng đã chuẩn bị sẵn một bức ảnh mẫu giúp bác làm thử cho nhanh nhé!)</i>",
     targetPath: "/meter",
     position: "bottom"
   },
@@ -627,7 +627,7 @@ export const TENANT_SUB_STEPS: SubStep[] = [
     id: "1.3",
     stage: 1,
     subStep: 3,
-    selector: "#btn-trigger-ocr",
+    selector: "#btn-use-sample-meter",
     title: "Nhận diện bằng AI",
     description: "Bác bấm nút Tự động nhận diện (OCR) để AI quét số trên ảnh đồng hồ điện nhé!",
     targetPath: "/meter",
@@ -942,16 +942,22 @@ export function TourGuideProvider({ children }: { children: React.ReactNode }) {
       const currentIndex = TENANT_SUB_STEPS.findIndex(s => s.id === tenantSubStepId);
       if (currentIndex !== -1 && currentIndex < TENANT_SUB_STEPS.length - 1) {
         const nextStep = TENANT_SUB_STEPS[currentIndex + 1];
-        if (nextStep.stage === tenantStep) {
+        if (nextStep.stage === tenantStep || nextStep.stage === tenantStep + 1) {
           setTenantSubStepId(nextStep.id);
           localStorage.setItem("tenant_onboarding_substep", nextStep.id);
+          if (nextStep.stage === tenantStep + 1) {
+            const nextTenantStep = tenantStep + 1;
+            setTenantStep(nextTenantStep);
+            localStorage.setItem("tenant_onboarding_step", nextTenantStep.toString());
+            navigate(nextStep.targetPath);
+          }
         }
       }
     } else {
       const currentIndex = SUB_STEPS.findIndex(s => s.id === activeSubStepId);
       if (currentIndex !== -1 && currentIndex < SUB_STEPS.length - 1) {
         const nextStep = SUB_STEPS[currentIndex + 1];
-        if (nextStep.stage === effectiveStep) {
+        if (nextStep.stage === effectiveStep || nextStep.stage === effectiveStep + 1) {
           // Instantly close/open image modal for smooth transitions
           const openSteps = ["1.11", "1.13", "1.14", "1.16", "1.17"];
           const wasOpen = openSteps.includes(activeSubStepId);
@@ -980,10 +986,13 @@ export function TourGuideProvider({ children }: { children: React.ReactNode }) {
           }
           setActiveSubStepId(nextStep.id);
           localStorage.setItem("onboarding_substep", nextStep.id);
+          if (nextStep.stage === effectiveStep + 1) {
+            navigate(nextStep.targetPath);
+          }
         }
       }
     }
-  }, [isTenantMode, tenantSubStepId, tenantStep, activeSubStepId, effectiveStep]);
+  }, [isTenantMode, tenantSubStepId, tenantStep, activeSubStepId, effectiveStep, navigate]);
 
   const regressSubStep = useCallback(() => {
     if (isTenantMode) {
@@ -1394,7 +1403,8 @@ export function TourGuideProvider({ children }: { children: React.ReactNode }) {
             currentStepId === "2.5" ||
             currentStepId === "3.6" ||
             currentStepId === "4.8" ||
-            currentStepId === "5.5"
+            currentStepId === "5.5" ||
+            currentStepId === "6.2"
           );
           if (isSubmitStep) {
             popover.nextButton.style.display = "none";

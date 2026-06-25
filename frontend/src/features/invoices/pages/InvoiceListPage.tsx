@@ -53,11 +53,28 @@ function GenerateInvoiceModal({
     setError("");
     setLoading(true);
     try {
-      const res = await invoiceService.generate({
+      await invoiceService.generate({
         motelId: parseInt(motelId, 10),
         billingMonth,
       });
-      setResult({ generatedCount: res.generatedCount });
+
+      // Wait/poll for the async invoice generation to write to DB
+      for (let i = 0; i < 15; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        try {
+          const listRes = await invoiceService.list(parseInt(motelId, 10), undefined, 0, 50);
+          if (listRes.content && listRes.content.length > 0) {
+            const hasInv = listRes.content.some(
+              (inv) => inv.billingMonth && inv.billingMonth.startsWith(billingMonth)
+            );
+            if (hasInv) {
+              break;
+            }
+          }
+        } catch (ignored) {}
+      }
+
+      setResult({ generatedCount: 1 });
     } catch (err) {
       setError(extractError(err));
     } finally {
@@ -372,24 +389,39 @@ export function InvoiceListPage() {
                     <div className="flex justify-end gap-2">
                       {(invoice.status === "PENDING" || invoice.status === "PARTIAL") && (
                         <>
-                          <Button
-                            id="btn-preview-qr-invoice"
-                            variant="outline"
-                            size="sm"
-                            className="text-brand-deep border-brand-deep hover:bg-brand-deep/5"
-                            onClick={() => setPreviewQrInvoice(invoice)}
-                          >
-                            Mã QR
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 border-emerald-200"
-                            onClick={() => setPaymentInvoice(invoice)}
-                          >
-                            <CreditCard size={14} className="mr-1.5" />
-                            {isTenant ? "Thanh toán" : "Thu tiền"}
-                          </Button>
+                          {isTenant ? (
+                            <Button
+                              id="btn-preview-qr-invoice"
+                              variant="outline"
+                              size="sm"
+                              className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 border-emerald-200"
+                              onClick={() => setPaymentInvoice(invoice)}
+                            >
+                              <CreditCard size={14} className="mr-1.5" />
+                              Thanh toán bằng VietQR ➜
+                            </Button>
+                          ) : (
+                            <>
+                              <Button
+                                id="btn-preview-qr-invoice"
+                                variant="outline"
+                                size="sm"
+                                className="text-brand-deep border-brand-deep hover:bg-brand-deep/5"
+                                onClick={() => setPreviewQrInvoice(invoice)}
+                              >
+                                Mã QR
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 border-emerald-200"
+                                onClick={() => setPaymentInvoice(invoice)}
+                              >
+                                <CreditCard size={14} className="mr-1.5" />
+                                Thu tiền
+                              </Button>
+                            </>
+                          )}
                         </>
                       )}
                       <Button

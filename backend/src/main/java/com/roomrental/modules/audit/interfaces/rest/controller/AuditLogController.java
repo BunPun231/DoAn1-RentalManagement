@@ -15,6 +15,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneOffset;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
@@ -34,12 +37,21 @@ public class AuditLogController {
             @RequestParam(required = false) UUID actorId,
             @RequestParam(required = false) String action,
             @RequestParam(required = false) String entityType,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime fromDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime toDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
             Pageable pageable) {
 
-        AuditLogFilter filter = new AuditLogFilter(actorId, action, entityType, fromDate, toDate);
-        Page<AuditLogResult> logs = auditLogService.findAll(filter, pageable);
+        OffsetDateTime from = fromDate != null ? fromDate.atStartOfDay(ZoneOffset.UTC).toOffsetDateTime() : null;
+        OffsetDateTime to = toDate != null ? toDate.atTime(LocalTime.MAX).atZone(ZoneOffset.UTC).toOffsetDateTime() : null;
+
+        Pageable sortedPageable = org.springframework.data.domain.PageRequest.of(
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "timestamp")
+        );
+
+        AuditLogFilter filter = new AuditLogFilter(actorId, action, entityType, from, to);
+        Page<AuditLogResult> logs = auditLogService.findAll(filter, sortedPageable);
         return ResponseEntity.ok(ApiResponse.ok(logs, "Success"));
     }
 

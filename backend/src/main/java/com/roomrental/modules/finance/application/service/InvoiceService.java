@@ -428,6 +428,12 @@ public class InvoiceService {
                     .orElse(null);
         }
 
+        List<InvoiceDetailResult> detailResults = invoice.getDetails() != null
+                ? invoice.getDetails().stream().map(d -> new InvoiceDetailResult(
+                        d.getId(), d.getDescription(), d.getQuantity(), d.getUnitPrice(), d.getLineTotal(), d.getServiceId()
+                  )).toList()
+                : List.of();
+
         return new InvoiceResult(
             invoice.getId(),
             invoice.getContractId(),
@@ -445,7 +451,8 @@ public class InvoiceService {
             invoice.getInvoiceType().name(),
             invoice.getCancelReason(),
             invoice.getDueDate(),
-            invoice.getCreatedAt()
+            invoice.getCreatedAt(),
+            detailResults
         );
     }
 

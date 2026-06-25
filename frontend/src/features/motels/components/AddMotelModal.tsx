@@ -139,10 +139,10 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
     if (activeSubStepId && activeSubStepId.startsWith("1.")) {
       const stepMap: Record<string, number> = {
         "1.11": 1,
-        "1.12": 2,
+        "1.12": 1,
         "1.13": 2,
         "1.14": 3,
-        "1.15": 4,
+        "1.15": 3,
         "1.16": 4,
         "1.17": 5,
         "1.18": 5
@@ -186,9 +186,9 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
     if (activeSubStepId === "1.12" && type === "url") {
       setActiveSubStepId("1.13");
       localStorage.setItem("onboarding_substep", "1.13");
-    } else if (activeSubStepId === "1.14" && type === "key") {
-      setActiveSubStepId("1.15");
-      localStorage.setItem("onboarding_substep", "1.15");
+    } else if (activeSubStepId === "1.15" && type === "key") {
+      setActiveSubStepId("1.16");
+      localStorage.setItem("onboarding_substep", "1.16");
     }
   };
 
@@ -363,31 +363,7 @@ export function AddMotelModal({ isOpen, onClose, onSuccess, motel }: AddMotelMod
             </div>
           </div>
 
-          {/* Synchronize SePay guide steps based on onboarding tour sub-step */}
-          {(() => {
-            useEffect(() => {
-              if (activeSubStepId === "1.10") {
-                setShowGuide(true);
-                setGuideStep(1);
-              } else if (activeSubStepId === "1.11") {
-                setShowGuide(true);
-                setGuideStep(1);
-              } else if (activeSubStepId === "1.12") {
-                setShowGuide(true);
-                setGuideStep(2);
-              } else if (activeSubStepId === "1.13") {
-                setShowGuide(true);
-                setGuideStep(3);
-              } else if (activeSubStepId === "1.14") {
-                setShowGuide(true);
-                setGuideStep(4);
-              } else if (activeSubStepId === "1.15") {
-                setShowGuide(true);
-                setGuideStep(5);
-              }
-            }, [activeSubStepId]);
-            return null;
-          })()}
+          {/* Webhook guide synchronization handles step adjustments automatically */}
 
           {/* Bank Config options - Visible in both flows */}
           <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50/50 space-y-3">

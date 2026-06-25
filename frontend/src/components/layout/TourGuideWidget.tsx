@@ -1,15 +1,18 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useTourGuide, ONBOARDING_STEPS, SUB_STEPS } from "@/hooks/useTourGuide";
+import { useTourGuide, ONBOARDING_STEPS, SUB_STEPS, TENANT_ONBOARDING_STEPS, TENANT_SUB_STEPS } from "@/hooks/useTourGuide";
 import {
   HelpCircle, ChevronDown, ChevronUp, Check, Play,
   BookOpen, Sparkles, X, ArrowRight, ExternalLink
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { useAuthStore } from "@/store/authStore";
 
 export function TourGuideWidget() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuthStore();
+  
   const {
     onboardingStatus,
     loading,
@@ -26,8 +29,14 @@ export function TourGuideWidget() {
     setActiveSubStepId,
     isDriverActive,
     localOverrideStep,
-    setLocalOverrideStep
+    setLocalOverrideStep,
+    completeTenantOnboarding
   } = useTourGuide();
+
+  const isTenant = !!(user && ((user.role as string) === "TENANT" || (user.role as string) === "RESIDENT"));
+  const stepsList = isTenant ? TENANT_ONBOARDING_STEPS : ONBOARDING_STEPS;
+  const subStepsList = isTenant ? TENANT_SUB_STEPS : SUB_STEPS;
+  const tenantStep = isTenant ? currentStep : 1;
 
   // Pulse effect trigger for new steps
   const [pulse, setPulse] = useState(false);
@@ -38,7 +47,7 @@ export function TourGuideWidget() {
     return () => clearTimeout(t);
   }, [currentStep]);
 
-  if (loading && !onboardingStatus) return null;
+  if (loading && !onboardingStatus && !isTenant) return null;
 
   const activeStepNumber = localOverrideStep !== null ? localOverrideStep : currentStep;
 
@@ -46,12 +55,13 @@ export function TourGuideWidget() {
   const startStepGuide = (stepNum: number) => {
     setLocalOverrideStep(stepNum);
     setIsGuideOpen(true);
-    const firstSubStep = SUB_STEPS.find(s => s.stage === stepNum);
+    const firstSubStep = subStepsList.find(s => s.stage === stepNum);
     if (firstSubStep) {
       setActiveSubStepId(firstSubStep.id);
-      localStorage.setItem("onboarding_substep", firstSubStep.id);
+      const storageKey = isTenant ? "tenant_onboarding_substep" : "onboarding_substep";
+      localStorage.setItem(storageKey, firstSubStep.id);
     }
-    const targetStep = ONBOARDING_STEPS[stepNum - 1];
+    const targetStep = stepsList[stepNum - 1];
     if (targetStep && location.pathname !== targetStep.targetPath) {
       navigate(targetStep.targetPath);
     }
@@ -140,6 +150,10 @@ export function TourGuideWidget() {
   };
 
   const getStepStatus = (stepNum: number) => {
+    if (isTenant) {
+      if (hasCompletedOnboarding) return "done";
+      return tenantStep > stepNum ? "done" : "todo";
+    }
     if (!onboardingStatus) return "todo";
     switch (stepNum) {
       case 1: return onboardingStatus.hasMotel ? "done" : "todo";
@@ -168,7 +182,9 @@ export function TourGuideWidget() {
                 </div>
                 <div>
                   <h4 className="font-extrabold text-slate-800 text-sm">Trợ lý Hướng dẫn</h4>
-                  <p className="text-[10px] text-slate-400">Đồng hành cùng bác chủ trọ</p>
+                  <p className="text-[10px] text-slate-400">
+                    {isTenant ? "Theo dõi phòng & hóa đơn" : "Đồng hành cùng bác chủ trọ"}
+                  </p>
                 </div>
               </div>
               <button
@@ -185,9 +201,11 @@ export function TourGuideWidget() {
                 /* ONBOARDING FLOW MODE (6 STEPS) */
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-500 uppercase">Tiến trình thiết lập</span>
+                    <span className="text-xs font-bold text-slate-500 uppercase">
+                      {isTenant ? "Tiến trình hướng dẫn" : "Tiến trình thiết lập"}
+                    </span>
                     <span className="text-xs font-extrabold text-brand-deep">
-                      {ONBOARDING_STEPS.filter(s => getStepStatus(s.stepNumber) === "done").length}/6 Hoàn thành
+                      {stepsList.filter(s => getStepStatus(s.stepNumber) === "done").length}/{stepsList.length} Hoàn thành
                     </span>
                   </div>
 
@@ -209,7 +227,7 @@ export function TourGuideWidget() {
 
                   {/* Checklist steps */}
                   <div className="space-y-2">
-                    {ONBOARDING_STEPS.map((step) => {
+                    {stepsList.map((step) => {
                       const status = getStepStatus(step.stepNumber);
                       const isActive = activeStepNumber === step.stepNumber;
                       return (
@@ -254,7 +272,7 @@ export function TourGuideWidget() {
                               {/* Render sub-steps progress */}
                               <div className="space-y-1.5 border-t border-slate-200/60 pt-2.5">
                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Các bước thực hiện:</span>
-                                {SUB_STEPS.filter(s => s.stage === step.stepNumber).map(sub => {
+                                {subStepsList.filter(s => s.stage === step.stepNumber).map(sub => {
                                   const isSubActive = activeSubStepId === sub.id;
                                   const isSubDone = parseFloat(activeSubStepId) > parseFloat(sub.id);
                                   

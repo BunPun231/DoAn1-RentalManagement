@@ -67,6 +67,7 @@ export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContra
 
       if (currentStep === 4) {
         setRepType("new");
+        setDepositStatus("PAID");
       }
 
       // Default start and end dates

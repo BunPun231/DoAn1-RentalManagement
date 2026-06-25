@@ -3,6 +3,7 @@ package com.roomrental.modules.finance.application.dto;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.List;
 
 public record InvoiceResult(
     Long id,
@@ -21,6 +22,6 @@ public record InvoiceResult(
     String invoiceType,
     String cancelReason,
     LocalDate dueDate,
-    OffsetDateTime createdAt
+    OffsetDateTime createdAt,
+    List<InvoiceDetailResult> details
 ) {}
-
