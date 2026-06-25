@@ -706,7 +706,7 @@ export function ContractListPage() {
           setIsCreateOpen(false);
           fetchContracts();
           refreshStatus();
-          navigate("/residents");
+          navigate("/contracts");
         }}
       />
 

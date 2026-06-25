@@ -19,12 +19,12 @@ interface CreateContractModalProps {
 }
 
 export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContractModalProps) {
-  const { currentStep, activeSubStepId, setActiveSubStepId } = useTourGuide();
+  const { currentStep, activeSubStepId, setActiveSubStepId, isGuideOpen } = useTourGuide();
   const [motels, setMotels] = useState<MotelResult[]>([]);
   const [selectedMotelId, setSelectedMotelId] = useState<number | "">("");
   const [rooms, setRooms] = useState<RoomResult[]>([]);
   const [services, setServices] = useState<ServiceResult[]>([]);
-  
+
   // Form fields
   const [selectedRoomId, setSelectedRoomId] = useState<number | "">("");
   const [startDate, setStartDate] = useState("");
@@ -34,7 +34,7 @@ export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContra
   const [rentPrice, setRentPrice] = useState("");
   const [depositAmount, setDepositAmount] = useState("");
   const [depositStatus, setDepositStatus] = useState("UNPAID");
-  
+
   // Representative tabs
   const [repType, setRepType] = useState<"existing" | "new">("existing");
   const [residents, setResidents] = useState<ResidentResult[]>([]);
@@ -58,6 +58,13 @@ export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContra
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
+  // Force deposit status to PAID during onboarding stage 4
+  useEffect(() => {
+    if (isGuideOpen && currentStep === 4) {
+      setDepositStatus("PAID");
+    }
+  }, [isGuideOpen, currentStep]);
+
   // Load motels and residents on open
   useEffect(() => {
     if (isOpen) {
@@ -67,7 +74,6 @@ export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContra
 
       if (currentStep === 4) {
         setRepType("new");
-        setDepositStatus("PAID");
       }
 
       // Default start and end dates
@@ -97,7 +103,7 @@ export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContra
 
   const applyMotelBillingConfigs = (motelId: number, basePrice: number) => {
     const selectedMotel = motels.find(m => m.id === motelId);
-    
+
     // closingDay
     const closingDayVal = selectedMotel && typeof selectedMotel.billingCycleDay === 'number' ? selectedMotel.billingCycleDay : 31;
     setBillingCycleDay(closingDayVal);
@@ -495,18 +501,16 @@ export function CreateContractModal({ isOpen, onClose, onSuccess }: CreateContra
             <button
               type="button"
               onClick={() => setRepType("existing")}
-              className={`px-4 py-2 font-medium text-xs rounded-lg transition-all ${
-                repType === "existing" ? "bg-brand-deep text-white shadow-sm" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-              }`}
+              className={`px-4 py-2 font-medium text-xs rounded-lg transition-all ${repType === "existing" ? "bg-brand-deep text-white shadow-sm" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
             >
               Chọn khách thuê có sẵn
             </button>
             <button
               type="button"
               onClick={() => setRepType("new")}
-              className={`px-4 py-2 font-medium text-xs rounded-lg transition-all ${
-                repType === "new" ? "bg-brand-deep text-white shadow-sm" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-              }`}
+              className={`px-4 py-2 font-medium text-xs rounded-lg transition-all ${repType === "new" ? "bg-brand-deep text-white shadow-sm" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
             >
               Nhập khách thuê mới
             </button>

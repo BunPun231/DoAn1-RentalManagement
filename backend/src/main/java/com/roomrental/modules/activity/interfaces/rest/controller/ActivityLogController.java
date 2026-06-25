@@ -44,7 +44,12 @@ public class ActivityLogController {
 
         UUID tenantId = SecurityUtils.requireTenantId();
         OffsetDateTime from = fromDate != null ? fromDate.atStartOfDay(ZoneOffset.UTC).toOffsetDateTime() : null;
-        OffsetDateTime to = toDate != null ? toDate.atTime(LocalTime.MAX).atZone(ZoneOffset.UTC).toOffsetDateTime() : null;
+        OffsetDateTime to = null;
+        if (toDate != null) {
+            to = toDate.atTime(LocalTime.MAX).atZone(ZoneOffset.UTC).toOffsetDateTime();
+        } else if (fromDate != null) {
+            to = fromDate.atTime(LocalTime.MAX).atZone(ZoneOffset.UTC).toOffsetDateTime();
+        }
 
         Pageable sortedPageable = org.springframework.data.domain.PageRequest.of(
                 pageable.getPageNumber(),

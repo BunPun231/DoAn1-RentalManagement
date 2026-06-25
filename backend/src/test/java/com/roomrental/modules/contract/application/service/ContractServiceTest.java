@@ -131,6 +131,60 @@ class ContractServiceTest {
     }
 
     @Test
+    @DisplayName("Create contract with service items saves contract services")
+    void create_withServiceItems_savesContractServices() {
+        Room room = baseRoom();
+        Motel motel = new Motel();
+        motel.setId(room.getMotelId());
+        motel.setTenantId(tenantId);
+
+        com.roomrental.modules.service.domain.model.RentalService service = new com.roomrental.modules.service.domain.model.RentalService();
+        service.setId(100L);
+        service.setMotelId(room.getMotelId());
+        service.setChargeType(com.roomrental.modules.service.domain.model.ChargeType.FIXED);
+
+        when(roomRepository.findById(room.getId())).thenReturn(Optional.of(room));
+        when(motelRepository.findByIdAndTenantId(room.getMotelId(), tenantId)).thenReturn(Optional.of(motel));
+        when(contractRepository.existsActiveByRoomId(tenantId, room.getId())).thenReturn(false);
+        when(rentalServiceRepository.findByIdAndMotelId(100L, room.getMotelId())).thenReturn(Optional.of(service));
+        when(rentalServiceRepository.findByMotelIdAndMandatory(room.getMotelId(), true)).thenReturn(List.of());
+        when(contractRepository.save(any(Contract.class))).thenAnswer(inv -> {
+            Contract c = inv.getArgument(0);
+            c.setId(1L);
+            return c;
+        });
+
+        contractService.create(new ContractCreateCommand(
+                10L,
+                UUID.randomUUID().toString(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                new BigDecimal("4500000"),
+                LocalDate.of(2024, 1, 1),
+                LocalDate.of(2025, 1, 1),
+                new BigDecimal("5000000"),
+                "UNPAID",
+                null,
+                30,
+                1,
+                List.of(),
+                List.of(new com.roomrental.modules.contract.application.dto.ContractServiceItemCommand(100L, 1, null))
+        ));
+
+        ArgumentCaptor<List<com.roomrental.modules.contract.domain.model.ContractServiceItem>> servicesCaptor = ArgumentCaptor.forClass(List.class);
+        verify(contractServiceItemRepository).saveAll(servicesCaptor.capture());
+        List<com.roomrental.modules.contract.domain.model.ContractServiceItem> savedItems = servicesCaptor.getValue();
+
+        assertThat(savedItems).hasSize(1);
+        assertThat(savedItems.get(0).getServiceId()).isEqualTo(100L);
+        assertThat(savedItems.get(0).getQuantity()).isEqualTo(1);
+    }
+
+    @Test
     @DisplayName("Create contract validates start/end dates")
     void create_invalidDates_throws() {
         assertThatThrownBy(() -> contractService.create(new ContractCreateCommand(
